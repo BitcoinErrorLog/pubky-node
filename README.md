@@ -286,7 +286,7 @@ pubky-node dns-setup [--dry-run] [--remove]                   # configure OS DNS
 ## Development
 
 ```bash
-# Run tests (42 unit tests)
+# Run tests (46 unit tests)
 cargo test
 
 # Run clippy
