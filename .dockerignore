@@ -1,0 +1,15 @@
+# Build artifacts
+target/
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation and non-build files
+*.md
+LICENSE*
+umbrel/

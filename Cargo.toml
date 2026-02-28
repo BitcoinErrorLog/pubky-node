@@ -1,0 +1,44 @@
+[package]
+name = "pubky-node"
+version = "0.1.0"
+edition = "2021"
+description = "A unified sovereign network participant for the Pubky ecosystem"
+license = "MIT"
+
+[dependencies]
+# Core Pubky dependencies (local paths)
+pkarr-relay = { path = "../pkarr/relay" }
+pkarr = { path = "../pkarr/pkarr", default-features = false, features = ["dht", "lmdb-cache"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP server for dashboard
+axum = "0.8"
+serde_json = "1"
+
+# CLI and config
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+dirs-next = "2.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1"
+
+# Hex encoding for secret keys
+hex = "0.4"
+
+# Secure memory zeroization for secret keys
+zeroize = "1"
+
+# UPnP auto-port-forwarding
+igd-next = { version = "0.15", features = ["aio_tokio"] }
+
+# Unix signals for subprocess management
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

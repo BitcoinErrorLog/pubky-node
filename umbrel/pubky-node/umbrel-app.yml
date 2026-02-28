@@ -1,0 +1,38 @@
+manifestVersion: 1
+id: pubky-node
+category: networking
+name: Pubky Node
+version: "0.1.0"
+tagline: Sovereign identity infrastructure for the Pubky network
+description: >-
+  Run a full Pubky network node on your Umbrel. Pubky Node participates in the
+  Mainline DHT — the largest P2P network on Earth with millions of nodes — and
+  runs a Pkarr relay for publishing and resolving decentralized DNS records.
+
+
+  Your node automatically attempts UPnP port forwarding for full DHT participation.
+  If your router supports UPnP, no manual configuration is needed. Otherwise, the
+  node runs in client mode which still supports all features.
+
+
+  Features include a web dashboard for monitoring, a Key Explorer to look up any
+  public key's DNS records, an Identity Watchlist to keep friends' records alive,
+  and an optional DNS publisher for signing records with Ed25519 keys.
+developer: Pubky
+website: https://pubky.org
+dependencies: []
+repo: https://github.com/pubky/pubky-node
+support: https://github.com/pubky/pubky-node/issues
+port: 9090
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+releaseNotes: >-
+  Initial release with DHT node, Pkarr relay, Key Explorer, Identity Watchlist,
+  DNS publisher, UPnP auto-port-forwarding, and web dashboard with User Guide.
+submitter: Pubky
+submission: ""

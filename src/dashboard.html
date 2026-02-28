@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pubky Node</title>
+    <link rel="stylesheet" href="/dashboard.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app">
+        <!-- Ambient glow -->
+        <div class="ambient-glow"></div>
+
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg class="logo-svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 2L28.66 10v12L16 30 3.34 22V10L16 2z" stroke="url(#logo-grad)" stroke-width="2"
+                            fill="none" />
+                        <circle cx="16" cy="16" r="5" fill="url(#logo-grad)" opacity="0.6" />
+                        <circle cx="16" cy="16" r="2" fill="url(#logo-grad)" />
+                        <defs>
+                            <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32">
+                                <stop offset="0%" stop-color="#818cf8" />
+                                <stop offset="100%" stop-color="#6366f1" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span class="logo-text">Pubky Node</span>
+                </div>
+                <span class="version-pill" id="version">v0.0.0</span>
+            </div>
+            <div class="header-right">
+                <nav class="tabs" id="nav-tabs">
+                    <button class="tab active" data-tab="status">Status</button>
+                    <button class="tab" data-tab="explorer">Explorer</button>
+                    <button class="tab" data-tab="guide">Guide</button>
+                </nav>
+                <div class="status-indicator" id="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-label">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <!-- ===== STATUS TAB ===== -->
+            <div class="tab-content active" id="tab-status">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="uptime">--</span>
+                            <span class="stat-label">Uptime</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🌐</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="routing-table-size">--</span>
+                            <span class="stat-label">DHT Network</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">👁</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="watchlist-count">--</span>
+                            <span class="stat-label">Watched Keys</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid">
+                    <!-- DHT Panel -->
+                    <section class="card" id="dht-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-blue">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="2" y1="12" x2="22" y2="12" />
+                                        <path
+                                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                                    </svg>
+                                </div>
+                                <h2>Mainline DHT</h2>
+                            </div>
+                            <span class="badge" id="dht-badge">--</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">Node ID</span>
+                                <span class="kv-val mono" id="node-id">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Listen Address</span>
+                                <span class="kv-val mono" id="listen-addr">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Mode</span>
+                                <span class="kv-val" id="dht-mode">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Firewalled</span>
+                                <span class="kv-val" id="firewalled">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Network Size</span>
+                                <span class="kv-val" id="rt-detail">--</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Relay Panel -->
+                    <section class="card" id="relay-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                    </svg>
+                                </div>
+                                <h2>Pkarr Relay</h2>
+                            </div>
+                            <span class="badge badge-active">Active</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">HTTP Port</span>
+                                <span class="kv-val mono" id="relay-port">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Endpoint</span>
+                                <span class="kv-val">
+                                    <a href="#" id="relay-url" target="_blank" class="link">--</a>
+                                </span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Protocol</span>
+                                <span class="kv-val">HTTP GET/PUT</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- UPnP / Network Panel -->
+                    <section class="card" id="upnp-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                        <circle cx="12" cy="20" r="1" fill="currentColor" />
+                                    </svg>
+                                </div>
+                                <h2>Network / UPnP</h2>
+                            </div>
+                            <span class="badge" id="upnp-badge">--</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">Port Mapping</span>
+                                <span class="kv-val" id="upnp-status">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">External IP</span>
+                                <span class="kv-val mono" id="upnp-external-ip">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Mapped Port</span>
+                                <span class="kv-val mono" id="upnp-port">--</span>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="card" id="watchlist-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-amber">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                </div>
+                                <h2>Identity Watchlist</h2>
+                            </div>
+                            <span class="badge" id="watchlist-badge">--</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">Status</span>
+                                <span class="kv-val" id="watchlist-status">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Republish Interval</span>
+                                <span class="kv-val" id="republish-interval">--</span>
+                            </div>
+                            <div class="watchlist-keys" id="watchlist-keys"></div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ===== EXPLORER TAB ===== -->
+            <div class="tab-content" id="tab-explorer">
+                <div class="explorer-hero">
+                    <h1>Key Explorer</h1>
+                    <p>Look up any Pkarr public key to inspect its DNS records from the Mainline DHT.</p>
+                </div>
+
+                <div class="explorer-search-wrap">
+                    <div class="explorer-search">
+                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" id="explorer-input"
+                            placeholder="Paste a 52-character z-base-32 public key..." spellcheck="false"
+                            autocomplete="off">
+                        <button id="explorer-btn" class="btn-primary" onclick="resolveKey()">
+                            <span>Resolve</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="explorer-error" class="alert alert-error" style="display:none;"></div>
+
+                <!-- Results -->
+                <div id="explorer-results" class="explorer-results" style="display:none;">
+                    <div class="explorer-meta" id="explorer-meta"></div>
+                    <div class="dns-table-wrap">
+                        <div class="dns-table-header">
+                            <span>NAME</span>
+                            <span>TYPE</span>
+                            <span>VALUE</span>
+                            <span>TTL</span>
+                        </div>
+                        <div id="dns-records-body" class="dns-table-body"></div>
+                    </div>
+                </div>
+
+                <!-- No records -->
+                <div id="explorer-empty" class="explorer-empty" style="display:none;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        opacity="0.3">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                    <p>No records found for this key on the DHT.</p>
+                </div>
+
+                <!-- Loading -->
+                <div id="explorer-loading" class="explorer-loading" style="display:none;">
+                    <div class="spinner"></div>
+                    <span>Resolving from DHT network...</span>
+                </div>
+
+                <!-- History -->
+                <div class="explorer-history" id="explorer-history" style="display:none;">
+                    <h3>Recent Lookups</h3>
+                    <div id="history-list"></div>
+                </div>
+            </div>
+
+            <!-- ===== GUIDE TAB ===== -->
+            <div class="tab-content" id="tab-guide">
+                <div class="guide">
+                    <div class="guide-hero">
+                        <h1>User Guide</h1>
+                        <p>Everything you need to know about running and using Pubky Node.</p>
+                    </div>
+
+                    <div class="guide-grid">
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🌐</div>
+                            <h2>Mainline DHT Node</h2>
+                            <p>Pubky Node runs a full <strong>Mainline DHT</strong> node using the BEP44 protocol. This
+                                connects you to a network of millions of peers, enabling decentralized DNS record
+                                storage and retrieval without any central server.</p>
+                            <ul>
+                                <li>Automatic peer discovery and routing table population</li>
+                                <li>Server mode when not firewalled for full network participation</li>
+                                <li>Configurable UDP port via <code>--dht-port</code> or <code>[dht] port</code> in
+                                    config</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">📡</div>
+                            <h2>Pkarr Relay</h2>
+                            <p>The relay provides an <strong>HTTP API</strong> for publishing and resolving signed DNS
+                                packets. Any Pkarr-compatible client can use your relay to interact with the DHT.</p>
+                            <ul>
+                                <li><code>PUT /pkarr/:key</code> — publish a signed packet</li>
+                                <li><code>GET /pkarr/:key</code> — resolve a key from DHT</li>
+                                <li>Built-in rate limiting (2 req/s default, burst 10)</li>
+                                <li>Persistent LMDB cache for fast repeat lookups</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🔐</div>
+                            <h2>DNS Publisher</h2>
+                            <p>Sign and publish DNS records to the DHT using Ed25519 secret keys. Records are
+                                automatically re-published at a configurable interval to stay alive on the network.</p>
+                            <ul>
+                                <li>Supports <strong>A</strong>, <strong>AAAA</strong>, <strong>CNAME</strong>, and
+                                    <strong>TXT</strong> records
+                                </li>
+                                <li>Secret keys can be inline or loaded from files (Docker secrets compatible)</li>
+                                <li>Automatic retry with exponential backoff on publish failures</li>
+                                <li>Configure via <code>[publisher]</code> section in config.toml</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🔍</div>
+                            <h2>Key Explorer</h2>
+                            <p>Look up any public key to view its DNS records stored on the DHT. Paste a 52-character
+                                z-base-32 encoded public key and see the full record set.</p>
+                            <ul>
+                                <li>Supports all record types: A, AAAA, CNAME, TXT, NS, HTTPS, SVCB</li>
+                                <li>Shows packet metadata: compressed size, age, record count</li>
+                                <li>Search history stored locally in your browser</li>
+                                <li>Also available via API: <code>GET /api/resolve/:key</code></li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">👁</div>
+                            <h2>Identity Watchlist</h2>
+                            <p>Monitor public keys and keep their records alive on the DHT by periodically re-publishing
+                                them. No secret key needed — this works with public keys only.</p>
+                            <ul>
+                                <li>Configure watched keys in <code>[watchlist] keys</code></li>
+                                <li>Adjustable republish interval (default: 1 hour)</li>
+                                <li>Great for keeping friend / service identities available</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🖥</div>
+                            <h2>Local DNS Resolver</h2>
+                            <p>Resolve sovereign <code>.pkarr</code> domains on your local machine. Runs
+                                <strong>pkdns</strong> as a subprocess that intercepts DNS queries and resolves them via
+                                the DHT.
+                            </p>
+                            <ul>
+                                <li>Disable with <code>--no-dns</code> if pkdns is not installed</li>
+                                <li>Configurable ICANN fallback DNS server</li>
+                                <li>Custom listen socket (default: 127.0.0.1:53)</li>
+                                <li>Requires <code>pkdns</code> binary in PATH or configured via
+                                    <code>[dns] binary</code>
+                                </li>
+                            </ul>
+                        </section>
+                    </div>
+
+                    <section class="guide-section guide-section-wide">
+                        <div class="guide-section-icon">⚙️</div>
+                        <h2>Configuration Reference</h2>
+                        <p>Full list of config.toml options:</p>
+                        <div class="config-table-wrap">
+                            <table class="config-table">
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        <th>Key</th>
+                                        <th>Default</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>[relay]</code></td>
+                                        <td>http_port</td>
+                                        <td>6881</td>
+                                        <td>HTTP port for the Pkarr relay</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[dht]</code></td>
+                                        <td>port</td>
+                                        <td>6881</td>
+                                        <td>UDP port for Mainline DHT</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[cache]</code></td>
+                                        <td>size</td>
+                                        <td>1,000,000</td>
+                                        <td>Max cached signed packets</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[cache]</code></td>
+                                        <td>path</td>
+                                        <td>auto</td>
+                                        <td>LMDB cache directory</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[dns]</code></td>
+                                        <td>enabled</td>
+                                        <td>true</td>
+                                        <td>Enable pkdns resolver</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[dns]</code></td>
+                                        <td>socket</td>
+                                        <td>127.0.0.1:53</td>
+                                        <td>DNS listen address</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[dns]</code></td>
+                                        <td>forward</td>
+                                        <td>8.8.8.8:53</td>
+                                        <td>ICANN fallback DNS</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[watchlist]</code></td>
+                                        <td>enabled</td>
+                                        <td>false</td>
+                                        <td>Enable watchlist republisher</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[watchlist]</code></td>
+                                        <td>keys</td>
+                                        <td>[]</td>
+                                        <td>Public keys to watch (z-base-32)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[watchlist]</code></td>
+                                        <td>republish_interval_secs</td>
+                                        <td>3600</td>
+                                        <td>Seconds between republish cycles</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[publisher]</code></td>
+                                        <td>enabled</td>
+                                        <td>false</td>
+                                        <td>Enable DNS record publisher</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[publisher]</code></td>
+                                        <td>interval_secs</td>
+                                        <td>3600</td>
+                                        <td>Seconds between publish cycles</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[publisher]</code></td>
+                                        <td>max_retries</td>
+                                        <td>3</td>
+                                        <td>Max retry attempts per publish</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>[publisher]</code></td>
+                                        <td>retry_delay_secs</td>
+                                        <td>5</td>
+                                        <td>Base delay for exponential backoff</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="guide-section guide-section-wide">
+                        <div class="guide-section-icon">🚀</div>
+                        <h2>CLI Quick Reference</h2>
+                        <pre class="code-block"><code>cargo run --release                           # Run with defaults
+cargo run --release -- --no-dns               # Skip DNS resolver
+cargo run --release -- --verbose              # Debug logging
+cargo run --release -- --relay-port 8080      # Custom relay port
+cargo run --release -- --dashboard-port 3000  # Custom dashboard port
+cargo run --release -- --data-dir ./my-data   # Custom data directory
+RUST_LOG=debug cargo run                      # Fine-grained log control</code></pre>
+                    </section>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <span>Pubky Node • Sovereign Infrastructure</span>
+            <span id="last-updated">Last updated: --</span>
+        </footer>
+    </div>
+
+    <script src="/dashboard.js"></script>
+</body>
+
+</html>

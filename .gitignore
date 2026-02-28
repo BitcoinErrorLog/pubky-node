@@ -1,0 +1,26 @@
+# Build artifacts
+/target/
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+
+# Editor backups
+*.bak
+*.orig
+
+# Secret keys — never commit these
+*.secret
+*.key
+secret_key*

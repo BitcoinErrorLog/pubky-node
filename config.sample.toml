@@ -1,0 +1,51 @@
+# Pubky Node Configuration
+# Copy this file to ~/.pubky-node/config.toml and edit as needed.
+
+# === Pkarr Relay HTTP Server ===
+[relay]
+# Port for the Pkarr relay HTTP API.
+http_port = 6881
+
+# === Mainline DHT Node ===
+[dht]
+# UDP port for the DHT node.
+port = 6881
+
+# === Cache ===
+[cache]
+# Path for persistent LMDB cache storage.
+# Defaults to the data directory if not set.
+# path = "./storage"
+
+# Maximum number of SignedPackets to cache.
+size = 1_000_000
+
+# === Local DNS Resolver (pkdns) ===
+[dns]
+# Enable/disable the local DNS resolver.
+enabled = true
+
+# Path to the pkdns binary. Searches PATH if not set.
+# binary = "/usr/local/bin/pkdns"
+
+# DNS listening socket.
+socket = "127.0.0.1:53"
+
+# ICANN fallback DNS server.
+forward = "8.8.8.8:53"
+
+# Path to pkdns data dir. Defaults to ~/.pkdns if not set.
+# pkdns_dir = "~/.pkdns"
+
+# === Identity Watchlist & Republisher ===
+[watchlist]
+# Enable/disable the identity watchlist.
+enabled = false
+
+# Public keys to monitor and republish (zbase32 encoded).
+# keys = [
+#   "pk:yqrx81zchh6aotjj85s96gdqbmsoprxr3ks6ks1itsb7htqbhemy"
+# ]
+
+# Seconds between republish cycles.
+republish_interval_secs = 3600
