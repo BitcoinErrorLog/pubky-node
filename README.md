@@ -1,3 +1,5 @@
+✨🚨100% VIBES🚨✨ - This app was prompted using ai tools and has had no human eyes on the code.
+
 # Pubky Node
 
 > A unified sovereign network participant for the Pubky ecosystem.
