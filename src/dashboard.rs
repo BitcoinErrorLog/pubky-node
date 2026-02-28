@@ -270,6 +270,14 @@ fn format_rdata(rdata: &pkarr::dns::rdata::RData) -> (String, String) {
             "NS".into(),
             ns.0.to_string(),
         ),
+        RData::HTTPS(https) => (
+            "HTTPS".into(),
+            format!("priority={} target={}", https.priority, https.target),
+        ),
+        RData::SVCB(svcb) => (
+            "SVCB".into(),
+            format!("priority={} target={}", svcb.priority, svcb.target),
+        ),
         other => (
             format!("{:?}", other).split('(').next().unwrap_or("UNKNOWN").to_string(),
             format!("{:?}", other),

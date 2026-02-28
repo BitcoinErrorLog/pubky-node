@@ -34,36 +34,46 @@ pub async fn execute(args: StatusArgs) -> anyhow::Result<()> {
     if args.json {
         println!("{}", serde_json::to_string_pretty(&data)?);
     } else {
-        println!("Pubky Node Status");
+        if let Some(version) = data.get("version").and_then(|v| v.as_str()) {
+            println!("Pubky Node v{}", version);
+        } else {
+            println!("Pubky Node Status");
+        }
         println!("{}", "=".repeat(40));
 
         if let Some(uptime) = data.get("uptime_secs").and_then(|v| v.as_u64()) {
             let hours = uptime / 3600;
             let mins = (uptime % 3600) / 60;
-            println!("Uptime:       {}h {}m", hours, mins);
+            let secs = uptime % 60;
+            if hours > 0 {
+                println!("Uptime:       {}h {}m", hours, mins);
+            } else {
+                println!("Uptime:       {}m {}s", mins, secs);
+            }
         }
 
         if let Some(dht) = data.get("dht") {
-            if let Some(size) = dht.get("network_size_estimate").and_then(|v| v.as_u64()) {
+            if let Some(size) = dht.get("dht_size_estimate").and_then(|v| v.as_u64()) {
                 println!("DHT Peers:    ~{}", format_number(size));
             }
-            if let Some(mode) = dht.get("mode").and_then(|v| v.as_str()) {
-                println!("DHT Mode:     {}", mode);
+            if let Some(server) = dht.get("server_mode").and_then(|v| v.as_bool()) {
+                println!("DHT Mode:     {}", if server { "Server" } else { "Client" });
             }
             if let Some(fw) = dht.get("firewalled").and_then(|v| v.as_bool()) {
                 println!("Firewalled:   {}", if fw { "Yes" } else { "No" });
             }
         }
 
-        if let Some(relay) = data.get("relay") {
-            if let Some(url) = relay.get("url").and_then(|v| v.as_str()) {
-                println!("Relay:        {}", url);
-            }
+        if let Some(port) = data.get("relay_port").and_then(|v| v.as_u64()) {
+            println!("Relay:        http://localhost:{}", port);
         }
 
         if let Some(upnp) = data.get("upnp") {
             if let Some(status) = upnp.get("status").and_then(|v| v.as_str()) {
-                let detail = match (upnp.get("external_ip"), upnp.get("port")) {
+                let detail = match (
+                    upnp.get("external_ip").and_then(|v| v.as_str()),
+                    upnp.get("port").and_then(|v| v.as_u64()),
+                ) {
                     (Some(ip), Some(port)) => format!(" ({}:{})", ip, port),
                     _ => String::new(),
                 };
