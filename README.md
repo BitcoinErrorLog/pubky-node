@@ -6,11 +6,22 @@
 
 Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a **Pkarr relay**, a **DNS record publisher**, and a **Pkdns local DNS resolver** — into a single binary with a web dashboard, shared configuration, and graceful lifecycle management.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-status.png" width="100%" alt="Status Dashboard — real-time monitoring of DHT, relay, UPnP, and watchlist">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-explorer.png" width="49%" alt="Key Explorer — look up any public key's DNS records from the DHT">
+  <img src="docs/screenshots/dashboard-guide.png" width="49%" alt="User Guide — built-in docs, DNS setup, and configuration reference">
+</p>
+
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **DHT Node** | Full Mainline DHT routing and BEP44 record storage (~8M+ peer network) |
+| **DHT Node** | Full Mainline DHT routing and BEP44 record storage (~3M+ peer network) |
 | **Pkarr Relay** | HTTP API for publishing and resolving signed DNS packets |
 | **DNS Publisher** | Sign DNS records with secret keys and publish to the DHT with retry |
 | **Pkdns Resolver** | Local DNS server resolving sovereign `.pkarr` / `.key` domains |
@@ -18,8 +29,25 @@ Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a 
 | **Key Explorer** | Look up any public key and inspect its DNS records |
 | **Web Dashboard** | Live monitoring UI at `http://localhost:9090/` |
 | **UPnP Auto-Config** | Automatically opens router ports for full DHT participation |
+| **Desktop App** | Native macOS, Windows, and Linux app with system tray |
 
-## Quick Start
+## Install
+
+### Desktop App (recommended)
+
+Download the installer for your platform from [**Releases**](https://github.com/BitcoinErrorLog/pubky-node/releases):
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | `Pubky-Node_x.x.x_aarch64.dmg` |
+| macOS (Intel) | `Pubky-Node_x.x.x_x64.dmg` |
+| Windows | `Pubky-Node_x.x.x_x64-setup.exe` |
+| Linux (Debian/Ubuntu) | `Pubky-Node_x.x.x_amd64.deb` |
+| Linux (other) | `Pubky-Node_x.x.x_amd64.AppImage` |
+
+The desktop app runs as a system tray application — close the window to minimize to tray, the node keeps running in the background.
+
+### From Source
 
 ```bash
 # Build
@@ -40,11 +68,11 @@ cargo run --release -- --verbose
 
 Then open **http://localhost:9090/** to access the dashboard.
 
-## Run on Umbrel
+### Run on Umbrel
 
 Pubky Node is available as a one-click Umbrel app. See the [Umbrel deployment guide](umbrel/README.md) for setup instructions.
 
-## Docker
+### Docker
 
 ```bash
 # Build the image (from parent directory containing pubky-node, pkarr, pkdns)
@@ -63,15 +91,46 @@ docker run -p 9090:9090 -p 6881:6881/tcp -p 6881:6881/udp \
   pubky-node
 ```
 
-### Environment Variables
+## DNS Browser Setup
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RUST_LOG` | `pubky_node=info,warn` | Log level control |
-| `PUBKY_RELAY_PORT` | `6881` | Override relay HTTP port |
-| `PUBKY_DHT_PORT` | `6881` | Override DHT UDP port |
-| `PUBKY_WATCHLIST_KEYS` | *(empty)* | Comma-separated public keys to watch |
-| `PUBKY_DNS_ENABLED` | `true` | Enable/disable DNS resolver |
+Point your browser at the local pkdns resolver to browse `.pkarr` and `.key` domains. pkdns forwards normal DNS queries to `8.8.8.8`, so regular browsing is unaffected.
+
+### macOS (recommended — per-TLD, no system DNS change)
+
+```bash
+sudo mkdir -p /etc/resolver
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/pkarr
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/key
+```
+
+Only sovereign TLDs are routed locally. All other DNS is untouched.
+
+### Linux (systemd-resolved)
+
+```bash
+# Create /etc/systemd/resolved.conf.d/pubky.conf
+[Resolve]
+DNS=127.0.0.1
+Domains=~pkarr ~key
+
+# Then restart:
+sudo systemctl restart systemd-resolved
+```
+
+### Windows
+
+1. Settings → Network & Internet → Wi-Fi/Ethernet
+2. Click your connection → DNS server assignment → Edit
+3. Set Preferred DNS to: `127.0.0.1`
+4. Set Alternate DNS to: `8.8.8.8` (fallback)
+5. Save
+
+### Disable Secure DNS in your browser
+
+Browsers with "Secure DNS" (DoH) bypass your local resolver. Disable it:
+
+- **Chrome/Edge**: Settings → Privacy & Security → Use Secure DNS → Off
+- **Firefox**: Settings → Privacy → DNS over HTTPS → Off
 
 ## Configuration
 
@@ -122,6 +181,16 @@ value = "v=1"
 ttl = 3600
 ```
 
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RUST_LOG` | `pubky_node=info,warn` | Log level control |
+| `PUBKY_RELAY_PORT` | `6881` | Override relay HTTP port |
+| `PUBKY_DHT_PORT` | `6881` | Override DHT UDP port |
+| `PUBKY_WATCHLIST_KEYS` | *(empty)* | Comma-separated public keys to watch |
+| `PUBKY_DNS_ENABLED` | `true` | Enable/disable DNS resolver |
+
 ## Web Dashboard
 
 The dashboard provides a live monitoring UI and tools:
@@ -132,7 +201,7 @@ The dashboard provides a live monitoring UI and tools:
 - **Network / UPnP** — Port mapping status, external IP, mapped port
 - **Identity Watchlist** — Status, republish interval, monitored keys
 - **Key Explorer** — Paste any 52-character z-base-32 public key to inspect its DNS records from the DHT
-- **User Guide** — Built-in documentation for all features
+- **User Guide** — Built-in documentation for all features, DNS setup, and config reference
 
 ### API Endpoints
 
@@ -152,8 +221,6 @@ On startup, Pubky Node automatically attempts to configure your router via UPnP 
 - Status visible in the dashboard's Network / UPnP card
 
 ## Security
-
-Pubky Node includes hardened security measures:
 
 - Dashboard binds to **localhost only** by default (`--dashboard-bind` to override)
 - Secret keys are **redacted** from all Debug/log output
@@ -202,6 +269,20 @@ Options:
   -V, --version                 Print version
 ```
 
+## Development
+
+```bash
+# Run tests (23 unit tests)
+cargo test
+
+# Run clippy
+cargo clippy
+
+# Build desktop app (requires Tauri CLI)
+./scripts/build-sidecars.sh
+npx @tauri-apps/cli build
+```
+
 ## Dependencies
 
 | Crate | Version | Role |
@@ -212,6 +293,7 @@ Options:
 | `axum` | 0.8 | Dashboard web server |
 | `igd-next` | 0.15 | UPnP port mapping |
 | `zeroize` | 1 | Secure memory wiping for secret keys |
+| `tauri` | 2 | Desktop app framework |
 
 ## License
 
