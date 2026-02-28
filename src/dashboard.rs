@@ -4,28 +4,32 @@
 //! and JSON API endpoints for node status and DHT key resolution.
 //! Includes security headers, rate limiting, and a health check endpoint.
 
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{Arc, RwLock, atomic::{AtomicU64, Ordering}};
 
 use axum::{
     extract::{Path, State},
     http::{header, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::{Html, IntoResponse, Json, Response},
-    routing::get,
+    routing::{get, post, delete},
     Router,
 };
-use pkarr::Client;
-use serde::Serialize;
+use pkarr::{Client, PublicKey};
+use serde::{Serialize, Deserialize};
 use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::config::WatchlistConfig;
 use crate::upnp::UpnpStatus;
 
+/// Shared mutable list of watchlist public keys.
+pub type SharedWatchlistKeys = Arc<RwLock<Vec<String>>>;
+
 /// State shared with dashboard route handlers.
 struct DashboardState {
     client: Option<Client>,
     watchlist_config: WatchlistConfig,
+    shared_keys: SharedWatchlistKeys,
     start_time: std::time::Instant,
     relay_port: u16,
     upnp_status: UpnpStatus,
@@ -41,11 +45,13 @@ pub fn start_dashboard(
     relay_port: u16,
     client: Option<Client>,
     watchlist_config: WatchlistConfig,
+    shared_keys: SharedWatchlistKeys,
     upnp_status: UpnpStatus,
 ) -> JoinHandle<()> {
     let state = Arc::new(DashboardState {
         client,
         watchlist_config,
+        shared_keys,
         start_time: std::time::Instant::now(),
         relay_port,
         upnp_status,
@@ -57,6 +63,8 @@ pub fn start_dashboard(
         .route("/health", get(health_check))
         .route("/api/status", get(api_status))
         .route("/api/resolve/{public_key}", get(api_resolve))
+        .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
+        .route("/api/watchlist/{key}", delete(api_watchlist_remove))
         .route("/dashboard.js", get(serve_js))
         .route("/dashboard.css", get(serve_css))
         .layer(middleware::from_fn(security_headers))
@@ -127,9 +135,10 @@ async fn api_status(
         })
     });
 
+    let key_count = state.shared_keys.read().unwrap().len();
     let watchlist = WatchlistStatus {
-        enabled: state.watchlist_config.enabled,
-        key_count: state.watchlist_config.keys.len(),
+        enabled: key_count > 0,
+        key_count,
         republish_interval_secs: state.watchlist_config.republish_interval_secs,
     };
 
@@ -283,6 +292,65 @@ fn format_rdata(rdata: &pkarr::dns::rdata::RData) -> (String, String) {
             format!("{:?}", other),
         ),
     }
+}
+
+// === Watchlist API ===
+
+#[derive(Deserialize)]
+struct WatchlistAddRequest {
+    key: String,
+}
+
+#[derive(Serialize)]
+struct WatchlistResponse {
+    keys: Vec<String>,
+    count: usize,
+}
+
+/// List all watchlist keys.
+async fn api_watchlist_list(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<WatchlistResponse> {
+    let keys = state.shared_keys.read().unwrap().clone();
+    let count = keys.len();
+    Json(WatchlistResponse { keys, count })
+}
+
+/// Add a public key to the watchlist.
+async fn api_watchlist_add(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<WatchlistAddRequest>,
+) -> Result<Json<WatchlistResponse>, (StatusCode, String)> {
+    let key = body.key.trim().to_string();
+
+    // Validate it's a valid pkarr public key
+    key.parse::<PublicKey>()
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid public key: {}", e)))?;
+
+    let mut keys = state.shared_keys.write().unwrap();
+
+    // Don't add duplicates
+    if !keys.contains(&key) {
+        keys.push(key);
+        info!("Watchlist: added key, now watching {} key(s)", keys.len());
+    }
+
+    let count = keys.len();
+    let keys_clone = keys.clone();
+    Ok(Json(WatchlistResponse { keys: keys_clone, count }))
+}
+
+/// Remove a public key from the watchlist.
+async fn api_watchlist_remove(
+    State(state): State<Arc<DashboardState>>,
+    Path(key): Path<String>,
+) -> Json<WatchlistResponse> {
+    let mut keys = state.shared_keys.write().unwrap();
+    keys.retain(|k| k != &key);
+    info!("Watchlist: removed key, now watching {} key(s)", keys.len());
+    let count = keys.len();
+    let keys_clone = keys.clone();
+    Json(WatchlistResponse { keys: keys_clone, count })
 }
 
 // === Data structures ===

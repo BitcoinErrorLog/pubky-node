@@ -184,19 +184,25 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
             [127, 0, 0, 1]
         }
     };
-    let dashboard_client = match pkarr::Client::builder().build() {
+    let dashboard_client = match pkarr::Client::builder().no_default_network().build() {
         Ok(c) => Some(c),
         Err(e) => {
             tracing::warn!("Failed to build dashboard pkarr client: {}. Explorer will be unavailable.", e);
             None
         }
     };
+
+    // Shared mutable watchlist keys (accessible from dashboard API + watchlist loop)
+    let shared_keys: dashboard::SharedWatchlistKeys =
+        std::sync::Arc::new(std::sync::RwLock::new(config.watchlist.keys.clone()));
+
     let dashboard_handle = dashboard::start_dashboard(
         run_args.dashboard_port,
         bind_addr,
         config.relay.http_port,
         dashboard_client,
         config.watchlist.clone(),
+        shared_keys.clone(),
         upnp_status,
     );
 
@@ -208,15 +214,13 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
         None
     };
 
-    // 5. Identity watchlist & republisher
-    let watchlist_handle = if config.watchlist.enabled {
-        let client = pkarr::Client::builder()
-            .build()?;
-
-        watchlist::start_watchlist(&config.watchlist, client)
-    } else {
-        None
-    };
+    // 5. Identity watchlist & republisher (always runs, reads shared keys each cycle)
+    let watchlist_client = pkarr::Client::builder().build()?;
+    let watchlist_handle = watchlist::start_watchlist(
+        shared_keys,
+        config.watchlist.republish_interval_secs,
+        watchlist_client,
+    );
 
     // === Wait for shutdown ===
     info!("All subsystems running. Press Ctrl+C to stop.");
@@ -232,9 +236,7 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
     if let Some(handle) = publisher_handle {
         handle.abort();
     }
-    if let Some(handle) = watchlist_handle {
-        handle.abort();
-    }
+    watchlist_handle.abort();
     if let Some(handle) = upnp_renewal {
         handle.abort();
     }

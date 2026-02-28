@@ -214,29 +214,20 @@
                 isActive ? 'Mapped' : upnp.status;
             document.getElementById('upnp-badge').className =
                 'badge' + (isActive ? ' badge-active' : isFailed ? ' badge-warning' : '');
+
+            // Show/hide inline UPnP setup guide
+            document.getElementById('upnp-guide').style.display =
+                isFailed ? '' : 'none';
         }
 
         // Watchlist Panel
         var wl = data.watchlist;
-        document.getElementById('watchlist-status').textContent =
-            wl.enabled ? '● Active' : '○ Disabled';
-        document.getElementById('watchlist-status').style.color =
-            wl.enabled ? 'var(--green)' : 'var(--text-muted)';
         document.getElementById('watchlist-badge').textContent =
-            wl.enabled ? wl.key_count + ' keys' : 'Off';
+            wl.key_count > 0 ? wl.key_count + ' keys' : 'Off';
         document.getElementById('watchlist-badge').className =
-            'badge' + (wl.enabled ? (wl.key_count > 0 ? ' badge-active' : ' badge-warning') : '');
+            'badge' + (wl.key_count > 0 ? ' badge-active' : '');
         document.getElementById('republish-interval').textContent =
             formatInterval(wl.republish_interval_secs);
-
-        // Watchlist keys (count only — keys redacted for privacy)
-        var keysContainer = document.getElementById('watchlist-keys');
-        keysContainer.innerHTML = '';
-        if (wl.key_count === 0) {
-            keysContainer.innerHTML = '<div class="empty-state">No keys configured</div>';
-        } else {
-            keysContainer.innerHTML = '<div class="empty-state">' + wl.key_count + ' key(s) monitored</div>';
-        }
 
         // Footer
         document.getElementById('last-updated').textContent =
@@ -315,6 +306,13 @@
         return Math.floor(diff / 86400) + 'd ago';
     }
 
+    function linkifyKeys(text) {
+        // Match 52-char z-base-32 keys in record values
+        return text.replace(/([13456789abcdefghijkmnopqrstuwxyz]{52})/gi, function (key) {
+            return '<a href="#" class="link key-link" data-key="' + key + '">' + key.substring(0, 12) + '…' + key.substring(48) + '</a>';
+        });
+    }
+
     function renderRecords(data) {
         var meta = document.getElementById('explorer-meta');
         var elapsed = data.elapsed_secs;
@@ -335,12 +333,23 @@
             var row = document.createElement('div');
             row.className = 'dns-row';
             var badgeClass = 'type-badge type-badge-' + rec.record_type;
+            var valueHtml = linkifyKeys(escapeHtml(rec.value));
             row.innerHTML =
                 '<span class="dns-name">' + escapeHtml(rec.name) + '</span>' +
                 '<span><span class="' + badgeClass + '">' + rec.record_type + '</span></span>' +
-                '<span class="dns-value" title="' + escapeHtml(rec.value) + '">' + escapeHtml(rec.value) + '</span>' +
+                '<span class="dns-value" title="' + escapeHtml(rec.value) + '">' + valueHtml + '</span>' +
                 '<span class="dns-ttl">' + rec.ttl + '</span>';
             body.appendChild(row);
+        });
+
+        // Make key links navigate to explorer
+        body.addEventListener('click', function (e) {
+            var link = e.target.closest('.key-link');
+            if (link) {
+                e.preventDefault();
+                document.getElementById('explorer-input').value = link.dataset.key;
+                resolveKey();
+            }
         });
     }
 
@@ -398,11 +407,79 @@
         }
     };
 
+    // ========== Watchlist CRUD ==========
+
+    async function fetchWatchlistKeys() {
+        try {
+            var res = await fetch('/api/watchlist');
+            if (!res.ok) return;
+            var data = await res.json();
+            renderWatchlistKeys(data.keys);
+        } catch (e) { /* ignore */ }
+    }
+
+    function renderWatchlistKeys(keys) {
+        var container = document.getElementById('watchlist-keys');
+        container.innerHTML = '';
+        if (!keys || keys.length === 0) {
+            container.innerHTML = '<div class="empty-state">No keys — add one above to start watching</div>';
+            return;
+        }
+        keys.forEach(function (key) {
+            var el = document.createElement('div');
+            el.className = 'watchlist-key';
+            el.innerHTML = '<span class="key-label" title="' + key + '">' + key + '</span>' +
+                '<button class="key-remove" title="Remove" data-key="' + key + '">×</button>';
+            container.appendChild(el);
+        });
+    }
+
+    async function addWatchlistKey() {
+        var input = document.getElementById('watchlist-input');
+        var errorEl = document.getElementById('watchlist-error');
+        var key = input.value.trim();
+        errorEl.classList.remove('visible');
+
+        if (!key) return;
+
+        try {
+            var res = await fetch('/api/watchlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: key }),
+            });
+            if (!res.ok) {
+                var errText = await res.text();
+                errorEl.textContent = errText;
+                errorEl.classList.add('visible');
+                return;
+            }
+            var data = await res.json();
+            input.value = '';
+            renderWatchlistKeys(data.keys);
+        } catch (e) {
+            errorEl.textContent = 'Failed: ' + e.message;
+            errorEl.classList.add('visible');
+        }
+    }
+
+    async function removeWatchlistKey(key) {
+        try {
+            var res = await fetch('/api/watchlist/' + encodeURIComponent(key), {
+                method: 'DELETE',
+            });
+            if (!res.ok) return;
+            var data = await res.json();
+            renderWatchlistKeys(data.keys);
+        } catch (e) { /* ignore */ }
+    }
+
     // ========== Init ==========
 
     initTabs();
     poll();
     setInterval(poll, POLL_INTERVAL);
+    fetchWatchlistKeys();
 
     // Explorer: Enter key
     document.getElementById('explorer-input').addEventListener('keydown', function (e) {
@@ -410,6 +487,37 @@
             e.preventDefault();
             resolveKey();
         }
+    });
+
+    // Watchlist: Add button + Enter key
+    document.getElementById('watchlist-add-btn').addEventListener('click', addWatchlistKey);
+    document.getElementById('watchlist-input').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addWatchlistKey();
+        }
+    });
+
+    // Watchlist: Remove (delegated)
+    document.getElementById('watchlist-keys').addEventListener('click', function (e) {
+        var btn = e.target.closest('.key-remove');
+        if (btn) {
+            removeWatchlistKey(btn.dataset.key);
+        }
+    });
+
+    // Relay: Copy URL
+    document.getElementById('relay-copy').addEventListener('click', function () {
+        var url = document.getElementById('relay-url').textContent;
+        var btn = this;
+        navigator.clipboard.writeText(url).then(function () {
+            btn.classList.add('copied');
+            btn.title = 'Copied!';
+            setTimeout(function () {
+                btn.classList.remove('copied');
+                btn.title = 'Copy relay URL';
+            }, 1500);
+        });
     });
 
     renderHistory();

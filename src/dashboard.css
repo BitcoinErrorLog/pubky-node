@@ -479,6 +479,129 @@ body {
     margin-top: 10px;
 }
 
+.empty-state {
+    text-align: center;
+    padding: 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Copy Button */
+.copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-left: 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-input);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.copy-btn.copied {
+    color: var(--green);
+    border-color: var(--green);
+}
+
+/* Inline Guide (UPnP) */
+.inline-guide {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+}
+
+.inline-guide-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--amber);
+    margin-bottom: 8px;
+}
+
+.inline-guide p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+.inline-guide ol {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+}
+
+.inline-guide li {
+    margin-bottom: 2px;
+}
+
+.inline-guide strong {
+    color: var(--text-primary);
+}
+
+/* Watchlist Add Input */
+.watchlist-add {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    margin-bottom: 6px;
+}
+
+.watchlist-add input {
+    flex: 1;
+    padding: 7px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.watchlist-add input:focus {
+    border-color: var(--accent);
+}
+
+.watchlist-add input::placeholder {
+    color: var(--text-muted);
+}
+
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.watchlist-error {
+    display: none;
+    font-size: 11px;
+    color: var(--red);
+    padding: 4px 0;
+}
+
+.watchlist-error.visible {
+    display: block;
+}
+
+/* Watchlist key with remove button */
 .watchlist-key {
     display: flex;
     align-items: center;
@@ -491,9 +614,6 @@ body {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     transition: border-color var(--transition);
 }
 
@@ -501,19 +621,33 @@ body {
     border-color: var(--border-accent);
 }
 
-.watchlist-key .key-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--accent);
-    flex-shrink: 0;
+.watchlist-key .key-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.empty-state {
-    text-align: center;
-    padding: 16px;
+.watchlist-key .key-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
     color: var(--text-muted);
-    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.watchlist-key .key-remove:hover {
+    color: var(--red);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 /* ============ Explorer ============ */

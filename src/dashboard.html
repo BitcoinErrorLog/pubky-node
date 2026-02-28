@@ -142,6 +142,13 @@
                                 <span class="kv-key">Endpoint</span>
                                 <span class="kv-val">
                                     <a href="#" id="relay-url" target="_blank" class="link">--</a>
+                                    <button class="copy-btn" id="relay-copy" title="Copy relay URL">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                    </button>
                                 </span>
                             </div>
                             <div class="kv-row">
@@ -181,6 +188,17 @@
                                 <span class="kv-key">Mapped Port</span>
                                 <span class="kv-val mono" id="upnp-port">--</span>
                             </div>
+                            <div id="upnp-guide" class="inline-guide" style="display:none;">
+                                <div class="inline-guide-title">⚠ Port mapping required</div>
+                                <p>Your router didn't automatically map ports. To enable full network participation:</p>
+                                <ol>
+                                    <li>Log into your <strong>router admin panel</strong> (usually 192.168.1.1)</li>
+                                    <li>Find <strong>UPnP</strong> or <strong>NAT-PMP</strong> settings and enable them
+                                    </li>
+                                    <li>Or manually <strong>forward UDP port 6881</strong> to this machine</li>
+                                    <li>Restart Pubky Node after making changes</li>
+                                </ol>
+                            </div>
                         </div>
                     </section>
                     <section class="card" id="watchlist-panel">
@@ -199,13 +217,15 @@
                         </div>
                         <div class="card-body">
                             <div class="kv-row">
-                                <span class="kv-key">Status</span>
-                                <span class="kv-val" id="watchlist-status">--</span>
-                            </div>
-                            <div class="kv-row">
                                 <span class="kv-key">Republish Interval</span>
                                 <span class="kv-val" id="republish-interval">--</span>
                             </div>
+                            <div class="watchlist-add">
+                                <input type="text" id="watchlist-input" placeholder="Paste a public key to watch..."
+                                    spellcheck="false" autocomplete="off">
+                                <button class="btn-primary btn-sm" id="watchlist-add-btn">+ Add</button>
+                            </div>
+                            <div id="watchlist-error" class="watchlist-error"></div>
                             <div class="watchlist-keys" id="watchlist-keys"></div>
                         </div>
                     </section>
