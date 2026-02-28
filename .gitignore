@@ -24,3 +24,5 @@
 *.secret
 *.key
 secret_key*
+src-tauri/target
+src-tauri/binaries/

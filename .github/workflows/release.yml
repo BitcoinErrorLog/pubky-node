@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            label: macOS-ARM64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            label: macOS-x64
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            label: Linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            label: Windows-x64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.label }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: pubky-node
+
+      - name: Checkout pkarr
+        uses: actions/checkout@v4
+        with:
+          repository: pubky/pkarr
+          path: pkarr
+
+      - name: Checkout pkdns
+        uses: actions/checkout@v4
+        with:
+          repository: pubky/pkdns
+          path: pkdns
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Build sidecar binaries
+        shell: bash
+        run: |
+          TARGET="${{ matrix.target }}"
+          EXT=""
+          if [[ "$TARGET" == *"windows"* ]]; then EXT=".exe"; fi
+
+          mkdir -p pubky-node/src-tauri/binaries
+
+          # Build pubky-node
+          cargo build --release --manifest-path pubky-node/Cargo.toml
+          cp pubky-node/target/release/pubky-node${EXT} \
+             pubky-node/src-tauri/binaries/pubky-node-${TARGET}${EXT}
+
+          # Build pkdns
+          cargo build --release --manifest-path pkdns/server/Cargo.toml
+          cp pkdns/target/release/pkdns${EXT} \
+             pubky-node/src-tauri/binaries/pkdns-${TARGET}${EXT}
+
+          ls -la pubky-node/src-tauri/binaries/
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: pubky-node
+          tagName: ${{ github.ref_name }}
+          releaseName: "Pubky Node ${{ github.ref_name }}"
+          releaseBody: |
+            Download the installer for your platform below.
+
+            **macOS**: Download the `.dmg` file, open it, drag to Applications.
+            **Windows**: Download the `-setup.exe`, run the installer.
+            **Linux**: Download `.deb` for Debian/Ubuntu or `.AppImage` for others.
+
+            See the [README](https://github.com/BitcoinErrorLog/pubky-node) for documentation.
+          releaseDraft: false
+          prerelease: false
+
+      - name: Upload standalone CLI binary
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            pubky-node/target/release/pubky-node${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

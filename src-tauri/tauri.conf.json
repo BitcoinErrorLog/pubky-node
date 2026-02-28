@@ -1,0 +1,49 @@
+{
+    "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+    "productName": "Pubky Node",
+    "version": "0.1.0",
+    "identifier": "com.pubky.node",
+    "build": {
+        "frontendDist": "../src-ui"
+    },
+    "app": {
+        "withGlobalTauri": false,
+        "windows": [
+            {
+                "title": "Pubky Node",
+                "width": 1200,
+                "height": 800,
+                "minWidth": 800,
+                "minHeight": 600,
+                "decorations": true,
+                "url": "index.html"
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "targets": [
+            "dmg",
+            "nsis",
+            "deb",
+            "appimage"
+        ],
+        "externalBin": [
+            "binaries/pubky-node",
+            "binaries/pkdns"
+        ],
+        "category": "Utility",
+        "shortDescription": "Sovereign identity and DNS node for the Pubky ecosystem",
+        "longDescription": "Pubky Node bundles a Mainline DHT node, Pkarr relay, DNS publisher, and local DNS resolver into a single app with a web dashboard. Run your own sovereign infrastructure."
+    }
+}

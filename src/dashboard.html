@@ -374,6 +374,49 @@
                     </div>
 
                     <section class="guide-section guide-section-wide">
+                        <div class="guide-section-icon">🌍</div>
+                        <h2>DNS Browser Setup</h2>
+                        <p>Point your browser at the local pkdns resolver to browse <code>.pkarr</code> and
+                            <code>.key</code> domains. pkdns forwards normal DNS queries to <code>8.8.8.8</code>,
+                            so regular browsing is unaffected.
+                        </p>
+
+                        <h3>macOS (recommended — per-TLD, no system DNS change)</h3>
+                        <pre><code># Route only .pkarr and .key queries to local pkdns
+sudo mkdir -p /etc/resolver
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/pkarr
+echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/key</code></pre>
+                        <p><em>Only sovereign TLDs are routed locally. All other DNS is untouched.</em></p>
+
+                        <h3>Linux (systemd-resolved)</h3>
+                        <pre><code># Create /etc/systemd/resolved.conf.d/pubky.conf
+[Resolve]
+DNS=127.0.0.1
+Domains=~pkarr ~key
+
+# Then restart:
+sudo systemctl restart systemd-resolved</code></pre>
+
+                        <h3>Windows</h3>
+                        <pre><code>1. Settings → Network &amp; Internet → Wi-Fi/Ethernet
+2. Click your connection → DNS server assignment → Edit
+3. Set Preferred DNS to: 127.0.0.1
+4. Set Alternate DNS to: 8.8.8.8 (fallback)
+5. Save</code></pre>
+
+                        <h3>All Browsers: Disable Secure DNS</h3>
+                        <p>Browsers with "Secure DNS" (DoH) bypass your local resolver. Disable it:</p>
+                        <ul>
+                            <li><strong>Chrome/Edge</strong>: Settings → Privacy & Security → Use Secure DNS → Off</li>
+                            <li><strong>Firefox</strong>: Settings → Privacy → DNS over HTTPS → Off</li>
+                        </ul>
+
+                        <h3>Test It</h3>
+                        <pre><code># Verify pkdns is resolving:
+dig @127.0.0.1 yg4gxe7z1r7mr6orids9fh95y7gxhdsxjqi6nngsxxtakqaxr5no.pkarr</code></pre>
+                    </section>
+
+                    <section class="guide-section guide-section-wide">
                         <div class="guide-section-icon">⚙️</div>
                         <h2>Configuration Reference</h2>
                         <p>Full list of config.toml options:</p>
