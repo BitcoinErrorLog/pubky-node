@@ -229,6 +229,33 @@
         document.getElementById('republish-interval').textContent =
             formatInterval(wl.republish_interval_secs);
 
+        // PKDNS Panel
+        var dns = data.dns;
+        var dnsBadge = document.getElementById('dns-badge');
+        document.getElementById('dns-status').textContent = dns.status;
+        document.getElementById('dns-socket').textContent = dns.socket;
+        document.getElementById('dns-forward').textContent = dns.forward;
+
+        if (dns.status === 'Running') {
+            dnsBadge.textContent = 'Active';
+            dnsBadge.className = 'badge badge-active';
+            document.getElementById('dns-guide').style.display = 'block';
+            document.getElementById('dns-disabled-note').style.display = 'none';
+            // Set the IP from the socket (strip port)
+            var guideIp = document.getElementById('dns-guide-ip');
+            if (guideIp) guideIp.textContent = dns.socket.split(':')[0] || '127.0.0.1';
+        } else if (dns.status === 'Disabled') {
+            dnsBadge.textContent = 'Off';
+            dnsBadge.className = 'badge';
+            document.getElementById('dns-guide').style.display = 'none';
+            document.getElementById('dns-disabled-note').style.display = 'block';
+        } else {
+            dnsBadge.textContent = 'Not Found';
+            dnsBadge.className = 'badge badge-warning';
+            document.getElementById('dns-guide').style.display = 'none';
+            document.getElementById('dns-disabled-note').style.display = 'none';
+        }
+
         // Footer
         document.getElementById('last-updated').textContent =
             'Last updated: ' + new Date().toLocaleTimeString();
@@ -547,6 +574,29 @@
                 btn.title = 'Copy relay URL';
             }, 1500);
         });
+    });
+
+    // PKDNS: Enable/Disable toggle
+    async function toggleDns(enabled) {
+        try {
+            var res = await fetch('/api/dns/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled }),
+            });
+            if (res.ok) {
+                document.getElementById('dns-guide').style.display = 'none';
+                document.getElementById('dns-disabled-note').style.display = 'none';
+                document.getElementById('dns-restart-notice').style.display = 'block';
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    document.getElementById('dns-enable-btn').addEventListener('click', function () {
+        toggleDns(true);
+    });
+    document.getElementById('dns-disable-btn').addEventListener('click', function () {
+        toggleDns(false);
     });
 
     renderHistory();

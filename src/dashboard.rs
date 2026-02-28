@@ -35,6 +35,9 @@ struct DashboardState {
     start_time: std::time::Instant,
     relay_port: u16,
     upnp_status: UpnpStatus,
+    dns_status: String,
+    dns_socket: String,
+    dns_forward: String,
     /// Simple rate limiter: epoch millis of last resolve request.
     resolve_last_request: AtomicU64,
 }
@@ -73,6 +76,9 @@ pub fn start_dashboard(
     shared_keys: SharedWatchlistKeys,
     data_dir: PathBuf,
     upnp_status: UpnpStatus,
+    dns_status: String,
+    dns_socket: String,
+    dns_forward: String,
 ) -> JoinHandle<()> {
     let state = Arc::new(DashboardState {
         client,
@@ -82,6 +88,9 @@ pub fn start_dashboard(
         start_time: std::time::Instant::now(),
         relay_port,
         upnp_status,
+        dns_status,
+        dns_socket,
+        dns_forward,
         resolve_last_request: AtomicU64::new(0),
     });
 
@@ -92,6 +101,7 @@ pub fn start_dashboard(
         .route("/api/resolve/{public_key}", get(api_resolve))
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
         .route("/api/watchlist/{key}", delete(api_watchlist_remove))
+        .route("/api/dns/toggle", post(api_dns_toggle))
         .route("/dashboard.js", get(serve_js))
         .route("/dashboard.css", get(serve_css))
         .layer(middleware::from_fn(security_headers))
@@ -181,6 +191,12 @@ async fn api_status(
         },
     };
 
+    let dns = DnsApiStatus {
+        status: state.dns_status.clone(),
+        socket: state.dns_socket.clone(),
+        forward: state.dns_forward.clone(),
+    };
+
     Json(NodeStatus {
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime_secs,
@@ -188,6 +204,7 @@ async fn api_status(
         dht: dht_info,
         watchlist,
         upnp,
+        dns,
     })
 }
 
@@ -398,6 +415,43 @@ async fn api_watchlist_remove(
     Json(WatchlistResponse { keys: keys_clone, count })
 }
 
+/// Toggle PKDNS enabled/disabled in config.toml.
+async fn api_dns_toggle(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<DnsToggleRequest>,
+) -> Result<Json<DnsToggleResponse>, (StatusCode, String)> {
+    let config_path = state.data_dir.join("config.toml");
+
+    // Read existing config or start with empty table
+    let mut doc: toml::Value = if config_path.exists() {
+        let contents = std::fs::read_to_string(&config_path)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read config: {}", e)))?;
+        toml::from_str(&contents).unwrap_or(toml::Value::Table(Default::default()))
+    } else {
+        toml::Value::Table(Default::default())
+    };
+
+    // Ensure [dns] table exists and set enabled
+    let table = doc.as_table_mut().unwrap();
+    let dns_table = table.entry("dns")
+        .or_insert_with(|| toml::Value::Table(Default::default()));
+    if let Some(t) = dns_table.as_table_mut() {
+        t.insert("enabled".to_string(), toml::Value::Boolean(body.enabled));
+    }
+
+    let output = toml::to_string_pretty(&doc)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to serialize config: {}", e)))?;
+    std::fs::write(&config_path, &output)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write config: {}", e)))?;
+
+    info!("PKDNS toggled to enabled={} in {:?}", body.enabled, config_path);
+
+    Ok(Json(DnsToggleResponse {
+        enabled: body.enabled,
+        restart_required: true,
+    }))
+}
+
 // === Data structures ===
 
 #[derive(Serialize)]
@@ -408,6 +462,7 @@ struct NodeStatus {
     dht: Option<DhtStatus>,
     watchlist: WatchlistStatus,
     upnp: UpnpApiStatus,
+    dns: DnsApiStatus,
 }
 
 #[derive(Serialize)]
@@ -431,6 +486,24 @@ struct UpnpApiStatus {
     status: String,
     external_ip: Option<String>,
     port: Option<u16>,
+}
+
+#[derive(Serialize)]
+struct DnsApiStatus {
+    status: String,
+    socket: String,
+    forward: String,
+}
+
+#[derive(Deserialize)]
+struct DnsToggleRequest {
+    enabled: bool,
+}
+
+#[derive(Serialize)]
+struct DnsToggleResponse {
+    enabled: bool,
+    restart_required: bool,
 }
 
 #[derive(Serialize)]

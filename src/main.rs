@@ -198,6 +198,15 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
     let shared_keys: dashboard::SharedWatchlistKeys =
         std::sync::Arc::new(std::sync::RwLock::new(initial_keys));
 
+    // Derive DNS status for the dashboard
+    let dns_status = if !config.dns.enabled {
+        "Disabled".to_string()
+    } else if dns_process.is_some() {
+        "Running".to_string()
+    } else {
+        "Not Found".to_string()
+    };
+
     let dashboard_handle = dashboard::start_dashboard(
         run_args.dashboard_port,
         bind_addr,
@@ -207,6 +216,9 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
         shared_keys.clone(),
         data_dir.clone(),
         upnp_status,
+        dns_status,
+        config.dns.socket.clone(),
+        config.dns.forward.clone(),
     );
 
     // 4. Publisher (sign and publish DNS records from secret keys)
