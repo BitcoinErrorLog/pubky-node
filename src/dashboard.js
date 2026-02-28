@@ -68,10 +68,39 @@
         return id.substring(0, len) + '…';
     }
 
+    // ========== Help Tooltips ==========
+
+    var HELP_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+    function helpTip(title, body, opts) {
+        opts = opts || {};
+        var cls = 'help-tip' + (opts.amber ? ' help-tip-amber' : '');
+        var link = opts.guideLink
+            ? '<span class="help-tooltip-link" onclick="document.querySelector(\'[data-tab=guide]\').click()">' + opts.guideLink + '</span>'
+            : '';
+        return '<span class="' + cls + '">' + HELP_SVG +
+            '<div class="help-tooltip">' +
+            '<div class="help-tooltip-title">' + title + '</div>' +
+            '<div class="help-tooltip-body">' + body + link + '</div>' +
+            '</div></span>';
+    }
+
     function setStatus(online) {
         var el = document.getElementById('connection-status');
         el.className = 'status-indicator ' + (online ? 'online' : 'offline');
-        el.querySelector('.status-label').textContent = online ? 'Connected' : 'Disconnected';
+        if (online) {
+            el.querySelector('.status-label').textContent = 'Connected';
+        } else {
+            el.querySelector('.status-label').innerHTML = 'Disconnected' +
+                helpTip('Connection Lost',
+                    'The dashboard cannot reach the node\'s API.' +
+                    '<ul>' +
+                    '<li>Ensure pubky-node is running</li>' +
+                    '<li>Check if port 9090 is blocked</li>' +
+                    '<li>Try restarting the node</li>' +
+                    '</ul>'
+                );
+        }
     }
 
     function update(data) {
@@ -97,14 +126,43 @@
             document.getElementById('node-id').textContent = truncateId(dht.id, 18);
             document.getElementById('node-id').title = dht.id;
             document.getElementById('listen-addr').textContent = dht.local_addr;
-            document.getElementById('dht-mode').textContent =
-                dht.server_mode ? '● Server' : '● Client';
-            document.getElementById('dht-mode').style.color =
-                dht.server_mode ? 'var(--green)' : 'var(--amber)';
-            document.getElementById('firewalled').textContent =
-                dht.firewalled ? '● Yes' : '● No';
-            document.getElementById('firewalled').style.color =
-                dht.firewalled ? 'var(--red)' : 'var(--green)';
+
+            var modeEl = document.getElementById('dht-mode');
+            if (dht.server_mode) {
+                modeEl.innerHTML = '● Server';
+                modeEl.style.color = 'var(--green)';
+            } else {
+                modeEl.innerHTML = '● Client' +
+                    helpTip('Client Mode',
+                        'Your node is behind a firewall and cannot accept inbound connections.' +
+                        '<ul>' +
+                        '<li>Enable UPnP on your router</li>' +
+                        '<li>Or forward your DHT UDP port</li>' +
+                        '<li>Node still works, but is less efficient</li>' +
+                        '</ul>',
+                        { amber: true, guideLink: '→ View Setup Guide' }
+                    );
+                modeEl.style.color = 'var(--amber)';
+            }
+
+            var fwEl = document.getElementById('firewalled');
+            if (dht.firewalled) {
+                fwEl.innerHTML = '● Yes' +
+                    helpTip('Firewalled',
+                        'Inbound connections are blocked. Your node can still participate, but won\'t serve data to others.' +
+                        '<ul>' +
+                        '<li>Forward UDP port (see config.toml [dht].port) on your router</li>' +
+                        '<li>Or enable UPnP for automatic port mapping</li>' +
+                        '<li>Disable OS firewall for this port</li>' +
+                        '</ul>',
+                        { guideLink: '→ View Setup Guide' }
+                    );
+                fwEl.style.color = 'var(--red)';
+            } else {
+                fwEl.innerHTML = '● No';
+                fwEl.style.color = 'var(--green)';
+            }
+
             document.getElementById('rt-detail').textContent =
                 '~' + dht.dht_size_estimate.toLocaleString() + ' nodes';
             document.getElementById('dht-badge').textContent =
@@ -126,10 +184,26 @@
             var isActive = upnp.status === 'Active';
             var isFailed = upnp.status === 'Failed';
 
-            document.getElementById('upnp-status').textContent =
-                isActive ? '● Active' : isFailed ? '● Failed' : '● ' + upnp.status;
-            document.getElementById('upnp-status').style.color =
-                isActive ? 'var(--green)' : isFailed ? 'var(--red)' : 'var(--amber)';
+            var upnpStatusEl = document.getElementById('upnp-status');
+            if (isActive) {
+                upnpStatusEl.innerHTML = '● Active';
+                upnpStatusEl.style.color = 'var(--green)';
+            } else if (isFailed) {
+                upnpStatusEl.innerHTML = '● Failed' +
+                    helpTip('UPnP Failed',
+                        'Automatic port mapping failed. Your router may not support UPnP, or it may be disabled.' +
+                        '<ul>' +
+                        '<li>Log into your router and enable UPnP/NAT-PMP</li>' +
+                        '<li>Or manually forward your DHT port (UDP)</li>' +
+                        '<li>Use <code>--no-upnp</code> flag to silence this</li>' +
+                        '</ul>',
+                        { guideLink: '→ View Setup Guide' }
+                    );
+                upnpStatusEl.style.color = 'var(--red)';
+            } else {
+                upnpStatusEl.innerHTML = '● ' + upnp.status;
+                upnpStatusEl.style.color = 'var(--amber)';
+            }
 
             document.getElementById('upnp-external-ip').textContent =
                 upnp.external_ip || '--';

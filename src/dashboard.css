@@ -1109,3 +1109,135 @@ body {
         font-size: 11px;
     }
 }
+
+/* ========== Help Tooltip ========== */
+
+.help-tip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    cursor: help;
+    flex-shrink: 0;
+    vertical-align: middle;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.help-tip:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.help-tip svg {
+    width: 10px;
+    height: 10px;
+    color: var(--red);
+    opacity: 0.85;
+}
+
+.help-tip-amber {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.help-tip-amber:hover {
+    background: rgba(245, 158, 11, 0.25);
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.help-tip-amber svg {
+    color: var(--amber);
+}
+
+.help-tip .help-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: -8px;
+    width: 280px;
+    padding: 12px 14px;
+    background: rgba(20, 20, 35, 0.97);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.help-tip:hover .help-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.help-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    right: 12px;
+    width: 10px;
+    height: 10px;
+    background: rgba(20, 20, 35, 0.97);
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    transform: rotate(45deg);
+}
+
+.help-tooltip-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.help-tooltip-body {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.help-tooltip-body ul {
+    margin: 6px 0 0 0;
+    padding-left: 16px;
+    list-style: disc;
+}
+
+.help-tooltip-body li {
+    margin-bottom: 3px;
+}
+
+.help-tooltip-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.help-tooltip-link:hover {
+    text-decoration: underline;
+}
+
+/* Ensure kv-val can contain help icon inline */
+.kv-val {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
