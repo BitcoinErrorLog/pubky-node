@@ -28,7 +28,19 @@ impl DnsProcess {
             .binary
             .as_ref()
             .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| "pkdns".to_string());
+            .unwrap_or_else(|| {
+                // Check next to the current executable first (for Tauri bundles)
+                if let Ok(exe) = std::env::current_exe() {
+                    if let Some(dir) = exe.parent() {
+                        let sibling = dir.join("pkdns");
+                        if sibling.exists() {
+                            info!("Found pkdns next to executable: {}", sibling.display());
+                            return sibling.to_string_lossy().to_string();
+                        }
+                    }
+                }
+                "pkdns".to_string()
+            });
 
         // Build CLI args for pkdns
         let mut args: Vec<String> = Vec::new();

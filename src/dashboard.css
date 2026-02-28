@@ -844,6 +844,15 @@ body {
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+.inline-link {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.inline-link:hover {
+    text-decoration: underline;
+}
+
 .alert {
     padding: 12px 16px;
     border-radius: var(--radius-sm);

@@ -241,6 +241,7 @@
             dnsBadge.className = 'badge badge-active';
             document.getElementById('dns-guide').style.display = 'block';
             document.getElementById('dns-disabled-note').style.display = 'none';
+            document.getElementById('dns-restart-notice').style.display = 'none';
             // Set the IP from the socket (strip port)
             var guideIp = document.getElementById('dns-guide-ip');
             if (guideIp) guideIp.textContent = dns.socket.split(':')[0] || '127.0.0.1';
@@ -249,11 +250,13 @@
             dnsBadge.className = 'badge';
             document.getElementById('dns-guide').style.display = 'none';
             document.getElementById('dns-disabled-note').style.display = 'block';
+            // Don't hide restart notice here — let it show if just toggled
         } else {
             dnsBadge.textContent = 'Not Found';
             dnsBadge.className = 'badge badge-warning';
             document.getElementById('dns-guide').style.display = 'none';
             document.getElementById('dns-disabled-note').style.display = 'none';
+            // Don't hide restart notice here — let it show if just toggled
         }
 
         // Footer
