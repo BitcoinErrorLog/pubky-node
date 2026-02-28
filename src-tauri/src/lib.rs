@@ -51,6 +51,7 @@ pub fn run() {
                 .sidecar("pubky-node")
                 .unwrap()
                 .args([
+                    "run",
                     "--dashboard-bind", "127.0.0.1",
                     "--dashboard-port", "9090",
                 ]);
