@@ -170,3 +170,110 @@ fn build_signed_packet(
 
 // Re-export config types used by this module
 pub use crate::config::RecordConfig;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_keypair() -> Keypair {
+        Keypair::random()
+    }
+
+    #[test]
+    fn test_build_signed_packet_a_record() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "A".to_string(),
+            name: "@".to_string(),
+            value: "1.2.3.4".to_string(),
+            ttl: Some(3600),
+        }];
+        let packet = build_signed_packet(&kp, &records).unwrap();
+        let rr_count = packet.all_resource_records().count();
+        assert_eq!(rr_count, 1);
+    }
+
+    #[test]
+    fn test_build_signed_packet_txt_record() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "TXT".to_string(),
+            name: "_pubky".to_string(),
+            value: "v=1".to_string(),
+            ttl: Some(300),
+        }];
+        let packet = build_signed_packet(&kp, &records).unwrap();
+        assert_eq!(packet.all_resource_records().count(), 1);
+    }
+
+    #[test]
+    fn test_build_signed_packet_cname_record() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "CNAME".to_string(),
+            name: "@".to_string(),
+            value: "example.com".to_string(),
+            ttl: Some(3600),
+        }];
+        let packet = build_signed_packet(&kp, &records).unwrap();
+        assert_eq!(packet.all_resource_records().count(), 1);
+    }
+
+    #[test]
+    fn test_build_signed_packet_multiple_records() {
+        let kp = test_keypair();
+        let records = vec![
+            RecordConfig {
+                record_type: "A".to_string(),
+                name: "@".to_string(),
+                value: "1.2.3.4".to_string(),
+                ttl: Some(3600),
+            },
+            RecordConfig {
+                record_type: "TXT".to_string(),
+                name: "_pubky".to_string(),
+                value: "v=1".to_string(),
+                ttl: None, // should default to 3600
+            },
+        ];
+        let packet = build_signed_packet(&kp, &records).unwrap();
+        assert_eq!(packet.all_resource_records().count(), 2);
+    }
+
+    #[test]
+    fn test_build_signed_packet_unsupported_type() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "MX".to_string(),
+            name: "@".to_string(),
+            value: "mail.example.com".to_string(),
+            ttl: Some(3600),
+        }];
+        assert!(build_signed_packet(&kp, &records).is_err());
+    }
+
+    #[test]
+    fn test_build_signed_packet_invalid_ip() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "A".to_string(),
+            name: "@".to_string(),
+            value: "not_an_ip".to_string(),
+            ttl: Some(3600),
+        }];
+        assert!(build_signed_packet(&kp, &records).is_err());
+    }
+
+    #[test]
+    fn test_build_signed_packet_aaaa_record() {
+        let kp = test_keypair();
+        let records = vec![RecordConfig {
+            record_type: "AAAA".to_string(),
+            name: "@".to_string(),
+            value: "::1".to_string(),
+            ttl: Some(3600),
+        }];
+        let packet = build_signed_packet(&kp, &records).unwrap();
+        assert_eq!(packet.all_resource_records().count(), 1);
+    }
+}

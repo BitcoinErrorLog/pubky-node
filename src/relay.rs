@@ -1,3 +1,9 @@
+//! Pkarr relay initialization.
+//!
+//! Configures and starts the Pkarr relay, which combines an HTTP API
+//! for publishing/resolving signed DNS packets with an internal
+//! Mainline DHT node for peer-to-peer record storage.
+
 use anyhow::Context;
 use pkarr_relay::Relay;
 use tracing::info;

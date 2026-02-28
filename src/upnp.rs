@@ -150,3 +150,43 @@ pub fn spawn_renewal(dht_port: u16) -> tokio::task::JoinHandle<()> {
         }
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upnp_status_mapped() {
+        let status = UpnpStatus::Mapped {
+            external_ip: "1.2.3.4".to_string(),
+            port: 6881,
+        };
+        assert!(status.is_mapped());
+        assert_eq!(status.label(), "Active");
+        assert_eq!(status.detail(), None);
+    }
+
+    #[test]
+    fn test_upnp_status_failed() {
+        let status = UpnpStatus::Failed("timeout".to_string());
+        assert!(!status.is_mapped());
+        assert_eq!(status.label(), "Failed");
+        assert_eq!(status.detail(), Some("timeout"));
+    }
+
+    #[test]
+    fn test_upnp_status_not_found() {
+        let status = UpnpStatus::NotFound;
+        assert!(!status.is_mapped());
+        assert_eq!(status.label(), "No Gateway");
+        assert_eq!(status.detail(), None);
+    }
+
+    #[test]
+    fn test_upnp_status_disabled() {
+        let status = UpnpStatus::Disabled;
+        assert!(!status.is_mapped());
+        assert_eq!(status.label(), "Disabled");
+        assert_eq!(status.detail(), None);
+    }
+}

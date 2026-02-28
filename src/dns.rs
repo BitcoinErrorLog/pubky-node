@@ -1,3 +1,8 @@
+//! Pkdns subprocess management.
+//!
+//! Spawns and manages the `pkdns` DNS resolver as a child process,
+//! providing sovereign `.pkarr` / `.key` domain resolution via the DHT.
+
 use std::process::Stdio;
 
 use tokio::process::{Child, Command};

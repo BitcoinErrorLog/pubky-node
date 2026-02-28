@@ -42,3 +42,6 @@ igd-next = { version = "0.15", features = ["aio_tokio"] }
 # Unix signals for subprocess management
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

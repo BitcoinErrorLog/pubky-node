@@ -1,10 +1,16 @@
+//! Configuration loading and validation for Pubky Node.
+//!
+//! Supports TOML file configuration with environment variable overrides
+//! for containerized deployments (Docker/Umbrel). All fields have sensible
+//! defaults so the node runs out of the box with zero configuration.
+
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use std::fmt;
 
 /// Top-level configuration for Pubky Node.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Config {
     pub relay: RelayConfig,
@@ -111,19 +117,6 @@ pub struct RecordConfig {
     pub value: String,
     /// TTL in seconds.
     pub ttl: Option<u32>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            relay: RelayConfig::default(),
-            dht: DhtConfig::default(),
-            cache: CacheConfig::default(),
-            dns: DnsConfig::default(),
-            watchlist: WatchlistConfig::default(),
-            publisher: PublisherConfig::default(),
-        }
-    }
 }
 
 impl Default for RelayConfig {
@@ -309,4 +302,139 @@ fn validate_dns_config(dns: &DnsConfig) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+        assert_eq!(config.relay.http_port, 6881);
+        assert_eq!(config.dht.port, 6881);
+        assert_eq!(config.cache.size, 1_000_000);
+        assert!(config.dns.enabled);
+        assert_eq!(config.dns.forward, "8.8.8.8:53");
+        assert!(!config.watchlist.enabled);
+        assert!(config.watchlist.keys.is_empty());
+        assert!(!config.publisher.enabled);
+    }
+
+    #[test]
+    fn test_load_missing_file_returns_defaults() {
+        let path = Path::new("/nonexistent/config.toml");
+        let config = load_config(path).unwrap();
+        assert_eq!(config.relay.http_port, 6881);
+    }
+
+    #[test]
+    fn test_load_partial_toml() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut file = std::fs::File::create(&path).unwrap();
+        writeln!(file, "[relay]\nhttp_port = 9999").unwrap();
+
+        let config = load_config(&path).unwrap();
+        assert_eq!(config.relay.http_port, 9999);
+        // Other fields should be defaults
+        assert_eq!(config.dht.port, 6881);
+    }
+
+    #[test]
+    fn test_env_override_relay_port() {
+        std::env::set_var("PUBKY_RELAY_PORT", "7777");
+        let mut config = Config::default();
+        apply_env_overrides(&mut config);
+        assert_eq!(config.relay.http_port, 7777);
+        std::env::remove_var("PUBKY_RELAY_PORT");
+    }
+
+    #[test]
+    fn test_env_override_dht_port() {
+        std::env::set_var("PUBKY_DHT_PORT", "8888");
+        let mut config = Config::default();
+        apply_env_overrides(&mut config);
+        assert_eq!(config.dht.port, 8888);
+        std::env::remove_var("PUBKY_DHT_PORT");
+    }
+
+    #[test]
+    fn test_env_override_watchlist_keys() {
+        std::env::set_var("PUBKY_WATCHLIST_KEYS", "key1, key2, key3");
+        let mut config = Config::default();
+        apply_env_overrides(&mut config);
+        assert!(config.watchlist.enabled);
+        assert_eq!(config.watchlist.keys, vec!["key1", "key2", "key3"]);
+        std::env::remove_var("PUBKY_WATCHLIST_KEYS");
+    }
+
+    #[test]
+    fn test_env_override_dns_enabled() {
+        std::env::set_var("PUBKY_DNS_ENABLED", "false");
+        let mut config = Config::default();
+        apply_env_overrides(&mut config);
+        assert!(!config.dns.enabled);
+        std::env::remove_var("PUBKY_DNS_ENABLED");
+
+        std::env::set_var("PUBKY_DNS_ENABLED", "true");
+        apply_env_overrides(&mut config);
+        assert!(config.dns.enabled);
+        std::env::remove_var("PUBKY_DNS_ENABLED");
+    }
+
+    #[test]
+    fn test_env_override_invalid_port_ignored() {
+        // Set a known port first, then try an invalid override
+        let mut config = Config::default();
+        config.relay.http_port = 1234;
+        std::env::set_var("PUBKY_RELAY_PORT", "not_a_number");
+        apply_env_overrides(&mut config);
+        assert_eq!(config.relay.http_port, 1234); // unchanged from our set value
+        std::env::remove_var("PUBKY_RELAY_PORT");
+    }
+
+    #[test]
+    fn test_validate_dns_config_valid() {
+        let dns = DnsConfig {
+            enabled: true,
+            forward: "8.8.8.8:53".to_string(),
+            socket: "127.0.0.1:53".to_string(),
+            ..DnsConfig::default()
+        };
+        assert!(validate_dns_config(&dns).is_ok());
+    }
+
+    #[test]
+    fn test_validate_dns_config_invalid_forward() {
+        let dns = DnsConfig {
+            enabled: true,
+            forward: "not_a_socket; rm -rf /".to_string(),
+            ..DnsConfig::default()
+        };
+        assert!(validate_dns_config(&dns).is_err());
+    }
+
+    #[test]
+    fn test_validate_dns_config_disabled_skips_validation() {
+        let dns = DnsConfig {
+            enabled: false,
+            forward: "garbage".to_string(),
+            ..DnsConfig::default()
+        };
+        assert!(validate_dns_config(&dns).is_ok());
+    }
+
+    #[test]
+    fn test_key_config_debug_redacts_secret() {
+        let kc = KeyConfig {
+            secret_key: Some("super_secret_key_material".to_string()),
+            secret_key_file: None,
+            records: vec![],
+        };
+        let debug_output = format!("{:?}", kc);
+        assert!(!debug_output.contains("super_secret"));
+        assert!(debug_output.contains("[REDACTED]"));
+    }
 }

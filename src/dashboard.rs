@@ -1,3 +1,9 @@
+//! Web dashboard and REST API server.
+//!
+//! Provides a real-time monitoring UI, key explorer, user guide,
+//! and JSON API endpoints for node status and DHT key resolution.
+//! Includes security headers, rate limiting, and a health check endpoint.
+
 use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 
 use axum::{
