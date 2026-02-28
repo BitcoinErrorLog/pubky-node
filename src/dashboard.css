@@ -1501,3 +1501,190 @@ body {
     align-items: center;
     gap: 0;
 }
+
+/* ============================================
+   Vanity Key Generator
+   ============================================ */
+
+.vanity-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.vanity-input-row input[type="text"] {
+    flex: 1;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+}
+
+.vanity-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.vanity-toggle input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+}
+
+.vanity-toggle-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.vanity-estimate {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    background: rgba(99, 102, 241, 0.08);
+    border-radius: 6px;
+}
+
+.vanity-estimate.error {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.vanity-progress {
+    margin-bottom: 16px;
+}
+
+.vanity-progress-bar {
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.vanity-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #818cf8);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.vanity-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vanity-result {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(99, 102, 241, 0.08));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.vanity-result-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #22c55e;
+    margin-bottom: 16px;
+}
+
+.vanity-key {
+    word-break: break-all;
+    font-size: 12px !important;
+    flex: 1;
+}
+
+.vanity-warning {
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #f59e0b;
+}
+
+.vanity-info {
+    margin-top: 16px;
+}
+
+.vanity-time-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+}
+
+.vanity-time-table th {
+    text-align: left;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.vanity-time-table td {
+    padding: 6px 12px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.vanity-time-table td:last-child {
+    color: var(--text-tertiary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ============================================
+   Collapsible Inline Guides
+   ============================================ */
+
+.inline-guide.collapsible .collapsible-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.25s ease;
+    padding-top: 0;
+}
+
+.inline-guide.collapsible.expanded .collapsible-body {
+    max-height: 300px;
+    padding-top: 8px;
+}
+
+.collapsible-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.collapse-chevron {
+    transition: transform 0.25s ease;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.inline-guide.collapsible.expanded .collapse-chevron {
+    transform: rotate(180deg);
+}
+
+/* ============================================
+   Proxy Setup
+   ============================================ */
+
+.proxy-setup {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}

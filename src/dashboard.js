@@ -239,24 +239,48 @@
         if (dns.status === 'Running') {
             dnsBadge.textContent = 'Active';
             dnsBadge.className = 'badge badge-active';
-            document.getElementById('dns-guide').style.display = 'block';
             document.getElementById('dns-disabled-note').style.display = 'none';
             document.getElementById('dns-restart-notice').style.display = 'none';
+            if (dns.system_dns_active) {
+                // System DNS is already pointing to us
+                document.getElementById('dns-connected').style.display = 'block';
+                document.getElementById('dns-guide').style.display = 'none';
+            } else {
+                // Show setup instructions
+                document.getElementById('dns-connected').style.display = 'none';
+                document.getElementById('dns-guide').style.display = 'block';
+            }
             // Set the IP from the socket (strip port)
             var guideIp = document.getElementById('dns-guide-ip');
             if (guideIp) guideIp.textContent = dns.socket.split(':')[0] || '127.0.0.1';
         } else if (dns.status === 'Disabled') {
             dnsBadge.textContent = 'Off';
             dnsBadge.className = 'badge';
+            document.getElementById('dns-connected').style.display = 'none';
             document.getElementById('dns-guide').style.display = 'none';
             document.getElementById('dns-disabled-note').style.display = 'block';
             // Don't hide restart notice here — let it show if just toggled
         } else {
             dnsBadge.textContent = 'Not Found';
             dnsBadge.className = 'badge badge-warning';
+            document.getElementById('dns-connected').style.display = 'none';
             document.getElementById('dns-guide').style.display = 'none';
             document.getElementById('dns-disabled-note').style.display = 'none';
             // Don't hide restart notice here — let it show if just toggled
+        }
+
+        // HTTP Proxy Panel
+        var proxy = data.proxy;
+        var proxyBadge = document.getElementById('proxy-badge');
+        document.getElementById('proxy-status').textContent = proxy.status;
+        document.getElementById('proxy-port').textContent = proxy.port;
+        document.getElementById('proxy-requests').textContent = proxy.requests_served;
+        if (proxy.status === 'Running') {
+            proxyBadge.textContent = 'Active';
+            proxyBadge.className = 'badge badge-active';
+        } else {
+            proxyBadge.textContent = 'Off';
+            proxyBadge.className = 'badge';
         }
 
         // Footer
@@ -603,8 +627,8 @@
     });
 
     // Set System DNS
-    async function setSystemDns(endpoint) {
-        var feedback = document.getElementById('dns-system-feedback');
+    async function setSystemDns(endpoint, feedbackId) {
+        var feedback = document.getElementById(feedbackId || 'dns-system-feedback');
         feedback.style.display = 'block';
         feedback.className = 'dns-system-feedback';
         feedback.textContent = 'Waiting for admin password...';
@@ -631,6 +655,12 @@
     document.getElementById('dns-reset-system-btn').addEventListener('click', function () {
         setSystemDns('reset-system');
     });
+    document.getElementById('dns-reset-connected-btn').addEventListener('click', function () {
+        setSystemDns('reset-system', 'dns-connected-feedback');
+    });
+    document.getElementById('dns-disable-btn2').addEventListener('click', function () {
+        toggleDns(false);
+    });
 
     // Node Controls
     document.getElementById('node-restart-btn').addEventListener('click', function () {
@@ -644,6 +674,189 @@
             fetch('/api/node/shutdown', { method: 'POST' });
             document.getElementById('connection-status').querySelector('.status-label').textContent = 'Shutting down...';
         }
+    });
+
+    // === Collapsible Guides ===
+    document.getElementById('upnp-guide-toggle').addEventListener('click', function () {
+        this.parentElement.classList.toggle('expanded');
+    });
+    document.getElementById('dns-connected-toggle').addEventListener('click', function () {
+        this.parentElement.classList.toggle('expanded');
+    });
+    document.getElementById('vanity-info-toggle').addEventListener('click', function () {
+        this.parentElement.classList.toggle('expanded');
+    });
+
+    // === HTTP Proxy Setup ===
+    document.getElementById('proxy-setup-btn').addEventListener('click', async function () {
+        var feedback = document.getElementById('proxy-setup-feedback');
+        feedback.style.display = 'block';
+        feedback.textContent = 'Configuring /etc/hosts... (admin password may be required)';
+        feedback.className = 'dns-system-feedback';
+        try {
+            var res = await fetch('/api/proxy/setup-hosts', { method: 'POST' });
+            var data = await res.json();
+            if (res.ok) {
+                feedback.textContent = '✅ ' + data.message;
+                feedback.className = 'dns-system-feedback success';
+            } else {
+                feedback.textContent = '❌ ' + (data || 'Failed');
+                feedback.className = 'dns-system-feedback error';
+            }
+        } catch (e) {
+            feedback.textContent = '❌ ' + e.message;
+            feedback.className = 'dns-system-feedback error';
+        }
+        updateProxyHostsState();
+    });
+    document.getElementById('proxy-reset-btn').addEventListener('click', async function () {
+        var feedback = document.getElementById('proxy-setup-feedback');
+        feedback.style.display = 'block';
+        feedback.textContent = 'Resetting /etc/hosts... (admin password may be required)';
+        feedback.className = 'dns-system-feedback';
+        try {
+            var res = await fetch('/api/proxy/reset-hosts', { method: 'POST' });
+            var data = await res.json();
+            if (res.ok) {
+                feedback.textContent = '✅ ' + data.message;
+                feedback.className = 'dns-system-feedback success';
+            } else {
+                feedback.textContent = '❌ ' + (data || 'Failed');
+                feedback.className = 'dns-system-feedback error';
+            }
+        } catch (e) {
+            feedback.textContent = '❌ ' + e.message;
+            feedback.className = 'dns-system-feedback error';
+        }
+        updateProxyHostsState();
+    });
+
+    // Check if /etc/hosts already has proxy entries
+    function updateProxyHostsState() {
+        fetch('/api/proxy/hosts-status').then(function (r) { return r.json(); }).then(function (d) {
+            if (d.configured) {
+                document.getElementById('proxy-setup-unconfigured').style.display = 'none';
+                document.getElementById('proxy-setup-configured').style.display = 'flex';
+            } else {
+                document.getElementById('proxy-setup-unconfigured').style.display = 'flex';
+                document.getElementById('proxy-setup-configured').style.display = 'none';
+            }
+        }).catch(function () { });
+    }
+    updateProxyHostsState();
+
+    // === Vanity Key Generator ===
+    var vanityPolling = null;
+    var vanityInput = document.getElementById('vanity-input');
+    var vanityStartBtn = document.getElementById('vanity-start-btn');
+    var vanityStopBtn = document.getElementById('vanity-stop-btn');
+    var Z32_CHARS = 'ybndrfg8ejkmcpqxot1uwisza345h769';
+
+    // Live time estimate as user types
+    vanityInput.addEventListener('input', function () {
+        var val = vanityInput.value.toLowerCase();
+        var estimateEl = document.getElementById('vanity-estimate');
+        if (!val) { estimateEl.style.display = 'none'; return; }
+        // Validate z-base32
+        for (var i = 0; i < val.length; i++) {
+            if (Z32_CHARS.indexOf(val[i]) === -1) {
+                estimateEl.style.display = 'block';
+                estimateEl.textContent = '❌ Invalid character: "' + val[i] + '" — valid z-base32: ' + Z32_CHARS;
+                estimateEl.className = 'vanity-estimate error';
+                return;
+            }
+        }
+        var combos = Math.pow(32, val.length);
+        var timeLabels = ['Instant', 'Instant', 'Instant', 'Instant', 'Seconds', 'Minutes', 'Hours', 'Days', 'Weeks', 'Months', 'Years'];
+        estimateEl.style.display = 'block';
+        estimateEl.className = 'vanity-estimate';
+        estimateEl.textContent = '~' + combos.toLocaleString() + ' combinations • ~' + (timeLabels[val.length] || 'Years+');
+    });
+
+    vanityStartBtn.addEventListener('click', async function () {
+        var prefix = vanityInput.value.trim().toLowerCase();
+        if (!prefix) return;
+        var suffix = document.getElementById('vanity-suffix').checked;
+
+        vanityStartBtn.style.display = 'none';
+        vanityStopBtn.style.display = 'inline-flex';
+        document.getElementById('vanity-result').style.display = 'none';
+        document.getElementById('vanity-progress').style.display = 'block';
+        document.getElementById('vanity-badge').textContent = 'Grinding';
+        document.getElementById('vanity-badge').className = 'badge badge-warning';
+
+        try {
+            await fetch('/api/keys/vanity/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prefix: prefix, suffix: suffix })
+            });
+        } catch (e) { /* ignore */ }
+
+        // Start polling
+        if (vanityPolling) clearInterval(vanityPolling);
+        vanityPolling = setInterval(pollVanity, 500);
+    });
+
+    vanityStopBtn.addEventListener('click', async function () {
+        if (vanityPolling) { clearInterval(vanityPolling); vanityPolling = null; }
+        await fetch('/api/keys/vanity/stop', { method: 'POST' });
+        vanityStartBtn.style.display = 'inline-flex';
+        vanityStopBtn.style.display = 'none';
+        document.getElementById('vanity-progress').style.display = 'none';
+        document.getElementById('vanity-badge').textContent = 'Stopped';
+        document.getElementById('vanity-badge').className = 'badge';
+    });
+
+    async function pollVanity() {
+        try {
+            var res = await fetch('/api/keys/vanity/status');
+            var data = await res.json();
+
+            document.getElementById('vanity-keys-checked').textContent = data.keys_checked.toLocaleString() + ' keys';
+            document.getElementById('vanity-rate').textContent = Math.round(data.rate).toLocaleString() + ' keys/s';
+            document.getElementById('vanity-elapsed').textContent = data.elapsed_secs.toFixed(1) + 's';
+
+            // Progress bar (approximate)
+            var total = Math.pow(32, data.target.length);
+            var pct = Math.min(100, (data.keys_checked / total) * 100);
+            document.getElementById('vanity-progress-fill').style.width = pct + '%';
+
+            if (data.result) {
+                clearInterval(vanityPolling);
+                vanityPolling = null;
+                document.getElementById('vanity-progress').style.display = 'none';
+                document.getElementById('vanity-result').style.display = 'block';
+                document.getElementById('vanity-pubkey').textContent = data.result.pubkey;
+                document.getElementById('vanity-seed').textContent = data.result.seed;
+                vanityStartBtn.style.display = 'inline-flex';
+                vanityStopBtn.style.display = 'none';
+                document.getElementById('vanity-badge').textContent = 'Found!';
+                document.getElementById('vanity-badge').className = 'badge badge-active';
+            }
+
+            if (!data.running && !data.result) {
+                clearInterval(vanityPolling);
+                vanityPolling = null;
+                vanityStartBtn.style.display = 'inline-flex';
+                vanityStopBtn.style.display = 'none';
+                document.getElementById('vanity-progress').style.display = 'none';
+                document.getElementById('vanity-badge').textContent = 'Ready';
+                document.getElementById('vanity-badge').className = 'badge';
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    // Copy buttons for vanity result
+    document.getElementById('vanity-copy-pubkey').addEventListener('click', function () {
+        navigator.clipboard.writeText(document.getElementById('vanity-pubkey').textContent);
+        this.title = 'Copied!';
+        setTimeout(function () { document.getElementById('vanity-copy-pubkey').title = 'Copy public key'; }, 1500);
+    });
+    document.getElementById('vanity-copy-seed').addEventListener('click', function () {
+        navigator.clipboard.writeText(document.getElementById('vanity-seed').textContent);
+        this.title = 'Copied!';
+        setTimeout(function () { document.getElementById('vanity-copy-seed').title = 'Copy seed'; }, 1500);
     });
 
     renderHistory();

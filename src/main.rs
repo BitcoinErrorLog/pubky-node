@@ -54,6 +54,13 @@ enum Commands {
     /// Configure OS DNS for .pkarr/.key domain resolution
     #[command(name = "dns-setup")]
     DnsSetup(cli::dns_setup::DnsSetupArgs),
+
+    /// Generate a vanity PKARR keypair with a custom prefix or suffix
+    Vanity(cli::vanity::VanityArgs),
+
+    /// Configure /etc/hosts for the .pkarr HTTP proxy
+    #[command(name = "proxy-hosts")]
+    ProxyHosts(cli::proxy_hosts::ProxyHostsArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -121,6 +128,8 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Keygen(args)) => cli::keygen::execute(args),
         Some(Commands::Status(args)) => cli::status::execute(args).await,
         Some(Commands::DnsSetup(args)) => cli::dns_setup::execute(args),
+        Some(Commands::Vanity(args)) => cli::vanity::execute(args),
+        Some(Commands::ProxyHosts(args)) => cli::proxy_hosts::execute(args),
     }
 }
 

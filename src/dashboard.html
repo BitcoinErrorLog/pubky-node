@@ -41,6 +41,7 @@
                 <nav class="tabs" id="nav-tabs">
                     <button class="tab active" data-tab="status">Status</button>
                     <button class="tab" data-tab="explorer">Explorer</button>
+                    <button class="tab" data-tab="keys">Keys</button>
                     <button class="tab" data-tab="guide">Guide</button>
                 </nav>
                 <div class="status-indicator" id="connection-status">
@@ -204,47 +205,67 @@
                                 <span class="kv-key">Mapped Port</span>
                                 <span class="kv-val mono" id="upnp-port">--</span>
                             </div>
-                            <div id="upnp-guide" class="inline-guide" style="display:none;">
-                                <div class="inline-guide-title">⚠ Port mapping required</div>
-                                <p>Your router didn't automatically map ports. To enable full network participation:</p>
-                                <ol>
-                                    <li>Log into your <strong>router admin panel</strong> (usually <a
-                                            href="http://192.168.1.1" target="_blank"
-                                            class="inline-link">192.168.1.1</a>)</li>
-                                    <li>Find <strong>UPnP</strong> or <strong>NAT-PMP</strong> settings and enable them
-                                    </li>
-                                    <li>Or manually <strong>forward UDP port 6881</strong> to this machine</li>
-                                    <li>Restart Pubky Node after making changes</li>
-                                </ol>
+                            <div id="upnp-guide" class="inline-guide collapsible" style="display:none;">
+                                <div class="inline-guide-title collapsible-toggle" id="upnp-guide-toggle">
+                                    <span>⚠ Port mapping required</span>
+                                    <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <div class="collapsible-body">
+                                    <p>Your router didn't automatically map ports. To enable full network participation:
+                                    </p>
+                                    <ol>
+                                        <li>Log into your <strong>router admin panel</strong> (usually <a
+                                                href="http://192.168.1.1" target="_blank"
+                                                class="inline-link">192.168.1.1</a>)</li>
+                                        <li>Find <strong>UPnP</strong> or <strong>NAT-PMP</strong> settings and enable
+                                            them
+                                        </li>
+                                        <li>Or manually <strong>forward UDP port 6881</strong> to this machine</li>
+                                        <li>Restart Pubky Node after making changes</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                     </section>
-                    <section class="card" id="watchlist-panel">
+                    <!-- HTTP Proxy Panel -->
+                    <section class="card" id="proxy-panel">
                         <div class="card-header">
                             <div class="card-title">
                                 <div class="card-icon card-icon-amber">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                        <circle cx="12" cy="12" r="3" />
+                                        <path
+                                            d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9" />
                                     </svg>
                                 </div>
-                                <h2>Identity Watchlist</h2>
+                                <h2>HTTP Proxy</h2>
                             </div>
-                            <span class="badge" id="watchlist-badge">--</span>
+                            <span class="badge" id="proxy-badge">--</span>
                         </div>
                         <div class="card-body">
                             <div class="kv-row">
-                                <span class="kv-key">Republish Interval</span>
-                                <span class="kv-val" id="republish-interval">--</span>
+                                <span class="kv-key">Status</span>
+                                <span class="kv-val" id="proxy-status">--</span>
                             </div>
-                            <div class="watchlist-add">
-                                <input type="text" id="watchlist-input" placeholder="Paste a public key to watch..."
-                                    spellcheck="false" autocomplete="off">
-                                <button class="btn-primary btn-sm" id="watchlist-add-btn">+ Add</button>
+                            <div class="kv-row">
+                                <span class="kv-key">Listen Port</span>
+                                <span class="kv-val mono" id="proxy-port">--</span>
                             </div>
-                            <div id="watchlist-error" class="watchlist-error"></div>
-                            <div class="watchlist-keys" id="watchlist-keys"></div>
+                            <div class="kv-row">
+                                <span class="kv-key">Requests Served</span>
+                                <span class="kv-val mono" id="proxy-requests">--</span>
+                            </div>
+                            <div class="proxy-setup" id="proxy-setup-unconfigured">
+                                <button class="btn-primary btn-sm" id="proxy-setup-btn">⚡ Configure /etc/hosts</button>
+                            </div>
+                            <div class="proxy-setup" id="proxy-setup-configured" style="display:none;">
+                                <span style="color:#22c55e;font-size:13px;">✅ Hosts configured</span>
+                                <button class="btn-secondary btn-sm" id="proxy-reset-btn">Reset Hosts</button>
+                            </div>
+                            <div id="proxy-setup-feedback" class="dns-system-feedback" style="display:none;"></div>
                         </div>
                     </section>
 
@@ -278,6 +299,30 @@
                                 <span class="kv-key">Upstream DNS</span>
                                 <span class="kv-val mono" id="dns-forward">--</span>
                             </div>
+                            <div id="dns-connected" class="inline-guide inline-guide-success collapsible"
+                                style="display:none;">
+                                <div class="inline-guide-title collapsible-toggle" id="dns-connected-toggle">
+                                    <span>✅ System DNS Connected</span>
+                                    <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <div class="collapsible-body">
+                                    <p>Your system DNS is pointing to this resolver. <code>.pkarr</code>,
+                                        <code>.key</code>,
+                                        and <code>.pubky</code> domains are resolving.
+                                    </p>
+                                    <div class="dns-actions">
+                                        <button id="dns-reset-connected-btn" class="btn-secondary btn-sm">Reset
+                                            DNS</button>
+                                        <button id="dns-disable-btn2" class="btn-secondary btn-sm">Disable
+                                            PKDNS</button>
+                                    </div>
+                                    <div id="dns-connected-feedback" class="dns-system-feedback" style="display:none;">
+                                    </div>
+                                </div>
+                            </div>
                             <div id="dns-guide" class="inline-guide" style="display:none;">
                                 <div class="inline-guide-title">🌐 Browser Setup</div>
                                 <p>Point your browser's DNS to this resolver to access <code>.pkarr</code> domains:</p>
@@ -306,6 +351,158 @@
                                 style="display:none;">
                                 <div class="inline-guide-title">✅ Config updated</div>
                                 <p>Restart Pubky Node to apply the change.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ===== KEYS TAB ===== -->
+            <div class="tab-content" id="tab-keys">
+                <div class="grid">
+                    <!-- Identity Watchlist (moved from Status) -->
+                    <section class="card" id="watchlist-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-amber">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                </div>
+                                <h2>Identity Watchlist</h2>
+                            </div>
+                            <span class="badge" id="watchlist-badge">--</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">Republish Interval</span>
+                                <span class="kv-val" id="republish-interval">--</span>
+                            </div>
+                            <div class="watchlist-add">
+                                <input type="text" id="watchlist-input" placeholder="Paste a public key to watch..."
+                                    spellcheck="false" autocomplete="off">
+                                <button class="btn-primary btn-sm" id="watchlist-add-btn">+ Add</button>
+                            </div>
+                            <div id="watchlist-error" class="watchlist-error"></div>
+                            <div class="watchlist-keys" id="watchlist-keys"></div>
+                        </div>
+                    </section>
+
+                    <!-- Vanity Key Generator -->
+                    <section class="card" id="vanity-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78" />
+                                        <path d="M15.5 12.5L18 10l4 4-2.5 2.5" />
+                                        <path d="M20 11l-8 8" />
+                                    </svg>
+                                </div>
+                                <h2>Vanity Key Generator</h2>
+                            </div>
+                            <span class="badge" id="vanity-badge">Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="vanity-input-row">
+                                <input type="text" id="vanity-input" placeholder="e.g. pubky, satoshi"
+                                    spellcheck="false" autocomplete="off" maxlength="10">
+                                <label class="vanity-toggle">
+                                    <input type="checkbox" id="vanity-suffix">
+                                    <span class="vanity-toggle-label">Suffix</span>
+                                </label>
+                                <button class="btn-primary btn-sm" id="vanity-start-btn">⚡ Generate</button>
+                                <button class="btn-secondary btn-sm" id="vanity-stop-btn" style="display:none;">■
+                                    Stop</button>
+                            </div>
+                            <div id="vanity-estimate" class="vanity-estimate" style="display:none;"></div>
+                            <div id="vanity-progress" class="vanity-progress" style="display:none;">
+                                <div class="vanity-progress-bar">
+                                    <div class="vanity-progress-fill" id="vanity-progress-fill"></div>
+                                </div>
+                                <div class="vanity-stats">
+                                    <span id="vanity-keys-checked">0 keys</span>
+                                    <span id="vanity-rate">0/s</span>
+                                    <span id="vanity-elapsed">0s</span>
+                                </div>
+                            </div>
+                            <div id="vanity-result" class="vanity-result" style="display:none;">
+                                <div class="kv-row">
+                                    <span class="kv-key">Public Key</span>
+                                    <span class="kv-val mono vanity-key" id="vanity-pubkey">--</span>
+                                    <button class="copy-btn" id="vanity-copy-pubkey" title="Copy public key">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="kv-row">
+                                    <span class="kv-key">Secret Seed</span>
+                                    <span class="kv-val mono vanity-key" id="vanity-seed">--</span>
+                                    <button class="copy-btn" id="vanity-copy-seed" title="Copy seed">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="vanity-warning">
+                                    ⚠️ <strong>Back up your seed!</strong> It cannot be recovered.
+                                </div>
+                            </div>
+                            <div class="vanity-info collapsible" id="vanity-info">
+                                <div class="collapsible-toggle vanity-info-toggle" id="vanity-info-toggle">
+                                    <span style="color:var(--text-tertiary);font-size:12px;">Time estimates</span>
+                                    <svg class="collapse-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <div class="collapsible-body">
+                                    <table class="vanity-time-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Length</th>
+                                                <th>Combinations</th>
+                                                <th>Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>3</td>
+                                                <td>32K</td>
+                                                <td>Instant</td>
+                                            </tr>
+                                            <tr>
+                                                <td>4</td>
+                                                <td>1M</td>
+                                                <td>Seconds</td>
+                                            </tr>
+                                            <tr>
+                                                <td>5</td>
+                                                <td>33M</td>
+                                                <td>Minutes</td>
+                                            </tr>
+                                            <tr>
+                                                <td>6</td>
+                                                <td>1B</td>
+                                                <td>Hours</td>
+                                            </tr>
+                                            <tr>
+                                                <td>7+</td>
+                                                <td>34B+</td>
+                                                <td>Days+</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -444,12 +641,40 @@
                         </section>
 
                         <section class="guide-section">
+                            <div class="guide-section-icon">🌐</div>
+                            <h2>HTTP Proxy</h2>
+                            <p>Local proxy on port <strong>9091</strong> that serves <code>.pkarr</code> user profiles
+                                directly in your browser. Points any <code>.pkarr</code> hostname at 127.0.0.1 and
+                                fetches the user's profile from their homeserver.</p>
+                            <ul>
+                                <li>One-click <strong>/etc/hosts</strong> setup from the Status tab</li>
+                                <li>Auto-detects if hosts are already configured</li>
+                                <li>Renders profile name, bio, and avatar as a styled page</li>
+                                <li>CLI: <code>pubky-node proxy-hosts &lt;KEY&gt;</code></li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🔑</div>
+                            <h2>Vanity Key Generator</h2>
+                            <p>Generate PKARR keypairs with a custom z-base-32 prefix or suffix. Uses all CPU cores
+                                for multi-threaded brute-force grinding.</p>
+                            <ul>
+                                <li>Live input validation against z-base-32 alphabet</li>
+                                <li>Progress bar with keys/s rate and time estimate</li>
+                                <li>3 chars = instant, 4 = seconds, 5 = minutes, 6+ = hours</li>
+                                <li>CLI: <code>pubky-node vanity &lt;PREFIX&gt; [--suffix]</code></li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
                             <div class="guide-section-icon">👁</div>
                             <h2>Identity Watchlist</h2>
                             <p>Monitor public keys and keep their records alive on the DHT by periodically re-publishing
                                 them. No secret key needed — this works with public keys only.</p>
                             <ul>
-                                <li>Configure watched keys in <code>[watchlist] keys</code></li>
+                                <li>Manage watched keys from the <strong>Keys</strong> tab</li>
+                                <li>Configure defaults in <code>[watchlist] keys</code></li>
                                 <li>Adjustable republish interval (default: 1 hour)</li>
                                 <li>Great for keeping friend / service identities available</li>
                             </ul>

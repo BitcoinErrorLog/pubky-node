@@ -25,7 +25,9 @@ Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a 
 | **Pkarr Relay** | HTTP API for publishing and resolving signed DNS packets |
 | **DNS Publisher** | Sign DNS records with secret keys and publish to the DHT with retry |
 | **Pkdns Resolver** | Local DNS server resolving sovereign `.pkarr` / `.key` domains |
+| **HTTP Proxy** | Local proxy (port 9091) to browse `.pkarr` profiles in any browser |
 | **Identity Watchlist** | Monitors and republishes Pkarr records to keep identities alive |
+| **Vanity Key Generator** | Multi-threaded brute-force z-base-32 prefix/suffix key grinder |
 | **Key Explorer** | Look up any public key and inspect its DNS records |
 | **Web Dashboard** | Live monitoring UI at `http://localhost:9090/` |
 | **UPnP Auto-Config** | Automatically opens router ports for full DHT participation |
@@ -198,8 +200,10 @@ The dashboard provides a live monitoring UI and tools:
 - **Status Overview** — Uptime, DHT network size, watched keys count
 - **Mainline DHT** — Node ID, listen address, server/client mode, firewall status, routing table size
 - **Pkarr Relay** — HTTP port, endpoint URL, protocol info
-- **Network / UPnP** — Port mapping status, external IP, mapped port
-- **Identity Watchlist** — Status, republish interval, monitored keys
+- **Network / UPnP** — Port mapping status, external IP, mapped port (collapsible guide)
+- **HTTP Proxy** — Status, port, requests served, one‑click /etc/hosts setup
+- **PKDNS Resolver** — Status, listen address, upstream DNS (collapsible status)
+- **Keys Tab** — Identity watchlist + vanity key generator
 - **Key Explorer** — Paste any 52-character z-base-32 public key to inspect its DNS records from the DHT
 - **User Guide** — Built-in documentation for all features, DNS setup, and config reference
 
@@ -207,8 +211,16 @@ The dashboard provides a live monitoring UI and tools:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/status` | Node status JSON (uptime, DHT, watchlist, UPnP) |
+| `GET` | `/api/status` | Node status JSON (uptime, DHT, watchlist, UPnP, proxy) |
 | `GET` | `/api/resolve/{public_key}` | Resolve a pkarr key and return DNS records |
+| `POST` | `/api/watchlist` | Add a key to the identity watchlist |
+| `DELETE` | `/api/watchlist/{key}` | Remove a key from the watchlist |
+| `POST` | `/api/keys/vanity/start` | Start vanity key generation |
+| `GET` | `/api/keys/vanity/status` | Poll vanity grinder status |
+| `POST` | `/api/keys/vanity/stop` | Stop vanity key generation |
+| `POST` | `/api/proxy/setup-hosts` | Configure /etc/hosts for proxy |
+| `POST` | `/api/proxy/reset-hosts` | Remove proxy entries from /etc/hosts |
+| `GET` | `/api/proxy/hosts-status` | Check if /etc/hosts is configured |
 | `GET` | `/health` | Health check (returns "ok") |
 
 ## UPnP Auto-Port-Forwarding
@@ -246,10 +258,14 @@ pubky-node (supervisor)
 │   └── DNS resolver → Pkarr → DHT
 ├── watchlist (async task)
 │   └── periodic resolve + republish via pkarr::Client
+├── http-proxy (axum, port 9091)
+│   └── .pkarr/.key/.pubky profile rendering
 └── dashboard (axum HTTP server, port 9090)
     ├── /health — container healthcheck
     ├── /api/status — node monitoring JSON
     ├── /api/resolve/:key — key explorer API
+    ├── /api/keys/vanity/* — vanity key grinder
+    ├── /api/proxy/* — /etc/hosts management
     └── embedded HTML/CSS/JS UI
 ```
 
@@ -266,8 +282,10 @@ pubky-node run [--relay-port 6881] [--no-dns] [--no-upnp]   # daemon mode
 pubky-node resolve <PUBLIC_KEY> [--json]                      # look up DNS records
 pubky-node publish --secret-key <HEX> --record "A @ 1.2.3.4" # publish to DHT
 pubky-node keygen [--json]                                    # generate keypair
+pubky-node vanity <PREFIX> [--suffix] [--threads N] [--json]  # vanity key generator
 pubky-node status [--json] [--url http://localhost:9090]      # query running node
 pubky-node dns-setup [--dry-run] [--remove]                   # configure OS DNS
+pubky-node proxy-hosts <KEY1> [KEY2 ...] [--reset]            # configure /etc/hosts for proxy
 ```
 
 ### Daemon Options (`pubky-node run`)
