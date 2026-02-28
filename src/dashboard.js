@@ -599,5 +599,49 @@
         toggleDns(false);
     });
 
+    // Set System DNS
+    async function setSystemDns(endpoint) {
+        var feedback = document.getElementById('dns-system-feedback');
+        feedback.style.display = 'block';
+        feedback.className = 'dns-system-feedback';
+        feedback.textContent = 'Waiting for admin password...';
+        try {
+            var res = await fetch('/api/dns/' + endpoint, { method: 'POST' });
+            if (res.ok) {
+                var data = await res.json();
+                feedback.className = 'dns-system-feedback success';
+                feedback.textContent = '✓ ' + data.message;
+            } else {
+                var err = await res.text();
+                feedback.className = 'dns-system-feedback error';
+                feedback.textContent = '✗ ' + err;
+            }
+        } catch (e) {
+            feedback.className = 'dns-system-feedback error';
+            feedback.textContent = '✗ Failed to set DNS';
+        }
+    }
+
+    document.getElementById('dns-set-system-btn').addEventListener('click', function () {
+        setSystemDns('set-system');
+    });
+    document.getElementById('dns-reset-system-btn').addEventListener('click', function () {
+        setSystemDns('reset-system');
+    });
+
+    // Node Controls
+    document.getElementById('node-restart-btn').addEventListener('click', function () {
+        if (confirm('Restart Pubky Node?')) {
+            fetch('/api/node/restart', { method: 'POST' });
+            document.getElementById('connection-status').querySelector('.status-label').textContent = 'Restarting...';
+        }
+    });
+    document.getElementById('node-shutdown-btn').addEventListener('click', function () {
+        if (confirm('Shutdown Pubky Node? You will need to start it again manually.')) {
+            fetch('/api/node/shutdown', { method: 'POST' });
+            document.getElementById('connection-status').querySelector('.status-label').textContent = 'Shutting down...';
+        }
+    });
+
     renderHistory();
 })();

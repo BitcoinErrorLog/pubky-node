@@ -102,6 +102,10 @@ pub fn start_dashboard(
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
         .route("/api/watchlist/{key}", delete(api_watchlist_remove))
         .route("/api/dns/toggle", post(api_dns_toggle))
+        .route("/api/dns/set-system", post(api_dns_set_system))
+        .route("/api/dns/reset-system", post(api_dns_reset_system))
+        .route("/api/node/shutdown", post(api_shutdown))
+        .route("/api/node/restart", post(api_restart))
         .route("/dashboard.js", get(serve_js))
         .route("/dashboard.css", get(serve_css))
         .layer(middleware::from_fn(security_headers))
@@ -452,6 +456,84 @@ async fn api_dns_toggle(
     }))
 }
 
+/// Set macOS system DNS to point to the local PKDNS resolver.
+async fn api_dns_set_system(
+    State(state): State<Arc<DashboardState>>,
+) -> Result<Json<DnsSystemResponse>, (StatusCode, String)> {
+    let ip = state.dns_socket.split(':').next().unwrap_or("127.0.0.1");
+    run_networksetup_dns(ip).await
+}
+
+/// Reset macOS system DNS to DHCP default.
+async fn api_dns_reset_system() -> Result<Json<DnsSystemResponse>, (StatusCode, String)> {
+    run_networksetup_dns("empty").await
+}
+
+/// Run networksetup to set DNS on the primary network service.
+async fn run_networksetup_dns(dns_value: &str) -> Result<Json<DnsSystemResponse>, (StatusCode, String)> {
+    // Find the primary network service (Wi-Fi, Ethernet, etc.)
+    let list_output = tokio::process::Command::new("networksetup")
+        .args(["-listallnetworkservices"])
+        .output()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to list network services: {}", e)))?;
+
+    let services = String::from_utf8_lossy(&list_output.stdout);
+    let service = services.lines()
+        .filter(|l| !l.starts_with('*') && !l.starts_with("An asterisk"))
+        .find(|l| l.contains("Wi-Fi") || l.contains("Ethernet"))
+        .unwrap_or("Wi-Fi")
+        .to_string();
+
+    // Use osascript for admin privileges (shows password dialog)
+    let script = format!(
+        "do shell script \"networksetup -setdnsservers '{}' {}\" with administrator privileges",
+        service, dns_value
+    );
+
+    let output = tokio::process::Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to set DNS: {}", e)))?;
+
+    if output.status.success() {
+        info!("System DNS set to '{}' on service '{}'", dns_value, service);
+        Ok(Json(DnsSystemResponse {
+            success: true,
+            service: service.clone(),
+            message: if dns_value == "empty" {
+                format!("DNS reset to DHCP default on {}", service)
+            } else {
+                format!("DNS set to {} on {}", dns_value, service)
+            },
+        }))
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr);
+        Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to set DNS: {}", err)))
+    }
+}
+
+/// Shutdown the node process.
+async fn api_shutdown() -> &'static str {
+    info!("Shutdown requested via dashboard");
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        std::process::exit(0);
+    });
+    "Shutting down..."
+}
+
+/// Restart the node process (exits with code 42 for Tauri to respawn).
+async fn api_restart() -> &'static str {
+    info!("Restart requested via dashboard");
+    tokio::spawn(async {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        std::process::exit(42);
+    });
+    "Restarting..."
+}
+
 // === Data structures ===
 
 #[derive(Serialize)]
@@ -504,6 +586,13 @@ struct DnsToggleRequest {
 struct DnsToggleResponse {
     enabled: bool,
     restart_required: bool,
+}
+
+#[derive(Serialize)]
+struct DnsSystemResponse {
+    success: bool,
+    service: String,
+    message: String,
 }
 
 #[derive(Serialize)]

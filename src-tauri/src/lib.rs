@@ -46,40 +46,58 @@ pub fn run() {
 
             // --- Spawn pubky-node sidecar ---
             let app_handle = app.handle().clone();
-            let sidecar_command = app_handle
-                .shell()
-                .sidecar("pubky-node")
-                .unwrap()
-                .args([
-                    "run",
-                    "--dashboard-bind", "127.0.0.1",
-                    "--dashboard-port", "9090",
-                ]);
 
-            let (mut rx, _child) = sidecar_command
-                .spawn()
-                .expect("Failed to spawn pubky-node sidecar");
+            // Spawn sidecar with restart support (exit code 42 = restart)
+            fn spawn_sidecar(app_handle: tauri::AppHandle) {
+                let app_handle2 = app_handle.clone();
+                let sidecar_command = app_handle
+                    .shell()
+                    .sidecar("pubky-node")
+                    .unwrap()
+                    .args([
+                        "run",
+                        "--dashboard-bind", "127.0.0.1",
+                        "--dashboard-port", "9090",
+                    ]);
 
-            // Log sidecar output
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = rx.recv().await {
-                    match event {
-                        CommandEvent::Stdout(line) => {
-                            let text = String::from_utf8_lossy(&line);
-                            println!("[pubky-node] {}", text.trim());
+                let (mut rx, _child) = sidecar_command
+                    .spawn()
+                    .expect("Failed to spawn pubky-node sidecar");
+
+                tauri::async_runtime::spawn(async move {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            CommandEvent::Stdout(line) => {
+                                let text = String::from_utf8_lossy(&line);
+                                println!("[pubky-node] {}", text.trim());
+                            }
+                            CommandEvent::Stderr(line) => {
+                                let text = String::from_utf8_lossy(&line);
+                                eprintln!("[pubky-node] {}", text.trim());
+                            }
+                            CommandEvent::Terminated(status) => {
+                                eprintln!("[pubky-node] process exited: {:?}", status);
+                                // Exit code 42 = restart requested
+                                if status.code == Some(42) {
+                                    eprintln!("[pubky-node] restart requested, respawning...");
+                                    // Show loading screen during restart
+                                    if let Some(window) = app_handle2.get_webview_window("main") {
+                                        let _ = window.eval(
+                                            "window.location.replace('tauri://localhost')"
+                                        );
+                                    }
+                                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                    spawn_sidecar(app_handle2);
+                                }
+                                break;
+                            }
+                            _ => {}
                         }
-                        CommandEvent::Stderr(line) => {
-                            let text = String::from_utf8_lossy(&line);
-                            eprintln!("[pubky-node] {}", text.trim());
-                        }
-                        CommandEvent::Terminated(status) => {
-                            eprintln!("[pubky-node] process exited: {:?}", status);
-                            break;
-                        }
-                        _ => {}
                     }
-                }
-            });
+                });
+            }
+
+            spawn_sidecar(app_handle.clone());
 
             // --- Wait for health check, then navigate to dashboard ---
             let app_handle2 = app.handle().clone();

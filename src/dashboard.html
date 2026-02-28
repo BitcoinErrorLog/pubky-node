@@ -47,6 +47,22 @@
                     <span class="status-dot"></span>
                     <span class="status-label">Connecting...</span>
                 </div>
+                <div class="node-controls">
+                    <button id="node-restart-btn" class="btn-icon" title="Restart Node">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polyline points="23 4 23 10 17 10" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                    </button>
+                    <button id="node-shutdown-btn" class="btn-icon" title="Shutdown Node">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                            <line x1="12" y1="2" x2="12" y2="12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -272,7 +288,12 @@
                                         system DNS</li>
                                     <li>Or set DNS server to <code>127.0.0.1</code> on your router for all devices</li>
                                 </ol>
-                                <button id="dns-disable-btn" class="btn-secondary btn-sm">Disable PKDNS</button>
+                                <div class="dns-actions">
+                                    <button id="dns-set-system-btn" class="btn-primary btn-sm">⚡ Set System DNS</button>
+                                    <button id="dns-reset-system-btn" class="btn-secondary btn-sm">Reset DNS</button>
+                                    <button id="dns-disable-btn" class="btn-secondary btn-sm">Disable PKDNS</button>
+                                </div>
+                                <div id="dns-system-feedback" class="dns-system-feedback" style="display:none;"></div>
                             </div>
                             <div id="dns-disabled-note" class="inline-guide" style="display:none;">
                                 <div class="inline-guide-title">ℹ️ DNS resolver disabled</div>
