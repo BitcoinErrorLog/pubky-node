@@ -16,7 +16,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             label: macOS-ARM64
-          - os: macos-13
+          - os: macos-latest
             target: x86_64-apple-darwin
             label: macOS-x64
           - os: ubuntu-22.04
@@ -53,7 +53,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-22.04'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -73,16 +73,19 @@ jobs:
           mkdir -p pubky-node/src-tauri/binaries
 
           # Build pubky-node
-          cargo build --release --manifest-path pubky-node/Cargo.toml
-          cp pubky-node/target/release/pubky-node${EXT} \
-             pubky-node/src-tauri/binaries/pubky-node-${TARGET}${EXT}
+          cargo build --release --target "$TARGET" --manifest-path pubky-node/Cargo.toml
+          cp "pubky-node/target/${TARGET}/release/pubky-node${EXT}" \
+             "pubky-node/src-tauri/binaries/pubky-node-${TARGET}${EXT}"
 
           # Build pkdns
-          cargo build --release --manifest-path pkdns/server/Cargo.toml
-          cp pkdns/target/release/pkdns${EXT} \
-             pubky-node/src-tauri/binaries/pkdns-${TARGET}${EXT}
+          cargo build --release --target "$TARGET" --manifest-path pkdns/server/Cargo.toml
+          cp "pkdns/target/${TARGET}/release/pkdns${EXT}" \
+             "pubky-node/src-tauri/binaries/pkdns-${TARGET}${EXT}"
 
           ls -la pubky-node/src-tauri/binaries/
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -90,6 +93,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: pubky-node
+          tauriScript: cargo tauri
+          args: --target ${{ matrix.target }}
           tagName: ${{ github.ref_name }}
           releaseName: "Pubky Node ${{ github.ref_name }}"
           releaseBody: |
@@ -107,7 +112,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            pubky-node/target/release/pubky-node${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            pubky-node/target/${{ matrix.target }}/release/pubky-node${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           tag_name: ${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
