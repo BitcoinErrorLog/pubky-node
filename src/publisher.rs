@@ -119,7 +119,7 @@ async fn publish_with_retry(
 }
 
 /// Build a SignedPacket from a keypair and a list of DNS record configs.
-fn build_signed_packet(
+pub fn build_signed_packet(
     keypair: &Keypair,
     records: &[RecordConfig],
 ) -> anyhow::Result<SignedPacket> {

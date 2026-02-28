@@ -253,10 +253,26 @@ pubky-node (supervisor)
     └── embedded HTML/CSS/JS UI
 ```
 
-## CLI Options
+## CLI
+
+Pubky Node includes both a daemon and client subcommands:
+
+```bash
+# Run the daemon (default — same as `pubky-node run`)
+pubky-node
+
+# Subcommands
+pubky-node run [--relay-port 6881] [--no-dns] [--no-upnp]   # daemon mode
+pubky-node resolve <PUBLIC_KEY> [--json]                      # look up DNS records
+pubky-node publish --secret-key <HEX> --record "A @ 1.2.3.4" # publish to DHT
+pubky-node keygen [--json]                                    # generate keypair
+pubky-node status [--json] [--url http://localhost:9090]      # query running node
+pubky-node dns-setup [--dry-run] [--remove]                   # configure OS DNS
+```
+
+### Daemon Options (`pubky-node run`)
 
 ```
-Options:
   -d, --data-dir <PATH>         Data directory [default: ~/.pubky-node]
       --relay-port <PORT>       Override relay HTTP port
       --dht-port <PORT>         Override DHT UDP port
@@ -265,14 +281,12 @@ Options:
       --no-dns                  Disable the DNS resolver
       --no-upnp                 Disable UPnP auto-port-forwarding
   -v, --verbose                 Enable verbose logging
-  -h, --help                    Print help
-  -V, --version                 Print version
 ```
 
 ## Development
 
 ```bash
-# Run tests (23 unit tests)
+# Run tests (42 unit tests)
 cargo test
 
 # Run clippy

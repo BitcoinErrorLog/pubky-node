@@ -30,6 +30,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Error handling
 anyhow = "1"
 
+# HTTP client for CLI status command
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+
+
 # Hex encoding for secret keys
 hex = "0.4"
 
