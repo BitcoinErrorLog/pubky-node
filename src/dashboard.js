@@ -262,10 +262,13 @@
 
     function showExplorer(state) {
         ['explorer-results', 'explorer-empty', 'explorer-loading', 'explorer-error'].forEach(function (id) {
-            document.getElementById(id).style.display = 'none';
+            var el = document.getElementById(id);
+            el.classList.remove('visible');
+            el.style.display = '';
         });
         if (state) {
-            document.getElementById(state).style.display = '';
+            var el = document.getElementById(state);
+            el.classList.add('visible');
         }
     }
 
@@ -352,13 +355,13 @@
         var errorEl = document.getElementById('explorer-error');
         var btn = document.getElementById('explorer-btn');
 
-        errorEl.style.display = 'none';
+        errorEl.classList.remove('visible');
 
         var raw = input.value;
         var result = validateKey(raw);
         if (!result.valid) {
             errorEl.textContent = result.error;
-            errorEl.style.display = '';
+            errorEl.classList.add('visible');
             return;
         }
 
@@ -387,7 +390,7 @@
             renderHistory();
         } catch (e) {
             errorEl.textContent = 'Failed to resolve: ' + e.message;
-            errorEl.style.display = '';
+            errorEl.classList.add('visible');
             showExplorer('explorer-error');
         } finally {
             btn.disabled = false;

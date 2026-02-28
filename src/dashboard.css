@@ -624,19 +624,28 @@ body {
 }
 
 .alert-error {
+    display: none;
     background: var(--red-soft);
     border: 1px solid rgba(239, 68, 68, 0.25);
     color: var(--red);
 }
 
+.alert-error.visible {
+    display: block;
+}
+
 .explorer-loading {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 14px;
     padding: 40px;
     color: var(--text-secondary);
     font-size: 13px;
     justify-content: center;
+}
+
+.explorer-loading.visible {
+    display: flex;
 }
 
 .spinner {
@@ -655,9 +664,14 @@ body {
 }
 
 .explorer-empty {
+    display: none;
     text-align: center;
     padding: 48px 24px;
     color: var(--text-muted);
+}
+
+.explorer-empty.visible {
+    display: block;
 }
 
 .explorer-empty svg {
@@ -669,8 +683,13 @@ body {
 }
 
 .explorer-results {
+    display: none;
     max-width: 900px;
     margin: 0 auto;
+}
+
+.explorer-results.visible {
+    display: block;
 }
 
 .explorer-meta {
