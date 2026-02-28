@@ -4,6 +4,7 @@
 //! and JSON API endpoints for node status and DHT key resolution.
 //! Includes security headers, rate limiting, and a health check endpoint.
 
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicU64, Ordering}};
 
 use axum::{
@@ -30,11 +31,35 @@ struct DashboardState {
     client: Option<Client>,
     watchlist_config: WatchlistConfig,
     shared_keys: SharedWatchlistKeys,
+    data_dir: PathBuf,
     start_time: std::time::Instant,
     relay_port: u16,
     upnp_status: UpnpStatus,
     /// Simple rate limiter: epoch millis of last resolve request.
     resolve_last_request: AtomicU64,
+}
+
+/// Load watchlist keys from disk, falling back to config keys.
+pub fn load_watchlist_keys(data_dir: &std::path::Path, config_keys: &[String]) -> Vec<String> {
+    let path = data_dir.join("watchlist_keys.json");
+    if path.exists() {
+        if let Ok(data) = std::fs::read_to_string(&path) {
+            if let Ok(keys) = serde_json::from_str::<Vec<String>>(&data) {
+                info!("Loaded {} watchlist key(s) from {}", keys.len(), path.display());
+                return keys;
+            }
+        }
+    }
+    config_keys.to_vec()
+}
+
+fn save_watchlist_keys(data_dir: &std::path::Path, keys: &[String]) {
+    let path = data_dir.join("watchlist_keys.json");
+    if let Ok(json) = serde_json::to_string_pretty(keys) {
+        if let Err(e) = std::fs::write(&path, json) {
+            tracing::warn!("Failed to save watchlist keys to {}: {}", path.display(), e);
+        }
+    }
 }
 
 /// Starts the web dashboard HTTP server.
@@ -46,12 +71,14 @@ pub fn start_dashboard(
     client: Option<Client>,
     watchlist_config: WatchlistConfig,
     shared_keys: SharedWatchlistKeys,
+    data_dir: PathBuf,
     upnp_status: UpnpStatus,
 ) -> JoinHandle<()> {
     let state = Arc::new(DashboardState {
         client,
         watchlist_config,
         shared_keys,
+        data_dir,
         start_time: std::time::Instant::now(),
         relay_port,
         upnp_status,
@@ -351,6 +378,8 @@ async fn api_watchlist_add(
 
     let count = keys.len();
     let keys_clone = keys.clone();
+    drop(keys); // release lock before disk I/O
+    save_watchlist_keys(&state.data_dir, &keys_clone);
     Ok(Json(WatchlistResponse { keys: keys_clone, count }))
 }
 
@@ -364,6 +393,8 @@ async fn api_watchlist_remove(
     info!("Watchlist: removed key, now watching {} key(s)", keys.len());
     let count = keys.len();
     let keys_clone = keys.clone();
+    drop(keys); // release lock before disk I/O
+    save_watchlist_keys(&state.data_dir, &keys_clone);
     Json(WatchlistResponse { keys: keys_clone, count })
 }
 

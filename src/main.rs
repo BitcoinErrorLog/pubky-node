@@ -193,8 +193,10 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
     };
 
     // Shared mutable watchlist keys (accessible from dashboard API + watchlist loop)
+    // Load from persisted file first, fall back to config
+    let initial_keys = dashboard::load_watchlist_keys(&data_dir, &config.watchlist.keys);
     let shared_keys: dashboard::SharedWatchlistKeys =
-        std::sync::Arc::new(std::sync::RwLock::new(config.watchlist.keys.clone()));
+        std::sync::Arc::new(std::sync::RwLock::new(initial_keys));
 
     let dashboard_handle = dashboard::start_dashboard(
         run_args.dashboard_port,
@@ -203,6 +205,7 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
         dashboard_client,
         config.watchlist.clone(),
         shared_keys.clone(),
+        data_dir.clone(),
         upnp_status,
     );
 

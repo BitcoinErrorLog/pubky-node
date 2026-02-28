@@ -76,7 +76,7 @@
         opts = opts || {};
         var cls = 'help-tip' + (opts.amber ? ' help-tip-amber' : '');
         var link = opts.guideLink
-            ? '<span class="help-tooltip-link" onclick="document.querySelector(\'[data-tab=guide]\').click()">' + opts.guideLink + '</span>'
+            ? '<span class="help-tooltip-link" data-action="guide">' + opts.guideLink + '</span>'
             : '';
         return '<span class="' + cls + '">' + HELP_SVG +
             '<div class="help-tooltip">' +
@@ -487,11 +487,25 @@
     setInterval(poll, POLL_INTERVAL);
     fetchWatchlistKeys();
 
+    // Explorer: Resolve button click
+    document.getElementById('explorer-btn').addEventListener('click', function () {
+        resolveKey();
+    });
+
     // Explorer: Enter key
     document.getElementById('explorer-input').addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             resolveKey();
+        }
+    });
+
+    // Help tooltip guide links (delegated)
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('[data-action="guide"]');
+        if (link) {
+            var guideTab = document.querySelector('[data-tab=guide]');
+            if (guideTab) guideTab.click();
         }
     });
 
