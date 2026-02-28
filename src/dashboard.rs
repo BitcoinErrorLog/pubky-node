@@ -321,17 +321,31 @@ async fn api_watchlist_add(
     State(state): State<Arc<DashboardState>>,
     Json(body): Json<WatchlistAddRequest>,
 ) -> Result<Json<WatchlistResponse>, (StatusCode, String)> {
-    let key = body.key.trim().to_string();
+    let raw = body.key.trim();
+
+    // Strip common URI prefixes (pubky://, pubky:, pk:, bare "pubky" prefix)
+    let key_str = if let Some(k) = raw.strip_prefix("pubky://") {
+        k.split('/').next().unwrap_or(k)
+    } else if let Some(k) = raw.strip_prefix("pubky:") {
+        k
+    } else if let Some(k) = raw.strip_prefix("pk:") {
+        k
+    } else if raw.starts_with("pubky") && raw.len() > 52 {
+        &raw[5..]
+    } else {
+        raw
+    };
 
     // Validate it's a valid pkarr public key
-    key.parse::<PublicKey>()
+    let public_key: PublicKey = key_str.parse()
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid public key: {}", e)))?;
 
+    let normalized = public_key.to_string();
     let mut keys = state.shared_keys.write().unwrap();
 
     // Don't add duplicates
-    if !keys.contains(&key) {
-        keys.push(key);
+    if !keys.contains(&normalized) {
+        keys.push(normalized);
         info!("Watchlist: added key, now watching {} key(s)", keys.len());
     }
 

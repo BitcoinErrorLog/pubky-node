@@ -184,7 +184,7 @@ async fn run_daemon(data_dir: PathBuf, run_args: RunArgs) -> anyhow::Result<()> 
             [127, 0, 0, 1]
         }
     };
-    let dashboard_client = match pkarr::Client::builder().no_default_network().build() {
+    let dashboard_client = match pkarr::Client::builder().build() {
         Ok(c) => Some(c),
         Err(e) => {
             tracing::warn!("Failed to build dashboard pkarr client: {}. Explorer will be unavailable.", e);

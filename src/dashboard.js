@@ -428,7 +428,13 @@
         keys.forEach(function (key) {
             var el = document.createElement('div');
             el.className = 'watchlist-key';
-            el.innerHTML = '<span class="key-label" title="' + key + '">' + key + '</span>' +
+            el.innerHTML = '<span class="key-label" title="Click to copy">' + key + '</span>' +
+                '<button class="copy-btn copy-btn-sm" title="Copy key" data-copy="' + key + '">' +
+                '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                '<rect x="9" y="9" width="13" height="13" rx="2"/>' +
+                '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>' +
+                '</svg>' +
+                '</button>' +
                 '<button class="key-remove" title="Remove" data-key="' + key + '">×</button>';
             container.appendChild(el);
         });
@@ -498,11 +504,20 @@
         }
     });
 
-    // Watchlist: Remove (delegated)
+    // Watchlist: Remove + Copy (delegated)
     document.getElementById('watchlist-keys').addEventListener('click', function (e) {
-        var btn = e.target.closest('.key-remove');
-        if (btn) {
-            removeWatchlistKey(btn.dataset.key);
+        var removeBtn = e.target.closest('.key-remove');
+        if (removeBtn) {
+            removeWatchlistKey(removeBtn.dataset.key);
+            return;
+        }
+        var copyBtn = e.target.closest('.copy-btn');
+        if (copyBtn) {
+            var text = copyBtn.dataset.copy;
+            navigator.clipboard.writeText(text).then(function () {
+                copyBtn.classList.add('copied');
+                setTimeout(function () { copyBtn.classList.remove('copied'); }, 1500);
+            });
         }
     });
 
