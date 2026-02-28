@@ -1139,6 +1139,7 @@ body {
     height: 10px;
     color: var(--red);
     opacity: 0.85;
+    pointer-events: none;
 }
 
 .help-tip-amber {
