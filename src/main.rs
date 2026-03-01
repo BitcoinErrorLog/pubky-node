@@ -2,10 +2,12 @@ mod cli;
 mod config;
 mod dashboard;
 mod dns;
+mod identity;
 mod keyvault;
 mod homeserver;
 mod publisher;
 mod relay;
+mod tunnel;
 mod upnp;
 mod watchlist;
 

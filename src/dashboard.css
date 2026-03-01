@@ -38,6 +38,16 @@
     --blue: #3b82f6;
     --blue-soft: rgba(59, 130, 246, 0.15);
 
+    /* Semantic aliases used in JS */
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --primary: #6366f1;
+    --border-color: rgba(40, 40, 60, 0.6);
+    --surface-0: rgba(8, 8, 12, 0.9);
+    --surface-1: rgba(18, 18, 28, 0.7);
+    --text-tertiary: #555568;
+
     /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -776,6 +786,31 @@ body {
 .btn-secondary:hover {
     background: rgba(255, 255, 255, 0.12);
     color: var(--text);
+}
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: var(--radius-sm);
+    color: var(--red);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: var(--red);
+}
+
+.btn-danger:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .btn-sm {

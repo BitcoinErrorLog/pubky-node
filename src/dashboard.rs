@@ -6,6 +6,8 @@
 
 use crate::keyvault::{KeyVault, VaultKey};
 use crate::homeserver::HomeserverManager;
+use crate::tunnel::TunnelManager;
+use crate::identity::IdentityManager;
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicU64, AtomicBool, Ordering}};
@@ -21,7 +23,7 @@ use axum::{
 use pkarr::{Client, Keypair, PublicKey};
 use serde::{Serialize, Deserialize};
 use tokio::task::JoinHandle;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, broadcast};
 use tracing::info;
 
 use crate::config::WatchlistConfig;
@@ -110,6 +112,12 @@ struct DashboardState {
     vault: KeyVault,
     /// Homeserver process manager.
     homeserver: HomeserverManager,
+    /// Cloudflare tunnel manager.
+    tunnel: TunnelManager,
+    /// Identity manager (signup/signin tracking).
+    identity: IdentityManager,
+    /// Broadcast channel for log streaming (homeserver stdout lines).
+    log_tx: broadcast::Sender<String>,
 }
 
 /// Load watchlist keys from disk, falling back to config keys.
@@ -162,6 +170,9 @@ pub fn start_dashboard(
 
     let vault = KeyVault::new(&data_dir);
     let homeserver = HomeserverManager::new(&data_dir);
+    let tunnel = TunnelManager::new(homeserver.get_config().drive_icann_port);
+    let identity = IdentityManager::new(&data_dir);
+    let (log_tx, _) = broadcast::channel::<String>(1000);
 
     let state = Arc::new(DashboardState {
         client,
@@ -182,7 +193,13 @@ pub fn start_dashboard(
         auth_hash: auth_hash.clone(),
         vault,
         homeserver,
+        tunnel,
+        identity,
+        log_tx,
     });
+
+    // Wire log broadcast into homeserver so stdout/stderr reach SSE clients
+    *state.homeserver.log_tx.write().unwrap() = Some(state.log_tx.clone());
 
     // Start HTTP proxy for .pkarr domains
     let proxy_state = state.clone();
@@ -224,9 +241,22 @@ pub fn start_dashboard(
         .route("/api/homeserver/logs", get(api_hs_logs))
         .route("/api/homeserver/fix", post(api_hs_fix))
         .route("/api/homeserver/proxy-url", get(api_hs_proxy_url))
+        .route("/api/homeserver/publish-pkarr", post(api_hs_publish_pkarr))
+        .route("/api/homeserver/users", get(api_hs_users))
+        .route("/api/homeserver/users/{pubkey}/quota", post(api_hs_set_user_quota))
+        // .route("/api/homeserver/user-action/disable", post(api_hs_disable_user))
+        // .route("/api/homeserver/user-action/enable", post(api_hs_enable_user))
         .route("/hs", get(api_hs_icann_proxy))
         .route("/hs/", get(api_hs_icann_proxy))
         .route("/hs/{*path}", get(api_hs_icann_proxy).post(api_hs_icann_proxy).put(api_hs_icann_proxy).delete(api_hs_icann_proxy))
+        .route("/api/identity/signup", post(api_identity_signup))
+        .route("/api/identity/signin", post(api_identity_signin))
+        .route("/api/identity/list", get(api_identity_list))
+        .route("/api/tunnel/status", get(api_tunnel_status))
+        .route("/api/tunnel/start", post(api_tunnel_start))
+        .route("/api/tunnel/stop", post(api_tunnel_stop))
+        .route("/api/tunnel/check", get(api_tunnel_check))
+        .route("/api/logs/stream", get(api_logs_stream))
         .route("/api/status", get(api_status))
         .route("/api/resolve/{public_key}", get(api_resolve))
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
@@ -991,6 +1021,331 @@ async fn api_hs_proxy_url(
         "port": cfg.drive_icann_port,
         "running": running,
     }))
+}
+
+/// POST /api/homeserver/publish-pkarr — manually trigger PKARR publish.
+/// Requires the homeserver key to be in the vault.
+async fn api_hs_publish_pkarr(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey_opt = state.homeserver.server_pubkey();
+
+    // Try to get pubkey — if not set, fetch from admin /info first
+    let pubkey = match pubkey_opt {
+        Some(pk) => pk,
+        None => {
+            // Try fetching from admin API
+            let cfg = state.homeserver.get_config();
+            let url = format!("http://127.0.0.1:{}/info", cfg.admin_port);
+            match admin_fetch_get(&url, &cfg.admin_password).await {
+                Ok(info) => {
+                    match info.get("public_key").and_then(|v| v.as_str()) {
+                        Some(pk) => {
+                            *state.homeserver.server_pubkey.write().unwrap() = Some(pk.to_string());
+                            pk.to_string()
+                        }
+                        None => return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({
+                            "error": "Could not determine homeserver public key. Is it running?"
+                        }))),
+                    }
+                }
+                Err(e) => return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({
+                    "error": format!("Homeserver not reachable: {}", e)
+                }))),
+            }
+        }
+    };
+
+    let cfg = state.homeserver.get_config();
+    match state.vault.export_key(&pubkey) {
+        Ok(secret_hex) => {
+            match publish_homeserver_pkarr(&secret_hex, &cfg.icann_domain, &state).await {
+                Ok(()) => {
+                    // Schedule 4h republish
+                    let state_clone = state.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_secs(4 * 3600)).await;
+                        let pubkey_now = state_clone.homeserver.server_pubkey();
+                        if let Some(pk) = pubkey_now {
+                            if let Ok(sec) = state_clone.vault.export_key(&pk) {
+                                let cfg = state_clone.homeserver.get_config();
+                                let _ = publish_homeserver_pkarr(&sec, &cfg.icann_domain, &state_clone).await;
+                                tracing::info!("Homeserver PKARR: 4h republish complete");
+                            }
+                        }
+                    });
+                    (StatusCode::OK, Json(serde_json::json!({
+                        "success": true,
+                        "pubkey": pubkey,
+                        "message": "PKARR record published. Next auto-publish in 4 hours."
+                    })))
+                }
+                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+                    "error": format!("Publish failed: {}", e)
+                }))),
+            }
+        }
+        Err(_) => (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Homeserver secret key not found in vault. Import it via the Keys tab first.",
+            "pubkey": pubkey
+        }))),
+    }
+}
+
+/// GET /api/homeserver/users — list all users with storage usage.
+async fn api_hs_users(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let cfg = state.homeserver.get_config();
+    let url = format!("http://127.0.0.1:{}/users", cfg.admin_port);
+    match admin_fetch_get(&url, &cfg.admin_password).await {
+        Ok(resp) => (StatusCode::OK, Json(resp)),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/users/{pubkey}/quota — set per-user storage quota.
+async fn api_hs_set_user_quota(
+    State(state): State<Arc<DashboardState>>,
+    Path(pubkey): Path<String>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let quota_mb = match body.get("quota_mb").and_then(|v| v.as_u64()) {
+        Some(q) => q,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "quota_mb required" }))),
+    };
+    let cfg = state.homeserver.get_config();
+    let url = format!("http://127.0.0.1:{}/users/{}/quota", cfg.admin_port, pubkey);
+    let body_json = serde_json::json!({ "quota_mb": quota_mb });
+    match admin_fetch_post_json(&url, &cfg.admin_password, &body_json).await {
+        Ok(resp) => (StatusCode::OK, Json(resp)),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/user-action/disable
+async fn api_hs_disable_user(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = body.get("pubkey").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if pubkey.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "pubkey required" })));
+    }
+    match state.homeserver.disable_user(&pubkey).await {
+        Ok(resp) => (StatusCode::OK, Json(resp)),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/user-action/enable
+async fn api_hs_enable_user(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = body.get("pubkey").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if pubkey.is_empty() {
+        return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "pubkey required" })));
+    }
+    match state.homeserver.enable_user(&pubkey).await {
+        Ok(resp) => (StatusCode::OK, Json(resp)),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+fn extract_path_segment(path: &str, idx: i32) -> String {
+    let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+    let i = if idx < 0 {
+        (parts.len() as i32 + idx).max(0) as usize
+    } else {
+        idx as usize
+    };
+    parts.get(i).unwrap_or(&"").to_string()
+}
+
+// ─── Identity API Handlers ─────────────────────────────────────
+
+/// POST /api/identity/signup
+async fn api_identity_signup(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = match body.get("pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "pubkey required" }))),
+    };
+    let homeserver_pubkey = match body.get("homeserver_pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "homeserver_pubkey required" }))),
+    };
+    let signup_token = body.get("signup_token").and_then(|v| v.as_str());
+
+    let secret_hex = match state.vault.export_key(pubkey) {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Key not found in vault. Unlock the vault and ensure this key is stored."
+        }))),
+    };
+
+    let icann_port = state.homeserver.get_config().drive_icann_port;
+
+    match state.identity.signup(&secret_hex, homeserver_pubkey, signup_token, icann_port).await {
+        Ok(info) => (StatusCode::OK, Json(serde_json::to_value(info).unwrap_or_default())),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/identity/signin
+async fn api_identity_signin(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = match body.get("pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "pubkey required" }))),
+    };
+
+    let secret_hex = match state.vault.export_key(pubkey) {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": "Key not found in vault."
+        }))),
+    };
+
+    let icann_port = state.homeserver.get_config().drive_icann_port;
+
+    match state.identity.signin(&secret_hex, icann_port).await {
+        Ok(info) => (StatusCode::OK, Json(serde_json::to_value(info).unwrap_or_default())),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// GET /api/identity/list
+async fn api_identity_list(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let ids = state.identity.list();
+    Json(serde_json::json!({ "identities": ids }))
+}
+
+// ─── Cloudflare Tunnel API ────────────────────────────────────
+
+/// GET /api/tunnel/status
+async fn api_tunnel_status(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.tunnel.check_process();
+    let tunnel_state = state.tunnel.state();
+    Json(serde_json::json!({
+        "state": tunnel_state.as_str(),
+        "error": if let crate::tunnel::TunnelState::Error(ref e) = tunnel_state { Some(e.as_str()) } else { None::<&str> },
+        "public_url": state.tunnel.public_url(),
+        "binary_available": crate::tunnel::TunnelManager::binary_available(),
+    }))
+}
+
+/// POST /api/tunnel/start
+async fn api_tunnel_start(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.tunnel.start() {
+        Ok(()) => {
+            // After the tunnel URL is resolved, auto-update icann_domain and re-publish PKARR
+            let state_clone = state.clone();
+            tokio::spawn(async move {
+                // Poll until URL appears (up to 30s)
+                for _ in 0..30 {
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    if let Some(url) = state_clone.tunnel.public_url() {
+                        // Strip https:// for the domain
+                        let domain = url.trim_start_matches("https://").trim_start_matches("http://").to_string();
+                        tracing::info!("Tunnel active: {} — updating homeserver config", domain);
+
+                        // Update icann_domain in homeserver config
+                        let update = serde_json::json!({ "icann_domain": domain });
+                        if let Err(e) = state_clone.homeserver.update_config(update) {
+                            tracing::warn!("Failed to update icann_domain with tunnel URL: {}", e);
+                        }
+
+                        // Re-publish PKARR with new domain
+                        if let Some(pk) = state_clone.homeserver.server_pubkey() {
+                            if let Ok(secret) = state_clone.vault.export_key(&pk) {
+                                let _ = publish_homeserver_pkarr(&secret, &domain, &state_clone).await;
+                                tracing::info!("PKARR republished with tunnel domain: {}", domain);
+                            }
+                        }
+                        break;
+                    }
+                }
+            });
+            (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "Tunnel starting..." })))
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/tunnel/stop
+async fn api_tunnel_stop(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.tunnel.stop();
+    Json(serde_json::json!({ "success": true }))
+}
+
+/// GET /api/tunnel/check — is cloudflared binary available?
+async fn api_tunnel_check(
+) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "available": crate::tunnel::TunnelManager::binary_available(),
+        "download_url": "https://github.com/cloudflare/cloudflared/releases/latest"
+    }))
+}
+
+// ─── SSE Log Stream ───────────────────────────────────────────
+
+/// GET /api/logs/stream — Server-Sent Events stream of homeserver stdout.
+async fn api_logs_stream(
+    State(state): State<Arc<DashboardState>>,
+) -> impl IntoResponse {
+    use axum::response::sse::{Event, KeepAlive, Sse};
+    use tokio_stream::wrappers::BroadcastStream;
+    use tokio_stream::StreamExt as _;
+
+    let rx = state.log_tx.subscribe();
+    let live_stream = BroadcastStream::new(rx)
+        .filter_map(|msg| {
+            msg.ok().map(|line| {
+                Ok::<Event, std::convert::Infallible>(Event::default().data(line))
+            })
+        });
+
+    // Seed with last 50 buffered lines as historic events
+    let historic: Vec<Result<Event, std::convert::Infallible>> = state.homeserver.get_logs(50)
+        .into_iter()
+        .map(|line| Ok(Event::default().data(line)))
+        .collect();
+    let historic_stream = tokio_stream::iter(historic);
+    let combined = historic_stream.chain(live_stream);
+
+    Sse::new(combined).keep_alive(KeepAlive::default())
+}
+
+/// Helper: POST JSON body to admin API.
+async fn admin_fetch_post_json(url: &str, password: &str, body: &serde_json::Value) -> Result<serde_json::Value, String> {
+    use base64::Engine;
+    let credentials = base64::engine::general_purpose::STANDARD.encode(format!("admin:{}", password));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.post(url)
+        .header("Authorization", format!("Basic {}", credentials))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| format!("Admin API error: {}", e))?;
+    let body = resp.text().await.map_err(|e| e.to_string())?;
+    serde_json::from_str(&body).map_err(|_| body)
 }
 
 /// ANY /hs/{*path} — transparent proxy to the homeserver's ICANN HTTP endpoint.

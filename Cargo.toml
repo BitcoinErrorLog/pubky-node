@@ -12,6 +12,7 @@ pkarr = { path = "../pkarr/pkarr", default-features = false, features = ["dht", 
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 
 # HTTP server for dashboard
 axum = "0.8"

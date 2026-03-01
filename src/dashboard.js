@@ -2058,5 +2058,391 @@
             setTimeout(function () { btn.textContent = '📋'; }, 1500);
         });
 
+        // ─── PKARR Publish ───────────────────────────────
+        var publishPkarrBtn = document.getElementById('hs-publish-pkarr-btn');
+        var publishPkarrMsg = document.getElementById('hs-publish-pkarr-msg');
+        if (publishPkarrBtn) {
+            publishPkarrBtn.addEventListener('click', async function () {
+                publishPkarrBtn.disabled = true;
+                publishPkarrMsg.textContent = 'Publishing…';
+                try {
+                    var res = await authFetch('/api/homeserver/publish-pkarr', { method: 'POST' });
+                    var data = await res.json();
+                    if (res.ok) {
+                        publishPkarrMsg.textContent = '✅ Published! Next auto-publish in 4h.';
+                        publishPkarrMsg.style.color = 'var(--success)';
+                    } else {
+                        publishPkarrMsg.textContent = '❌ ' + (data.error || 'Failed');
+                        publishPkarrMsg.style.color = 'var(--danger)';
+                    }
+                } catch (e) {
+                    publishPkarrMsg.textContent = '❌ ' + e.message;
+                    publishPkarrMsg.style.color = 'var(--danger)';
+                } finally {
+                    publishPkarrBtn.disabled = false;
+                }
+            });
+        }
+
+        // ─── Log Stream SSE ──────────────────────────────
+        var logOutput = document.getElementById('hs-log-output');
+        var logBadge = document.getElementById('hs-log-badge');
+        var logFilter = document.getElementById('hs-log-filter');
+        var logClear = document.getElementById('hs-log-clear-btn');
+        var _logLines = [];
+        var _logEs = null;
+
+        function renderLogs() {
+            var filter = (logFilter ? logFilter.value.toLowerCase() : '');
+            var html = _logLines
+                .filter(function (l) { return !filter || l.toLowerCase().includes(filter); })
+                .map(function (l) {
+                    var cls = l.includes('ERROR') || l.includes('error') ? 'color:var(--danger)' :
+                        l.includes('WARN') || l.includes('warn') ? 'color:var(--warning)' :
+                            '';
+                    return '<span style="' + cls + '">' + escHtml(l) + '</span>';
+                })
+                .join('\n');
+            if (logOutput) {
+                logOutput.innerHTML = html || '<span style="color:var(--text-tertiary);">No matching log lines.</span>';
+                logOutput.scrollTop = logOutput.scrollHeight;
+            }
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function startLogStream() {
+            if (_logEs) return;
+            _logEs = new EventSource('/api/logs/stream');
+            if (logBadge) { logBadge.textContent = 'Live'; logBadge.className = 'badge badge-active'; }
+            _logEs.onmessage = function (e) {
+                _logLines.push(e.data);
+                if (_logLines.length > 2000) _logLines.shift();
+                renderLogs();
+            };
+            _logEs.onerror = function () {
+                if (logBadge) { logBadge.textContent = 'Disconnected'; logBadge.className = 'badge'; }
+                _logEs.close(); _logEs = null;
+                setTimeout(startLogStream, 5000);
+            };
+        }
+
+        // Start when homeserver tab is visited
+        document.querySelectorAll('.tab').forEach(function (t) {
+            t.addEventListener('click', function () {
+                if (t.dataset.tab === 'homeserver' && !_logEs) {
+                    startLogStream();
+                    hsLoadUsers();
+                    hsTunnelRefresh();
+                    hsIdentityLoad();
+                }
+            });
+        });
+
+        if (logFilter) logFilter.addEventListener('input', renderLogs);
+        if (logClear) logClear.addEventListener('click', function () { _logLines = []; renderLogs(); });
+
+        // ─── Users & Quota ───────────────────────────────
+        var usersTable = document.getElementById('hs-users-table');
+        var usersBadge = document.getElementById('hs-users-badge');
+        var usersRefreshBtn = document.getElementById('hs-users-refresh-btn');
+        var userSearch = document.getElementById('hs-user-search');
+
+        var _allUsers = [];
+
+        async function hsLoadUsers() {
+            if (!usersTable) return;
+            usersTable.innerHTML = '<span style="color:var(--text-tertiary);">Loading…</span>';
+            try {
+                var res = await authFetch('/api/homeserver/users');
+                var data = await res.json();
+                _allUsers = data.users || [];
+                if (usersBadge) usersBadge.textContent = _allUsers.length + ' users';
+                renderUsersTable(_allUsers);
+                // Populate file browser select
+                var sel = document.getElementById('hs-files-user-select');
+                if (sel) {
+                    var existing = sel.value;
+                    sel.innerHTML = '<option value="">— select user —</option>';
+                    _allUsers.forEach(function (u) {
+                        var o = document.createElement('option');
+                        o.value = u.pubkey || u;
+                        o.textContent = (u.pubkey || u).substring(0, 20) + '…';
+                        sel.appendChild(o);
+                    });
+                    sel.value = existing;
+                }
+            } catch (e) {
+                usersTable.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+            }
+        }
+
+        function renderUsersTable(users) {
+            var filter = userSearch ? userSearch.value.toLowerCase() : '';
+            var shown = users.filter(function (u) {
+                var pk = (u.pubkey || u).toLowerCase();
+                return !filter || pk.includes(filter);
+            });
+
+            if (!shown.length) {
+                usersTable.innerHTML = '<span style="color:var(--text-tertiary);">No users found.</span>';
+                return;
+            }
+
+            var rows = shown.map(function (u) {
+                var pk = u.pubkey || u;
+                var short = pk.substring(0, 24) + '…';
+                var disabled = u.disabled ? ' disabled' : '';
+                return [
+                    '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-color);">',
+                    '  <span class="mono" title="' + pk + '" style="flex:1;overflow:hidden;text-overflow:ellipsis;">' + short + '</span>',
+                    '  <input type="number" min="0" placeholder="quota MB" value="' + (u.quota_mb || 0) + '"',
+                    '    style="width:80px;padding:3px 6px;border-radius:5px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);font-size:11px;"',
+                    '    data-pubkey="' + pk + '" class="user-quota-input">',
+                    '  <button class="btn-sm btn-secondary user-quota-save" data-pubkey="' + pk + '" title="Save quota" style="padding:3px 8px;">💾</button>',
+                    '  <button class="btn-sm ' + (disabled ? 'btn-primary user-enable-btn' : 'btn-danger user-disable-btn') + '"',
+                    '    data-pubkey="' + pk + '" style="padding:3px 8px;">' + (disabled ? 'Enable' : 'Disable') + '</button>',
+                    '</div>'
+                ].join('');
+            }).join('');
+
+            usersTable.innerHTML = rows;
+
+            // Bind quota save buttons
+            usersTable.querySelectorAll('.user-quota-save').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var pk = btn.dataset.pubkey;
+                    var inp = usersTable.querySelector('.user-quota-input[data-pubkey="' + pk + '"]');
+                    var mb = parseInt(inp ? inp.value : 0, 10);
+                    btn.disabled = true;
+                    try {
+                        var res = await authFetch('/api/homeserver/users/' + encodeURIComponent(pk) + '/quota', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ quota_mb: mb })
+                        });
+                        var d = await res.json();
+                        btn.textContent = d.error ? '❌' : '✅';
+                        setTimeout(function () { btn.textContent = '💾'; }, 1500);
+                    } catch (e) { btn.textContent = '❌'; }
+                    btn.disabled = false;
+                });
+            });
+
+            // Bind disable/enable buttons
+            usersTable.querySelectorAll('.user-disable-btn, .user-enable-btn').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var pk = btn.dataset.pubkey;
+                    var isDisable = btn.classList.contains('user-disable-btn');
+                    var action = isDisable ? 'disable' : 'enable';
+                    btn.disabled = true;
+                    try {
+                        var res = await authFetch('/api/homeserver/user-action/' + action, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pubkey: pk })
+                        });
+                        if (res.ok) hsLoadUsers(); // refresh
+                    } catch (e) { console.error(e); }
+                    btn.disabled = false;
+                });
+            });
+        }
+
+        if (usersRefreshBtn) usersRefreshBtn.addEventListener('click', hsLoadUsers);
+        if (userSearch) userSearch.addEventListener('input', function () { renderUsersTable(_allUsers); });
+
+        // ─── Cloudflare Tunnel ───────────────────────────
+        var tunnelBadge = document.getElementById('hs-tunnel-badge');
+        var tunnelUrl = document.getElementById('hs-tunnel-url');
+        var tunnelNoBin = document.getElementById('hs-tunnel-no-binary');
+        var tunnelStartBtn = document.getElementById('hs-tunnel-start-btn');
+        var tunnelStopBtn = document.getElementById('hs-tunnel-stop-btn');
+
+        async function hsTunnelRefresh() {
+            try {
+                var res = await authFetch('/api/tunnel/status');
+                var data = await res.json();
+                var st = data.state || 'stopped';
+                if (tunnelBadge) {
+                    tunnelBadge.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+                    tunnelBadge.className = 'badge' + (st === 'running' ? ' badge-active' : st === 'starting' ? ' badge-warning' : '');
+                }
+                if (tunnelUrl) {
+                    if (data.public_url) {
+                        tunnelUrl.style.display = '';
+                        tunnelUrl.innerHTML = '🌐 <a href="' + data.public_url + '" target="_blank" rel="noopener" style="color:var(--primary);">' + data.public_url + '</a>';
+                    } else {
+                        tunnelUrl.style.display = 'none';
+                    }
+                }
+                if (!data.binary_available && tunnelNoBin) tunnelNoBin.style.display = '';
+                if (tunnelStartBtn) tunnelStartBtn.disabled = (st === 'running' || st === 'starting');
+                if (tunnelStopBtn) tunnelStopBtn.disabled = (st === 'stopped');
+            } catch (e) { console.error('tunnel status:', e); }
+        }
+
+        if (tunnelStartBtn) {
+            tunnelStartBtn.addEventListener('click', async function () {
+                tunnelStartBtn.disabled = true;
+                if (tunnelBadge) tunnelBadge.textContent = 'Starting…';
+                try {
+                    await authFetch('/api/tunnel/start', { method: 'POST' });
+                    setTimeout(hsTunnelRefresh, 3000);
+                    setTimeout(hsTunnelRefresh, 8000);
+                } catch (e) { console.error(e); hsTunnelRefresh(); }
+            });
+        }
+        if (tunnelStopBtn) {
+            tunnelStopBtn.addEventListener('click', async function () {
+                tunnelStopBtn.disabled = true;
+                try {
+                    await authFetch('/api/tunnel/stop', { method: 'POST' });
+                    setTimeout(hsTunnelRefresh, 1000);
+                } catch (e) { console.error(e); hsTunnelRefresh(); }
+            });
+        }
+
+        // ─── Identity Signup ─────────────────────────────
+        var identityKeySelect = document.getElementById('hs-identity-key-select');
+        var identityToken = document.getElementById('hs-identity-token');
+        var identitySignupBtn = document.getElementById('hs-identity-signup-btn');
+        var identityMsg = document.getElementById('hs-identity-msg');
+        var identityListEl = document.getElementById('hs-identity-list');
+        var identityBadge = document.getElementById('hs-identity-badge');
+
+        function hsIdentityLoad() {
+            // Populate key selector from the vault
+            authFetch('/api/keys').then(function (res) { return res.json(); }).then(function (data) {
+                if (!identityKeySelect) return;
+                var keys = data.keys || [];
+                identityKeySelect.innerHTML = '<option value="">— select a key —</option>';
+                keys.forEach(function (k) {
+                    var o = document.createElement('option');
+                    o.value = k.pubkey || k;
+                    o.textContent = (k.name ? k.name + ' (' : '') + (k.pubkey || k).substring(0, 20) + '…' + (k.name ? ')' : '');
+                    identityKeySelect.appendChild(o);
+                });
+            }).catch(function () { });
+
+            // Load registered identities
+            authFetch('/api/identity/list').then(function (res) { return res.json(); }).then(function (data) {
+                var ids = data.identities || [];
+                if (identityBadge) identityBadge.textContent = ids.length ? ids.length + ' registered' : '—';
+                if (!identityListEl) return;
+                if (!ids.length) { identityListEl.innerHTML = ''; return; }
+                identityListEl.innerHTML = '<b style="font-size:11px;color:var(--text-tertiary);display:block;margin-bottom:6px;">Registered identities:</b>' +
+                    ids.map(function (id) {
+                        var ts = id.signed_up_at ? new Date(id.signed_up_at * 1000).toLocaleDateString() : '—';
+                        return '<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border-color);">' +
+                            '<span class="mono" style="flex:1;">' + (id.pubkey || '').substring(0, 24) + '…</span>' +
+                            '<span style="color:var(--text-tertiary);">' + ts + '</span>' +
+                            '<span class="badge ' + (id.status === 'active' ? 'badge-active' : '') + '">' + (id.status || '?') + '</span>' +
+                            '</div>';
+                    }).join('');
+            }).catch(function () { });
+        }
+
+        if (identitySignupBtn) {
+            identitySignupBtn.addEventListener('click', async function () {
+                var pubkey = identityKeySelect ? identityKeySelect.value : '';
+                if (!pubkey) { identityMsg.textContent = 'Select a key first.'; return; }
+                identitySignupBtn.disabled = true;
+                identityMsg.textContent = 'Signing up…';
+                try {
+                    var body = { pubkey: pubkey };
+                    var tok = identityToken ? identityToken.value.trim() : '';
+                    var hsStatus = await authFetch('/api/homeserver/status').then(function (r) { return r.json(); }).catch(function () { return {}; });
+                    body.homeserver_pubkey = hsStatus.pubkey || '';
+                    if (tok) body.signup_token = tok;
+                    var res = await authFetch('/api/identity/signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    var data = await res.json();
+                    if (res.ok) {
+                        identityMsg.textContent = '✅ Signed up!';
+                        identityMsg.style.color = 'var(--success)';
+                        hsIdentityLoad();
+                    } else {
+                        identityMsg.textContent = '❌ ' + (data.error || 'Failed');
+                        identityMsg.style.color = 'var(--danger)';
+                    }
+                } catch (e) {
+                    identityMsg.textContent = '❌ ' + e.message;
+                    identityMsg.style.color = 'var(--danger)';
+                } finally {
+                    identitySignupBtn.disabled = false;
+                }
+            });
+        }
+
+        // ─── WebDAV File Browser ─────────────────────────
+        var filesRefreshBtn = document.getElementById('hs-files-refresh-btn');
+        var filesTree = document.getElementById('hs-files-tree');
+        var filesPreview = document.getElementById('hs-files-preview');
+        var filesUserSelect = document.getElementById('hs-files-user-select');
+
+        async function hsBrowseFiles(pubkey, path) {
+            if (!pubkey || !filesTree) return;
+            path = path || 'pub';
+            filesTree.innerHTML = '<span style="color:var(--text-tertiary);">Browsing…</span>';
+            try {
+                // Use dav proxy: /hs/dav/{pubkey}/{path}
+                var url = '/hs/dav/' + encodeURIComponent(pubkey) + '/' + path;
+                var res = await authFetch(url, {
+                    method: 'PROPFIND',
+                    headers: { 'Depth': '1', 'Content-Type': 'application/xml' }
+                });
+                var text = await res.text();
+                // Parse XML to extract hrefs
+                var hrefs = [], parser = new DOMParser();
+                var doc = parser.parseFromString(text, 'application/xml');
+                var refs = doc.querySelectorAll('href');
+                refs.forEach(function (el) { hrefs.push(el.textContent.trim()); });
+                // Filter out the current directory itself
+                hrefs = hrefs.filter(function (h) { return h !== url && h !== url + '/'; });
+                if (!hrefs.length) {
+                    filesTree.innerHTML = '<span style="color:var(--text-tertiary);">Empty directory.</span>';
+                    return;
+                }
+                filesTree.innerHTML = hrefs.map(function (h) {
+                    var name = h.split('/').filter(Boolean).pop();
+                    var isDir = h.endsWith('/');
+                    return '<div style="padding:3px 0;cursor:pointer;" data-href="' + h + '" data-dir="' + isDir + '">' +
+                        (isDir ? '📁 ' : '📄 ') + name +
+                        '</div>';
+                }).join('');
+                // Bind clicks
+                filesTree.querySelectorAll('[data-href]').forEach(function (el) {
+                    el.addEventListener('click', async function () {
+                        if (el.dataset.dir === 'true') {
+                            hsBrowseFiles(pubkey, path + '/' + el.textContent.trim().replace(/^📁 /, '').replace(/^📄 /, ''));
+                        } else {
+                            if (!filesPreview) return;
+                            filesPreview.style.display = '';
+                            filesPreview.textContent = 'Loading…';
+                            try {
+                                var fr = await authFetch(el.dataset.href);
+                                filesPreview.textContent = await fr.text();
+                            } catch (e) { filesPreview.textContent = 'Error: ' + e.message; }
+                        }
+                    });
+                });
+            } catch (e) {
+                filesTree.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+            }
+        }
+
+        if (filesRefreshBtn) {
+            filesRefreshBtn.addEventListener('click', function () {
+                var pk = filesUserSelect ? filesUserSelect.value : '';
+                hsBrowseFiles(pk);
+            });
+        }
+
     } // end initEventListeners
 })();

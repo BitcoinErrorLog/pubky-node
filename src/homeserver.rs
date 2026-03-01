@@ -13,6 +13,8 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
+use tokio::sync::broadcast;
+
 /// Homeserver operational state.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HomeserverState {
@@ -88,7 +90,9 @@ pub struct HomeserverManager {
     binary_path: RwLock<Option<PathBuf>>,
     config: RwLock<HomeserverConfig>,
     pub server_pubkey: RwLock<Option<String>>,
-    stdout_lines: RwLock<Vec<String>>,
+    stdout_lines: Arc<RwLock<Vec<String>>>,
+    /// Optional broadcast sender — if set, all stdout/stderr lines are forwarded to SSE stream.
+    pub log_tx: RwLock<Option<broadcast::Sender<String>>>,
 }
 
 impl HomeserverManager {
@@ -117,7 +121,8 @@ impl HomeserverManager {
             binary_path: RwLock::new(None),
             config: RwLock::new(config),
             server_pubkey: RwLock::new(None),
-            stdout_lines: RwLock::new(Vec::new()),
+            stdout_lines: Arc::new(RwLock::new(Vec::new())),
+            log_tx: RwLock::new(None),
         }
     }
 
@@ -447,8 +452,42 @@ level = "info"
            .stderr(Stdio::piped());
 
         match cmd.spawn() {
-            Ok(child) => {
+            Ok(mut child) => {
                 let pid = child.id();
+
+                // Drain stdout+stderr into ring buffer (and optional SSE broadcast)
+                let log_buf = Arc::clone(&self.stdout_lines);
+                let log_sender = self.log_tx.read().unwrap().clone();
+
+                // stdout
+                if let Some(stdout) = child.stdout.take() {
+                    let buf = Arc::clone(&log_buf);
+                    let sender = log_sender.clone();
+                    std::thread::spawn(move || {
+                        use std::io::BufRead;
+                        for line in std::io::BufReader::new(stdout).lines().flatten() {
+                            if let Some(ref tx) = sender { let _ = tx.send(line.clone()); }
+                            let mut b = buf.write().unwrap();
+                            b.push(line);
+                            if b.len() > 1000 { b.remove(0); }
+                        }
+                    });
+                }
+                // stderr (homeserver logs mainly come here)
+                if let Some(stderr) = child.stderr.take() {
+                    let buf = Arc::clone(&log_buf);
+                    let sender = log_sender;
+                    std::thread::spawn(move || {
+                        use std::io::BufRead;
+                        for line in std::io::BufReader::new(stderr).lines().flatten() {
+                            if let Some(ref tx) = sender { let _ = tx.send(line.clone()); }
+                            let mut b = buf.write().unwrap();
+                            b.push(line);
+                            if b.len() > 1000 { b.remove(0); }
+                        }
+                    });
+                }
+
                 *self.process.write().unwrap() = Some(child);
                 *self.started_at.write().unwrap() = Some(Instant::now());
                 *self.state.write().unwrap() = HomeserverState::Running;

@@ -1337,6 +1337,205 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             </div>
                         </div>
                     </section>
+
+                    <!-- ── PKARR Publish Card ─── -->
+                    <section class="card" id="hs-pkarr-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 8 12 12 14 14" />
+                                    </svg>
+                                </div>
+                                <h2>PKARR Publishing</h2>
+                            </div>
+                            <span class="badge" id="hs-pkarr-badge">—</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Publishes a PKARR
+                                DNS record pointing your homeserver's public key to its ICANN domain. Requires the
+                                homeserver secret key to be in the vault.</p>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <button class="btn-primary" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
+                                <span id="hs-publish-pkarr-msg"
+                                    style="font-size:12px;color:var(--text-secondary);"></span>
+                            </div>
+                            <div style="margin-top:10px;font-size:12px;color:var(--text-tertiary);">Auto-republishes
+                                every 4 hours after manual trigger.</div>
+                        </div>
+                    </section>
+
+                    <!-- ── Log Stream Viewer ─── -->
+                    <section class="card" id="hs-logs-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-blue">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                    </svg>
+                                </div>
+                                <h2>Log Stream</h2>
+                            </div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" id="hs-log-filter" placeholder="Filter…"
+                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);width:110px;">
+                                <button class="btn-sm btn-secondary" id="hs-log-clear-btn">Clear</button>
+                                <span class="badge" id="hs-log-badge">Idle</span>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding:0;">
+                            <div id="hs-log-output"
+                                style="font-family:var(--font-mono);font-size:11px;line-height:1.5;height:240px;overflow-y:auto;padding:12px;background:var(--surface-0);border-radius:0 0 12px 12px;white-space:pre-wrap;word-break:break-all;color:var(--text-secondary);">
+                                <span style="color:var(--text-tertiary);">Start the homeserver to see logs…</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ── Users & Quotas ─── -->
+                    <section class="card" id="hs-users-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                        <circle cx="9" cy="7" r="4" />
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                    </svg>
+                                </div>
+                                <h2>Users</h2>
+                            </div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <input type="text" id="hs-user-search" placeholder="Filter pubkey…"
+                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);width:110px;">
+                                <button class="btn-sm btn-secondary" id="hs-users-refresh-btn">Refresh</button>
+                                <span class="badge" id="hs-users-badge">—</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="hs-users-table" style="font-size:12px;">
+                                <div style="color:var(--text-tertiary);">Homeserver must be running to list users.</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ── Cloudflare Tunnel ─── -->
+                    <section class="card" id="hs-tunnel-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-orange">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                                    </svg>
+                                </div>
+                                <h2>Cloudflare Tunnel</h2>
+                            </div>
+                            <span class="badge" id="hs-tunnel-badge">Stopped</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Expose your
+                                homeserver publicly via a free Cloudflare quick-tunnel. Automatically updates ICANN
+                                domain and republishes PKARR after connecting.</p>
+                            <div id="hs-tunnel-url"
+                                style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:8px;background:var(--surface-0);font-family:var(--font-mono);font-size:12px;word-break:break-all;">
+                            </div>
+                            <div id="hs-tunnel-no-binary"
+                                style="display:none;margin-bottom:10px;font-size:12px;color:var(--warning);">
+                                ⚠ <code>cloudflared</code> not found. <a
+                                    href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
+                                    rel="noopener" style="color:var(--primary);">Download here</a> and place in PATH.
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <button class="btn-primary" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
+                                <button class="btn-secondary" id="hs-tunnel-stop-btn">■ Stop</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ── Identity Signup ─── -->
+                    <section class="card" id="hs-identity-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                </div>
+                                <h2>Identity Signup</h2>
+                            </div>
+                            <span class="badge" id="hs-identity-badge">—</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Register a vault
+                                key as a user on this homeserver.</p>
+                            <div style="display:flex;flex-direction:column;gap:8px;max-width:460px;">
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Key (from vault)</label>
+                                    <select id="hs-identity-key-select" class="publisher-key-input">
+                                        <option value="">— select a key —</option>
+                                    </select>
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Signup Token (optional)</label>
+                                    <input type="text" id="hs-identity-token" class="publisher-key-input"
+                                        placeholder="Leave blank if homeserver is open">
+                                </div>
+                                <div style="display:flex;gap:8px;align-items:center;">
+                                    <button class="btn-primary" id="hs-identity-signup-btn">✅ Sign Up</button>
+                                    <span id="hs-identity-msg"
+                                        style="font-size:12px;color:var(--text-secondary);"></span>
+                                </div>
+                            </div>
+                            <div id="hs-identity-list" style="margin-top:14px;font-size:12px;"></div>
+                        </div>
+                    </section>
+
+                    <!-- ── WebDAV File Browser ─── -->
+                    <section class="card" id="hs-files-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-blue">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                    </svg>
+                                </div>
+                                <h2>File Browser</h2>
+                            </div>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <select id="hs-files-user-select"
+                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);">
+                                    <option value="">— select user —</option>
+                                </select>
+                                <button class="btn-sm btn-secondary" id="hs-files-refresh-btn">Browse</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="hs-files-tree"
+                                style="font-size:12px;font-family:var(--font-mono);min-height:80px;">
+                                <span style="color:var(--text-tertiary);">Select a user and click Browse to explore
+                                    their /pub directory.</span>
+                            </div>
+                            <div id="hs-files-preview"
+                                style="display:none;margin-top:12px;padding:10px;background:var(--surface-0);border-radius:8px;font-size:12px;max-height:200px;overflow:auto;white-space:pre-wrap;font-family:var(--font-mono);">
+                            </div>
+                        </div>
+                    </section>
+
                 </div>
             </div>
         </main>
