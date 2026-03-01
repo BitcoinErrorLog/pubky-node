@@ -65,6 +65,18 @@ enum Commands {
     /// Configure /etc/hosts for the .pkarr HTTP proxy
     #[command(name = "proxy-hosts")]
     ProxyHosts(cli::proxy_hosts::ProxyHostsArgs),
+
+    /// Manage the identity watchlist on a running node
+    Watchlist(cli::watchlist::WatchlistArgs),
+
+    /// Control a running node (shutdown, restart)
+    Node(cli::node::NodeArgs),
+
+    /// Manage the built-in homeserver on a running node
+    Homeserver(cli::homeserver::HomeserverArgs),
+
+    /// Manage the Cloudflare quick-tunnel on a running node
+    Tunnel(cli::tunnel::TunnelArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -134,6 +146,10 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::DnsSetup(args)) => cli::dns_setup::execute(args),
         Some(Commands::Vanity(args)) => cli::vanity::execute(args),
         Some(Commands::ProxyHosts(args)) => cli::proxy_hosts::execute(args),
+        Some(Commands::Watchlist(args)) => cli::watchlist::execute(args).await,
+        Some(Commands::Node(args)) => cli::node::execute(args).await,
+        Some(Commands::Homeserver(args)) => cli::homeserver::execute(args).await,
+        Some(Commands::Tunnel(args)) => cli::tunnel::execute(args).await,
     }
 }
 

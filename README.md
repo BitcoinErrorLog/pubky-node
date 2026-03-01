@@ -272,21 +272,50 @@ pubky-node (supervisor)
 
 ## CLI
 
-Pubky Node includes both a daemon and client subcommands:
+Pubky Node includes both a daemon and client subcommands. Subcommands that communicate with a running node use `--url` (default: `http://localhost:9090`) to specify the dashboard address.
 
 ```bash
 # Run the daemon (default — same as `pubky-node run`)
 pubky-node
 
-# Subcommands
-pubky-node run [--relay-port 6881] [--no-dns] [--no-upnp]   # daemon mode
-pubky-node resolve <PUBLIC_KEY> [--json]                      # look up DNS records
-pubky-node publish --secret-key <HEX> --record "A @ 1.2.3.4" # publish to DHT
-pubky-node keygen [--json]                                    # generate keypair
-pubky-node vanity <PREFIX> [--suffix] [--threads N] [--json]  # vanity key generator
-pubky-node status [--json] [--url http://localhost:9090]      # query running node
-pubky-node dns-setup [--dry-run] [--remove]                   # configure OS DNS
-pubky-node proxy-hosts <KEY1> [KEY2 ...] [--reset]            # configure /etc/hosts for proxy
+# === Daemon ===
+pubky-node run [--relay-port 6881] [--no-dns] [--no-upnp]       # daemon mode
+
+# === Standalone tools (no running node needed) ===
+pubky-node resolve <PUBLIC_KEY> [--json]                          # look up DNS records
+pubky-node publish --secret-key <HEX> --record "A @ 1.2.3.4"    # publish to DHT
+pubky-node keygen [--json]                                        # generate keypair
+pubky-node vanity <PREFIX> [--suffix] [--threads N] [--json]     # vanity key grinder
+pubky-node dns-setup [--dry-run] [--remove]                      # configure OS DNS
+pubky-node proxy-hosts <KEY1> [KEY2 ...] [--reset]               # /etc/hosts for proxy
+
+# === Running-node operations (requires node to be running) ===
+pubky-node status [--json] [--url ...]                            # node status
+
+# Watchlist
+pubky-node watchlist list [--json]                                # list watched keys
+pubky-node watchlist add <KEY>                                    # add key to watchlist
+pubky-node watchlist remove <KEY>                                 # remove key from watchlist
+
+# Homeserver
+pubky-node homeserver status [--json]                             # homeserver state + ports
+pubky-node homeserver start                                       # start homeserver process
+pubky-node homeserver stop                                        # stop homeserver process
+pubky-node homeserver check [--json]                              # prerequisites check
+pubky-node homeserver token [--json]                              # generate signup invite token
+pubky-node homeserver users [--json]                              # list registered users
+pubky-node homeserver publish-pkarr                               # publish homeserver PKARR record
+pubky-node homeserver logs [-n 50]                                # tail homeserver logs
+
+# Tunnel (Cloudflare quick-tunnel)
+pubky-node tunnel status [--json]                                 # tunnel state + URL
+pubky-node tunnel start                                           # start quick-tunnel
+pubky-node tunnel stop                                            # stop quick-tunnel
+pubky-node tunnel check                                           # check cloudflared binary
+
+# Node control
+pubky-node node restart                                           # restart the node
+pubky-node node shutdown                                          # graceful shutdown
 ```
 
 ### Daemon Options (`pubky-node run`)

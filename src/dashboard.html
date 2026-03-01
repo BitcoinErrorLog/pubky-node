@@ -1029,7 +1029,7 @@ pubky-node run --relay-port 8080              # Custom relay port
 pubky-node run --dashboard-port 3000          # Custom dashboard port
 pubky-node run --data-dir ./my-data           # Custom data directory
 
-## DHT Operations
+## DHT / Key Operations (no running node needed)
 pubky-node resolve &lt;KEY&gt;                      # Resolve a key's DNS records
 pubky-node resolve &lt;KEY&gt; --json               # Output as JSON
 pubky-node publish --secret-key &lt;HEX&gt; \
@@ -1046,12 +1046,37 @@ pubky-node vanity pk -t 8                     # Use 8 threads
 pubky-node proxy-hosts &lt;KEY1&gt; &lt;KEY2&gt;          # Add keys to /etc/hosts
 pubky-node proxy-hosts --reset                # Remove proxy entries
 
-## System
+## System / DNS
 pubky-node status                             # Query running node status
 pubky-node status --json                      # Raw JSON output
 pubky-node dns-setup                          # Configure OS DNS resolver
 pubky-node dns-setup --remove                 # Remove DNS configuration
-pubky-node dns-setup --dry-run                # Preview changes</code></pre>
+pubky-node dns-setup --dry-run                # Preview changes
+
+## Identity Watchlist (requires running node)
+pubky-node watchlist list                     # Show all watched keys
+pubky-node watchlist add &lt;KEY&gt;                # Add key to watchlist
+pubky-node watchlist remove &lt;KEY&gt;             # Remove key from watchlist
+
+## Homeserver (requires running node)
+pubky-node homeserver status                  # State, PID, ports
+pubky-node homeserver start                   # Start homeserver process
+pubky-node homeserver stop                    # Stop homeserver process
+pubky-node homeserver check                   # Prerequisites check
+pubky-node homeserver token                   # Generate signup invite token
+pubky-node homeserver users                   # List registered users
+pubky-node homeserver publish-pkarr           # Publish PKARR record for homeserver key
+pubky-node homeserver logs -n 100             # Tail homeserver logs
+
+## Tunnel (requires running node)
+pubky-node tunnel status                      # Tunnel state + URL
+pubky-node tunnel start                       # Start Cloudflare quick-tunnel
+pubky-node tunnel stop                        # Stop quick-tunnel
+pubky-node tunnel check                       # Check cloudflared binary
+
+## Node Control (requires running node)
+pubky-node node restart                       # Restart the node
+pubky-node node shutdown                      # Graceful shutdown</code></pre>
                     </section>
                 </div>
             </div>
