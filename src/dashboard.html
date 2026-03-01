@@ -1181,7 +1181,8 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                         </div>
                     </section>
 
-                    <!-- Server Control -->
+
+                    <!-- Homeserver Control + Stats -->
                     <section class="card" id="hs-control-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1194,12 +1195,13 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                         <circle cx="6" cy="18" r="1" />
                                     </svg>
                                 </div>
-                                <h2>Homeserver Control</h2>
+                                <h2>Homeserver</h2>
                             </div>
                             <span class="badge" id="hs-state-badge">Stopped</span>
+                            <span id="hs-stats-badge" style="display:none;"></span>
                         </div>
                         <div class="card-body">
-                            <div id="hs-server-info" class="hs-server-info" style="display:none;">
+                            <div id="hs-server-info" style="display:none;">
                                 <div class="info-row"><span class="info-label">PID</span><span class="info-value"
                                         id="hs-pid">—</span></div>
                                 <div class="info-row"><span class="info-label">Uptime</span><span class="info-value"
@@ -1210,6 +1212,15 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                         id="hs-port-pubky">—</span></div>
                                 <div class="info-row"><span class="info-label">Admin</span><span class="info-value"
                                         id="hs-port-admin">—</span></div>
+                                <div class="info-row"><span class="info-label">Version</span><span class="info-value"
+                                        id="hs-version">—</span></div>
+                                <div class="info-row"><span class="info-label">Users</span><span class="info-value"
+                                        id="hs-users">—</span></div>
+                                <div class="info-row"><span class="info-label">Signup Mode</span><span
+                                        class="info-value" id="hs-signup-mode">—</span></div>
+                                <div class="info-row"><span class="info-label">Server Key</span><span
+                                        class="info-value mono" id="hs-server-key" style="font-size:10px;">—</span>
+                                </div>
                             </div>
                             <div class="hs-control-btns">
                                 <button class="btn-primary btn-sm" id="hs-start-btn">▶ Start Server</button>
@@ -1221,36 +1232,6 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                         </div>
                     </section>
 
-                    <!-- Server Stats -->
-                    <section class="card" id="hs-stats-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-orange">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M18 20V10" />
-                                        <path d="M12 20V4" />
-                                        <path d="M6 20v-6" />
-                                    </svg>
-                                </div>
-                                <h2>Server Stats</h2>
-                            </div>
-                            <span class="badge" id="hs-stats-badge">Offline</span>
-                        </div>
-                        <div class="card-body">
-                            <div id="hs-stats-info">
-                                <div class="info-row"><span class="info-label">Version</span><span class="info-value"
-                                        id="hs-version">—</span></div>
-                                <div class="info-row"><span class="info-label">Users</span><span class="info-value"
-                                        id="hs-users">—</span></div>
-                                <div class="info-row"><span class="info-label">Signup Mode</span><span
-                                        class="info-value" id="hs-signup-mode">—</span></div>
-                                <div class="info-row"><span class="info-label">Server Key</span><span
-                                        class="info-value mono" id="hs-server-key" style="font-size:10px;">—</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
 
                     <!-- Invite Tokens -->
                     <section class="card" id="hs-invite-panel">
