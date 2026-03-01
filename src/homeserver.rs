@@ -203,42 +203,32 @@ impl HomeserverManager {
             return Some(local_bin);
         }
 
-        // 3. Check well-known workspace paths for pre-built binary
-        let search_paths = [
-            // Common dev workspace locations
-            "/Volumes/vibedrive/vibes-dev/pubky-core/target/release/pubky-homeserver",
-            // Home directory builds
-            "~/src/pubky-core/target/release/pubky-homeserver",
-            "~/dev/pubky-core/target/release/pubky-homeserver",
-            "~/projects/pubky-core/target/release/pubky-homeserver",
-        ];
-
-        for path_str in search_paths {
-            let expanded = if path_str.starts_with('~') {
-                if let Some(home) = dirs_next::home_dir() {
-                    home.join(&path_str[2..])
-                } else {
-                    PathBuf::from(path_str)
+        // 3. Check Tauri sidecar/resources directory (bundled with app)
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                // macOS: .app/Contents/MacOS/../Resources/
+                let resources = dir.join("../Resources/pubky-homeserver");
+                if resources.exists() {
+                    return Some(resources);
                 }
-            } else {
-                PathBuf::from(path_str)
-            };
-            if expanded.exists() {
-                return Some(expanded);
+                // Same directory as current exe (sidecar convention)
+                let sibling = dir.join("pubky-homeserver");
+                if sibling.exists() {
+                    return Some(sibling);
+                }
             }
         }
 
-        // 4. Check sibling dirs relative to current exe
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                for rel in &[
-                    "../../pubky-core/target/release/pubky-homeserver",
-                    "../pubky-core/target/release/pubky-homeserver",
-                ] {
-                    let p = dir.join(rel);
-                    if p.exists() {
-                        return Some(p);
-                    }
+        // 4. Common install locations
+        let home_paths = [
+            ".local/bin/pubky-homeserver",
+            ".cargo/bin/pubky-homeserver",
+        ];
+        if let Some(home) = dirs_next::home_dir() {
+            for rel in home_paths {
+                let p = home.join(rel);
+                if p.exists() {
+                    return Some(p);
                 }
             }
         }

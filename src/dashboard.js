@@ -1915,10 +1915,12 @@
                 document.getElementById('hs-pg-status').style.color = data.postgres_ok ? '#4ade80' : '#f87171';
                 document.getElementById('hs-db-status').textContent = data.db_ok ? '✅ ' + data.db_msg : '❌ ' + data.db_msg;
                 document.getElementById('hs-db-status').style.color = data.db_ok ? '#4ade80' : '#f87171';
-                document.getElementById('hs-bin-status').textContent = data.binary_ok ? '✅ ' + data.binary_path : '❌ Not found';
+                document.getElementById('hs-bin-status').textContent = data.binary_ok ? '✅ Installed' : '❌ Not found';
                 document.getElementById('hs-bin-status').style.color = data.binary_ok ? '#4ade80' : '#f87171';
-                document.getElementById('hs-cfg-status').textContent = data.config_ok ? '✅ ' + data.config_path : '❌ Not generated';
+                document.getElementById('hs-bin-status').title = data.binary_ok ? data.binary_path : 'Binary not found. Use Fix All to build from source.';
+                document.getElementById('hs-cfg-status').textContent = data.config_ok ? '✅ Ready' : '❌ Not generated';
                 document.getElementById('hs-cfg-status').style.color = data.config_ok ? '#4ade80' : '#f87171';
+                document.getElementById('hs-cfg-status').title = data.config_ok ? data.config_path : 'Config not generated yet.';
             } catch (e) { /* ignore */ }
             this.textContent = 'Check';
         });
