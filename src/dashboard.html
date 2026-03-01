@@ -1142,6 +1142,7 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
             <!-- ========== Homeserver Tab ========== -->
             <div class="tab-content" id="tab-homeserver">
                 <div class="grid">
+
                     <!-- Prerequisites Check -->
                     <section class="card" id="hs-prereq-panel">
                         <div class="card-header">
@@ -1155,8 +1156,10 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                 </div>
                                 <h2>Prerequisites</h2>
                             </div>
-                            <button class="btn-sm btn-secondary" id="hs-check-btn">Check</button>
-                            <button class="btn-sm btn-primary" id="hs-fix-btn">🔧 Fix All</button>
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn-sm btn-secondary" id="hs-check-btn">Check</button>
+                                <button class="btn-sm btn-primary" id="hs-fix-btn">🔧 Fix All</button>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div id="hs-prereq-list" class="hs-prereq-list">
@@ -1169,10 +1172,12 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                 <div class="hs-prereq-item"><span class="hs-prereq-label">Config</span><span
                                         class="hs-prereq-status" id="hs-cfg-status">—</span></div>
                             </div>
-                            <button class="btn-sm btn-primary" id="hs-gen-config-btn" style="margin-top: 10px;">Generate
-                                Config</button>
+                            <div class="hs-form-actions" style="margin-top:12px;">
+                                <button class="btn-sm btn-secondary" id="hs-gen-config-btn">Generate Config</button>
+                            </div>
                             <div id="hs-fix-log"
-                                style="display:none; margin-top:10px; font-size:12px; line-height:1.8;"></div>
+                                style="display:none;margin-top:10px;font-size:12px;line-height:1.8;color:var(--text-secondary);font-family:var(--font-mono);">
+                            </div>
                         </div>
                     </section>
 
@@ -1207,11 +1212,12 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                         id="hs-port-admin">—</span></div>
                             </div>
                             <div class="hs-control-btns">
-                                <button class="btn-primary" id="hs-start-btn">▶ Start Server</button>
-                                <button class="btn-secondary" id="hs-stop-btn" style="display:none;">■ Stop
+                                <button class="btn-primary btn-sm" id="hs-start-btn">▶ Start Server</button>
+                                <button class="btn-secondary btn-sm" id="hs-stop-btn" style="display:none;">■ Stop
                                     Server</button>
                             </div>
-                            <div id="hs-control-msg" class="publisher-status" style="display:none;"></div>
+                            <div id="hs-control-msg" class="publisher-status" style="display:none;margin-top:10px;">
+                            </div>
                         </div>
                     </section>
 
@@ -1265,12 +1271,12 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                         </div>
                         <div class="card-body">
                             <button class="btn-primary btn-sm" id="hs-gen-token-btn">Generate Token</button>
-                            <div id="hs-token-display" style="display:none; margin-top:12px;">
+                            <div id="hs-token-display" style="display:none;margin-top:14px;">
                                 <div class="export-hex-row">
                                     <code class="export-hex" id="hs-token-value">—</code>
                                     <button class="btn-sm" id="hs-token-copy">📋</button>
                                 </div>
-                                <div id="hs-token-qr" class="export-qr" style="margin-top: 12px;"></div>
+                                <div id="hs-token-qr" class="export-qr" style="margin-top:12px;"></div>
                             </div>
                         </div>
                     </section>
@@ -1325,13 +1331,15 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                     <input type="number" id="hs-cfg-quota" class="publisher-key-input" value="0"
                                         min="0">
                                 </div>
-                                <button class="btn-primary" id="hs-save-config-btn">Save Config</button>
-                                <span id="hs-config-msg" style="margin-left:8px;font-size:12px;"></span>
+                                <div class="hs-form-actions">
+                                    <button class="btn-primary btn-sm" id="hs-save-config-btn">Save Config</button>
+                                    <span id="hs-config-msg" class="hs-action-msg"></span>
+                                </div>
                             </div>
                         </div>
                     </section>
 
-                    <!-- ── PKARR Publish Card ─── -->
+                    <!-- PKARR Publishing -->
                     <section class="card" id="hs-pkarr-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1347,20 +1355,18 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             <span class="badge" id="hs-pkarr-badge">—</span>
                         </div>
                         <div class="card-body">
-                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Publishes a PKARR
-                                DNS record pointing your homeserver's public key to its ICANN domain. Requires the
-                                homeserver secret key to be in the vault.</p>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                                <button class="btn-primary" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
-                                <span id="hs-publish-pkarr-msg"
-                                    style="font-size:12px;color:var(--text-secondary);"></span>
+                            <p class="hs-desc">Publishes a PKARR DNS record pointing your homeserver's public key to its
+                                ICANN domain. Requires the homeserver secret key to be in the vault.</p>
+                            <div class="hs-form-actions" style="margin-top:0;">
+                                <button class="btn-primary btn-sm" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
+                                <span id="hs-publish-pkarr-msg" class="hs-action-msg"></span>
                             </div>
-                            <div style="margin-top:10px;font-size:12px;color:var(--text-tertiary);">Auto-republishes
-                                every 4 hours after manual trigger.</div>
+                            <p class="hs-desc" style="margin-top:10px;margin-bottom:0;">Auto-republishes every 4 hours
+                                after manual trigger.</p>
                         </div>
                     </section>
 
-                    <!-- ── Log Stream Viewer ─── -->
+                    <!-- Log Stream -->
                     <section class="card" id="hs-logs-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1376,21 +1382,19 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                 <h2>Log Stream</h2>
                             </div>
                             <div style="display:flex;gap:6px;align-items:center;">
-                                <input type="text" id="hs-log-filter" placeholder="Filter…"
-                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);width:110px;">
+                                <input type="text" id="hs-log-filter" class="hs-filter-input" placeholder="Filter…">
                                 <button class="btn-sm btn-secondary" id="hs-log-clear-btn">Clear</button>
                                 <span class="badge" id="hs-log-badge">Idle</span>
                             </div>
                         </div>
                         <div class="card-body" style="padding:0;">
-                            <div id="hs-log-output"
-                                style="font-family:var(--font-mono);font-size:11px;line-height:1.5;height:240px;overflow-y:auto;padding:12px;background:var(--surface-0);border-radius:0 0 12px 12px;white-space:pre-wrap;word-break:break-all;color:var(--text-secondary);">
+                            <div id="hs-log-output" class="hs-log-output">
                                 <span style="color:var(--text-tertiary);">Start the homeserver to see logs…</span>
                             </div>
                         </div>
                     </section>
 
-                    <!-- ── Users & Quotas ─── -->
+                    <!-- Users & Quotas -->
                     <section class="card" id="hs-users-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1406,20 +1410,21 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                 <h2>Users</h2>
                             </div>
                             <div style="display:flex;gap:6px;align-items:center;">
-                                <input type="text" id="hs-user-search" placeholder="Filter pubkey…"
-                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);width:110px;">
+                                <input type="text" id="hs-user-search" class="hs-filter-input"
+                                    placeholder="Filter pubkey…">
                                 <button class="btn-sm btn-secondary" id="hs-users-refresh-btn">Refresh</button>
                                 <span class="badge" id="hs-users-badge">—</span>
                             </div>
                         </div>
                         <div class="card-body">
                             <div id="hs-users-table" style="font-size:12px;">
-                                <div style="color:var(--text-tertiary);">Homeserver must be running to list users.</div>
+                                <span style="color:var(--text-tertiary);">Homeserver must be running to list
+                                    users.</span>
                             </div>
                         </div>
                     </section>
 
-                    <!-- ── Cloudflare Tunnel ─── -->
+                    <!-- Cloudflare Tunnel -->
                     <section class="card" id="hs-tunnel-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1437,26 +1442,22 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             <span class="badge" id="hs-tunnel-badge">Stopped</span>
                         </div>
                         <div class="card-body">
-                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Expose your
-                                homeserver publicly via a free Cloudflare quick-tunnel. Automatically updates ICANN
-                                domain and republishes PKARR after connecting.</p>
-                            <div id="hs-tunnel-url"
-                                style="display:none;margin-bottom:10px;padding:8px 12px;border-radius:8px;background:var(--surface-0);font-family:var(--font-mono);font-size:12px;word-break:break-all;">
-                            </div>
-                            <div id="hs-tunnel-no-binary"
-                                style="display:none;margin-bottom:10px;font-size:12px;color:var(--warning);">
+                            <p class="hs-desc">Expose your homeserver publicly via a free Cloudflare quick-tunnel.
+                                Automatically updates ICANN domain and republishes PKARR after connecting.</p>
+                            <div id="hs-tunnel-url" class="hs-url-display"></div>
+                            <div id="hs-tunnel-no-binary" class="hs-warn">
                                 ⚠ <code>cloudflared</code> not found. <a
                                     href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
-                                    rel="noopener" style="color:var(--primary);">Download here</a> and place in PATH.
+                                    rel="noopener" style="color:var(--accent);">Download here</a> and place in PATH.
                             </div>
-                            <div style="display:flex;gap:8px;">
-                                <button class="btn-primary" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
-                                <button class="btn-secondary" id="hs-tunnel-stop-btn">■ Stop</button>
+                            <div class="hs-form-actions" style="margin-top:0;">
+                                <button class="btn-primary btn-sm" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
+                                <button class="btn-secondary btn-sm" id="hs-tunnel-stop-btn">■ Stop</button>
                             </div>
                         </div>
                     </section>
 
-                    <!-- ── Identity Signup ─── -->
+                    <!-- Identity Signup -->
                     <section class="card" id="hs-identity-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1472,31 +1473,27 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             <span class="badge" id="hs-identity-badge">—</span>
                         </div>
                         <div class="card-body">
-                            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Register a vault
-                                key as a user on this homeserver.</p>
-                            <div style="display:flex;flex-direction:column;gap:8px;max-width:460px;">
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Key (from vault)</label>
-                                    <select id="hs-identity-key-select" class="publisher-key-input">
-                                        <option value="">— select a key —</option>
-                                    </select>
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Signup Token (optional)</label>
-                                    <input type="text" id="hs-identity-token" class="publisher-key-input"
-                                        placeholder="Leave blank if homeserver is open">
-                                </div>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <button class="btn-primary" id="hs-identity-signup-btn">✅ Sign Up</button>
-                                    <span id="hs-identity-msg"
-                                        style="font-size:12px;color:var(--text-secondary);"></span>
-                                </div>
+                            <p class="hs-desc">Register a vault key as a user on this homeserver.</p>
+                            <div class="publisher-field">
+                                <label class="publisher-label">Key (from vault)</label>
+                                <select id="hs-identity-key-select" class="publisher-key-input">
+                                    <option value="">— select a key —</option>
+                                </select>
                             </div>
-                            <div id="hs-identity-list" style="margin-top:14px;font-size:12px;"></div>
+                            <div class="publisher-field">
+                                <label class="publisher-label">Signup Token (optional)</label>
+                                <input type="text" id="hs-identity-token" class="publisher-key-input"
+                                    placeholder="Leave blank if homeserver is open">
+                            </div>
+                            <div class="hs-form-actions">
+                                <button class="btn-primary btn-sm" id="hs-identity-signup-btn">✅ Sign Up</button>
+                                <span id="hs-identity-msg" class="hs-action-msg"></span>
+                            </div>
+                            <div id="hs-identity-list" style="margin-top:16px;font-size:12px;"></div>
                         </div>
                     </section>
 
-                    <!-- ── WebDAV File Browser ─── -->
+                    <!-- File Browser -->
                     <section class="card" id="hs-files-panel">
                         <div class="card-header">
                             <div class="card-title">
@@ -1510,33 +1507,32 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                 <h2>File Browser</h2>
                             </div>
                             <div style="display:flex;gap:6px;align-items:center;">
-                                <select id="hs-files-user-select"
-                                    style="padding:4px 8px;font-size:12px;border-radius:6px;border:1px solid var(--border-color);background:var(--surface-1);color:var(--text-primary);">
+                                <select id="hs-files-user-select" class="hs-filter-input" style="width:140px;">
                                     <option value="">— select user —</option>
                                 </select>
                                 <button class="btn-sm btn-secondary" id="hs-files-refresh-btn">Browse</button>
                             </div>
                         </div>
                         <div class="card-body">
-                            <div id="hs-files-tree"
-                                style="font-size:12px;font-family:var(--font-mono);min-height:80px;">
+                            <div id="hs-files-tree" class="hs-files-tree">
                                 <span style="color:var(--text-tertiary);">Select a user and click Browse to explore
                                     their /pub directory.</span>
                             </div>
-                            <div id="hs-files-preview"
-                                style="display:none;margin-top:12px;padding:10px;background:var(--surface-0);border-radius:8px;font-size:12px;max-height:200px;overflow:auto;white-space:pre-wrap;font-family:var(--font-mono);">
-                            </div>
+                            <div id="hs-files-preview" class="hs-files-preview"></div>
                         </div>
                     </section>
 
                 </div>
             </div>
-        </main>
 
-        <footer class="footer">
-            <span>Pubky Node • Sovereign Infrastructure</span>
-            <span id="last-updated">Last updated: --</span>
-        </footer>
+    </div>
+    </div>
+    </main>
+
+    <footer class="footer">
+        <span>Pubky Node • Sovereign Infrastructure</span>
+        <span id="last-updated">Last updated: --</span>
+    </footer>
     </div>
 
     <script src="/qrcode.min.js"></script>
