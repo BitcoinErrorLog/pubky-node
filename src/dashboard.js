@@ -172,22 +172,30 @@
 
     function initTabs() {
         const tabs = document.querySelectorAll('.tab');
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function () {
-                const target = tab.dataset.tab;
-                // Update tab buttons
-                tabs.forEach(function (t) { t.classList.remove('active'); });
-                tab.classList.add('active');
-                // Update content panels
-                document.querySelectorAll('.tab-content').forEach(function (panel) {
-                    panel.classList.remove('active');
-                });
-                var targetPanel = document.getElementById('tab-' + target);
-                if (targetPanel) {
-                    targetPanel.classList.add('active');
-                }
+        // Include icon buttons that act as tab switchers
+        const allTabTriggers = document.querySelectorAll('.tab, [data-tab].btn-icon');
+
+        function switchToTab(target) {
+            // Update tab button active states (only for .tab elements)
+            tabs.forEach(function (t) { t.classList.remove('active'); });
+            var matchingTab = document.querySelector('.tab[data-tab="' + target + '"]');
+            if (matchingTab) matchingTab.classList.add('active');
+            // Update content panels
+            document.querySelectorAll('.tab-content').forEach(function (panel) {
+                panel.classList.remove('active');
+            });
+            var targetPanel = document.getElementById('tab-' + target);
+            if (targetPanel) targetPanel.classList.add('active');
+        }
+
+        allTabTriggers.forEach(function (trigger) {
+            trigger.addEventListener('click', function () {
+                switchToTab(trigger.dataset.tab);
             });
         });
+
+        // Expose for external use
+        window._switchToTab = switchToTab;
     }
 
     // ========== Status Polling ==========
@@ -277,10 +285,16 @@
         document.getElementById('version').textContent = 'v' + data.version;
 
         // Stats
-        document.getElementById('uptime').textContent = formatUptime(data.uptime_secs);
+        var uptimeStr = formatUptime(data.uptime_secs);
+        var uptimeEl = document.getElementById('uptime');
+        if (uptimeEl) uptimeEl.textContent = uptimeStr;
+        var headerUptime = document.getElementById('header-uptime');
+        if (headerUptime) headerUptime.textContent = uptimeStr;
         var dhtSize = data.dht ? data.dht.dht_size_estimate : 0;
-        document.getElementById('routing-table-size').textContent = formatNumber(dhtSize);
-        document.getElementById('watchlist-count').textContent = data.watchlist.key_count;
+        var rtEl = document.getElementById('routing-table-size');
+        if (rtEl) rtEl.textContent = formatNumber(dhtSize);
+        var wlEl = document.getElementById('watchlist-count');
+        if (wlEl) wlEl.textContent = data.watchlist.key_count;
 
         // DHT Panel
         if (data.dht) {

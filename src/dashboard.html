@@ -39,18 +39,35 @@
             </div>
             <div class="header-right">
                 <nav class="tabs" id="nav-tabs">
-                    <button class="tab active" data-tab="status">Status</button>
-                    <button class="tab" data-tab="explorer">Explorer</button>
+                    <button class="tab active" data-tab="status">Networks</button>
                     <button class="tab" data-tab="keys">Keys</button>
-                    <button class="tab" data-tab="guide">Guide</button>
                     <button class="tab" data-tab="homeserver">Homeserver</button>
-                    <button class="tab" data-tab="settings">Settings</button>
+                    <button class="tab" data-tab="explorer">Explorer</button>
                 </nav>
                 <div class="status-indicator" id="connection-status">
                     <span class="status-dot"></span>
                     <span class="status-label">Connecting...</span>
+                    <span class="header-uptime" id="header-uptime"></span>
                 </div>
                 <div class="node-controls">
+                    <!-- Guide icon -->
+                    <button class="btn-icon" data-tab="guide" title="Guide" id="guide-icon-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                    </button>
+                    <!-- Settings icon -->
+                    <button class="btn-icon" data-tab="settings" title="Settings" id="settings-icon-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                    </button>
                     <button id="node-restart-btn" class="btn-icon" title="Restart Node">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -72,30 +89,6 @@
         <main class="main">
             <!-- ===== STATUS TAB ===== -->
             <div class="tab-content active" id="tab-status">
-                <div class="stats-row">
-                    <div class="stat-card">
-                        <div class="stat-icon">⏱</div>
-                        <div class="stat-data">
-                            <span class="stat-value" id="uptime">--</span>
-                            <span class="stat-label">Uptime</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">🌐</div>
-                        <div class="stat-data">
-                            <span class="stat-value" id="routing-table-size">--</span>
-                            <span class="stat-label">DHT Network</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">👁</div>
-                        <div class="stat-data">
-                            <span class="stat-value" id="watchlist-count">--</span>
-                            <span class="stat-label">Watched Keys</span>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="grid">
                     <!-- DHT Panel -->
                     <section class="card" id="dht-panel">

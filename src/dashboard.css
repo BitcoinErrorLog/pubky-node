@@ -205,6 +205,18 @@ body {
     color: var(--red);
 }
 
+.header-uptime {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--green);
+    opacity: 0.8;
+    margin-left: 4px;
+}
+
+.header-uptime:empty {
+    display: none;
+}
+
 @keyframes pulse {
 
     0%,
