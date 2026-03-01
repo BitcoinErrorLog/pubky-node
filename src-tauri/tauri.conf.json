@@ -40,7 +40,9 @@
         ],
         "externalBin": [
             "binaries/pubky-node",
-            "binaries/pkdns"
+            "binaries/pkdns",
+            "binaries/pubky-homeserver",
+            "binaries/cloudflared"
         ],
         "category": "Utility",
         "shortDescription": "Sovereign identity and DNS node for the Pubky ecosystem",

@@ -59,18 +59,35 @@ impl TunnelManager {
 
     /// Check if cloudflared binary is available.
     pub fn binary_available() -> bool {
-        if let Ok(out) = Command::new("which").arg("cloudflared").output() {
-            if out.status.success() && !out.stdout.is_empty() {
-                return true;
-            }
-        }
-        let home = dirs_next::home_dir().unwrap_or_default();
-        let local = home.join(".pubky-node/bin/cloudflared");
-        local.exists()
+        Self::find_binary().is_some()
     }
 
     /// Find cloudflared binary path.
+    /// Search order: bundled sidecar → data_dir/bin → PATH
     fn find_binary() -> Option<std::path::PathBuf> {
+        // 1. Check bundled sidecar directory (same dir as current exe — Tauri convention)
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                let sibling = dir.join("cloudflared");
+                if sibling.exists() {
+                    return Some(sibling);
+                }
+                // macOS: .app/Contents/MacOS/../Resources/
+                let resources = dir.join("../Resources/cloudflared");
+                if resources.exists() {
+                    return Some(resources);
+                }
+            }
+        }
+
+        // 2. Check data dir
+        let home = dirs_next::home_dir().unwrap_or_default();
+        let local = home.join(".pubky-node/bin/cloudflared");
+        if local.exists() {
+            return Some(local);
+        }
+
+        // 3. Check PATH
         if let Ok(out) = Command::new("which").arg("cloudflared").output() {
             if out.status.success() {
                 let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -79,9 +96,8 @@ impl TunnelManager {
                 }
             }
         }
-        let home = dirs_next::home_dir().unwrap_or_default();
-        let local = home.join(".pubky-node/bin/cloudflared");
-        if local.exists() { Some(local) } else { None }
+
+        None
     }
 
     /// Start a cloudflared quick-tunnel to the homeserver ICANN port.

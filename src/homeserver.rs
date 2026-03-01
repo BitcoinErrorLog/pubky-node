@@ -186,13 +186,20 @@ impl HomeserverManager {
     }
 
     /// Find the homeserver binary.
+    /// Search order: bundled sidecar → data_dir/bin → PATH → common install dirs
     fn find_binary(&self) -> Option<PathBuf> {
-        // 1. Check PATH
-        if let Ok(output) = Command::new("which").arg("pubky-homeserver").output() {
-            if output.status.success() {
-                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if !path_str.is_empty() {
-                    return Some(PathBuf::from(path_str));
+        // 1. Check bundled sidecar directory (same dir as current exe — Tauri convention)
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                // Same directory as current exe (Tauri sidecar convention)
+                let sibling = dir.join("pubky-homeserver");
+                if sibling.exists() {
+                    return Some(sibling);
+                }
+                // macOS: .app/Contents/MacOS/../Resources/
+                let resources = dir.join("../Resources/pubky-homeserver");
+                if resources.exists() {
+                    return Some(resources);
                 }
             }
         }
@@ -203,29 +210,19 @@ impl HomeserverManager {
             return Some(local_bin);
         }
 
-        // 3. Check Tauri sidecar/resources directory (bundled with app)
-        if let Ok(exe) = std::env::current_exe() {
-            if let Some(dir) = exe.parent() {
-                // macOS: .app/Contents/MacOS/../Resources/
-                let resources = dir.join("../Resources/pubky-homeserver");
-                if resources.exists() {
-                    return Some(resources);
-                }
-                // Same directory as current exe (sidecar convention)
-                let sibling = dir.join("pubky-homeserver");
-                if sibling.exists() {
-                    return Some(sibling);
+        // 3. Check PATH
+        if let Ok(output) = Command::new("which").arg("pubky-homeserver").output() {
+            if output.status.success() {
+                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path_str.is_empty() {
+                    return Some(PathBuf::from(path_str));
                 }
             }
         }
 
         // 4. Common install locations
-        let home_paths = [
-            ".local/bin/pubky-homeserver",
-            ".cargo/bin/pubky-homeserver",
-        ];
         if let Some(home) = dirs_next::home_dir() {
-            for rel in home_paths {
+            for rel in [".local/bin/pubky-homeserver", ".cargo/bin/pubky-homeserver"] {
                 let p = home.join(rel);
                 if p.exists() {
                     return Some(p);
