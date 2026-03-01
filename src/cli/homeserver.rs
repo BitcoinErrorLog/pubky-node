@@ -187,3 +187,81 @@ async fn post(client: &reqwest::Client, url: &str) -> anyhow::Result<reqwest::Re
     }
     Ok(resp)
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[derive(clap::Parser)]
+    struct TestCli {
+        #[command(subcommand)]
+        cmd: super::HomeserverCommand,
+    }
+
+    #[test]
+    fn test_parse_status() {
+        let cli = TestCli::try_parse_from(["hs", "status"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Status { json: false }));
+    }
+
+    #[test]
+    fn test_parse_status_json() {
+        let cli = TestCli::try_parse_from(["hs", "status", "--json"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Status { json: true }));
+    }
+
+    #[test]
+    fn test_parse_start() {
+        let cli = TestCli::try_parse_from(["hs", "start"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Start));
+    }
+
+    #[test]
+    fn test_parse_stop() {
+        let cli = TestCli::try_parse_from(["hs", "stop"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Stop));
+    }
+
+    #[test]
+    fn test_parse_check() {
+        let cli = TestCli::try_parse_from(["hs", "check"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Check { json: false }));
+    }
+
+    #[test]
+    fn test_parse_token() {
+        let cli = TestCli::try_parse_from(["hs", "token"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Token { json: false }));
+    }
+
+    #[test]
+    fn test_parse_users() {
+        let cli = TestCli::try_parse_from(["hs", "users"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::Users { json: false }));
+    }
+
+    #[test]
+    fn test_parse_publish_pkarr() {
+        let cli = TestCli::try_parse_from(["hs", "publish-pkarr"]).unwrap();
+        assert!(matches!(cli.cmd, super::HomeserverCommand::PublishPkarr));
+    }
+
+    #[test]
+    fn test_parse_logs_default() {
+        let cli = TestCli::try_parse_from(["hs", "logs"]).unwrap();
+        match cli.cmd {
+            super::HomeserverCommand::Logs { lines } => assert_eq!(lines, 50),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_logs_custom_n() {
+        let cli = TestCli::try_parse_from(["hs", "logs", "-n", "100"]).unwrap();
+        match cli.cmd {
+            super::HomeserverCommand::Logs { lines } => assert_eq!(lines, 100),
+            _ => panic!("wrong variant"),
+        }
+    }
+}
+

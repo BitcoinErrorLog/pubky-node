@@ -129,3 +129,49 @@ fn flush_dns() {
         .args(["-flushcache"])
         .output();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_block_no_block_passes_through() {
+        let hosts = "127.0.0.1 localhost\n::1 localhost\n";
+        let result = remove_block(hosts);
+        assert_eq!(result, hosts);
+    }
+
+    #[test]
+    fn test_remove_block_removes_markers_and_content() {
+        let hosts = "127.0.0.1 localhost\n# BEGIN PUBKY-NODE PROXY\n127.0.0.1 key.pkarr\n127.0.0.1 key.key\n# END PUBKY-NODE PROXY\n::1 localhost\n";
+        let result = remove_block(hosts);
+        assert!(!result.contains("BEGIN PUBKY-NODE PROXY"));
+        assert!(!result.contains("END PUBKY-NODE PROXY"));
+        assert!(!result.contains("key.pkarr"));
+        assert!(result.contains("127.0.0.1 localhost"));
+        assert!(result.contains("::1 localhost"));
+    }
+
+    #[test]
+    fn test_remove_block_empty_input() {
+        let result = remove_block("");
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_remove_block_only_block() {
+        let hosts = "# BEGIN PUBKY-NODE PROXY\n127.0.0.1 x.pkarr\n# END PUBKY-NODE PROXY\n";
+        let result = remove_block(hosts);
+        // Only whitespace/empty lines should remain
+        assert!(result.trim().is_empty());
+    }
+
+    #[test]
+    fn test_remove_block_idempotent() {
+        let hosts = "127.0.0.1 localhost\n# BEGIN PUBKY-NODE PROXY\n127.0.0.1 a.pkarr\n# END PUBKY-NODE PROXY\n";
+        let once = remove_block(hosts);
+        let twice = remove_block(&once);
+        assert_eq!(once, twice);
+    }
+}
+

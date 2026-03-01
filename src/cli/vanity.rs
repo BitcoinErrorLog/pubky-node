@@ -114,3 +114,65 @@ pub fn execute(args: VanityArgs) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    /// z-base-32 alphabet reference: ybndrfg8ejkmcpqxot1uwisza345h769
+    const Z32: &str = "ybndrfg8ejkmcpqxot1uwisza345h769";
+
+    fn is_valid_z32_char(c: char) -> bool {
+        Z32.contains(c)
+    }
+
+    #[test]
+    fn test_z32_alphabet_rejects_uppercase() {
+        assert!(!is_valid_z32_char('A'));
+        assert!(!is_valid_z32_char('Z'));
+        assert!(!is_valid_z32_char('B'));
+    }
+
+    #[test]
+    fn test_z32_alphabet_rejects_ambiguous_chars() {
+        // Verify specific chars absent from z-base-32 (ybndrfg8ejkmcpqxot1uwisza345h769)
+        // '0' is absent (replaced by 'o')
+        assert!(!is_valid_z32_char('0'));
+        // '2' is absent
+        assert!(!is_valid_z32_char('2'));
+        // 'l' (lowercase L) is absent (replaced by '1')
+        assert!(!is_valid_z32_char('l'));
+        // 'v' is absent
+        assert!(!is_valid_z32_char('v'));
+        // Confirm chars that ARE in the alphabet
+        assert!(is_valid_z32_char('o')); // 'o' IS in z-base-32
+        assert!(is_valid_z32_char('6')); // '6' IS in z-base-32
+        assert!(is_valid_z32_char('1')); // '1' IS in z-base-32 (replaces 'l')
+    }
+
+    #[test]
+    fn test_z32_alphabet_accepts_valid_chars() {
+        for c in Z32.chars() {
+            assert!(is_valid_z32_char(c), "Expected '{}' to be valid z32", c);
+        }
+    }
+
+    #[test]
+    fn test_z32_alphabet_rejects_special_chars() {
+        assert!(!is_valid_z32_char('-'));
+        assert!(!is_valid_z32_char('_'));
+        assert!(!is_valid_z32_char(' '));
+        assert!(!is_valid_z32_char('!'));
+    }
+
+    #[test]
+    fn test_z32_length() {
+        // z-base-32 alphabet must have exactly 32 characters
+        assert_eq!(Z32.len(), 32);
+    }
+
+    #[test]
+    fn test_z32_no_duplicates() {
+        let chars: std::collections::HashSet<char> = Z32.chars().collect();
+        assert_eq!(chars.len(), 32, "z32 alphabet must not have duplicate characters");
+    }
+}
+

@@ -43,3 +43,33 @@ pub async fn execute(args: NodeArgs) -> anyhow::Result<()> {
     println!("✓ Node {} initiated", label);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[derive(clap::Parser)]
+    struct TestCli {
+        #[command(subcommand)]
+        cmd: super::NodeCommand,
+    }
+
+    #[test]
+    fn test_parse_shutdown() {
+        let cli = TestCli::try_parse_from(["node", "shutdown"]).unwrap();
+        assert!(matches!(cli.cmd, super::NodeCommand::Shutdown));
+    }
+
+    #[test]
+    fn test_parse_restart() {
+        let cli = TestCli::try_parse_from(["node", "restart"]).unwrap();
+        assert!(matches!(cli.cmd, super::NodeCommand::Restart));
+    }
+
+    #[test]
+    fn test_unknown_subcommand_fails() {
+        let result = TestCli::try_parse_from(["node", "explode"]);
+        assert!(result.is_err());
+    }
+}
+

@@ -95,3 +95,45 @@ pub async fn execute(args: TunnelArgs) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[derive(clap::Parser)]
+    struct TestCli {
+        #[command(subcommand)]
+        cmd: super::TunnelCommand,
+    }
+
+    #[test]
+    fn test_parse_status() {
+        let cli = TestCli::try_parse_from(["tunnel", "status"]).unwrap();
+        assert!(matches!(cli.cmd, super::TunnelCommand::Status { json: false }));
+    }
+
+    #[test]
+    fn test_parse_status_json() {
+        let cli = TestCli::try_parse_from(["tunnel", "status", "--json"]).unwrap();
+        assert!(matches!(cli.cmd, super::TunnelCommand::Status { json: true }));
+    }
+
+    #[test]
+    fn test_parse_start() {
+        let cli = TestCli::try_parse_from(["tunnel", "start"]).unwrap();
+        assert!(matches!(cli.cmd, super::TunnelCommand::Start));
+    }
+
+    #[test]
+    fn test_parse_stop() {
+        let cli = TestCli::try_parse_from(["tunnel", "stop"]).unwrap();
+        assert!(matches!(cli.cmd, super::TunnelCommand::Stop));
+    }
+
+    #[test]
+    fn test_parse_check() {
+        let cli = TestCli::try_parse_from(["tunnel", "check"]).unwrap();
+        assert!(matches!(cli.cmd, super::TunnelCommand::Check));
+    }
+}
+

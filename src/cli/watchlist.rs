@@ -89,3 +89,45 @@ pub async fn execute(args: WatchlistArgs) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::Parser;
+
+    #[derive(clap::Parser)]
+    struct TestCli {
+        #[command(subcommand)]
+        cmd: super::WatchlistCommand,
+    }
+
+    #[test]
+    fn test_parse_list_command() {
+        let cli = TestCli::try_parse_from(["watchlist", "list"]).unwrap();
+        assert!(matches!(cli.cmd, super::WatchlistCommand::List { json: false }));
+    }
+
+    #[test]
+    fn test_parse_list_json() {
+        let cli = TestCli::try_parse_from(["watchlist", "list", "--json"]).unwrap();
+        assert!(matches!(cli.cmd, super::WatchlistCommand::List { json: true }));
+    }
+
+    #[test]
+    fn test_parse_add_command() {
+        let cli = TestCli::try_parse_from(["watchlist", "add", "mykey123"]).unwrap();
+        match cli.cmd {
+            super::WatchlistCommand::Add { key } => assert_eq!(key, "mykey123"),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_remove_command() {
+        let cli = TestCli::try_parse_from(["watchlist", "remove", "mykey456"]).unwrap();
+        match cli.cmd {
+            super::WatchlistCommand::Remove { key } => assert_eq!(key, "mykey456"),
+            _ => panic!("wrong variant"),
+        }
+    }
+}
+

@@ -642,11 +642,13 @@ level = "info"
     }
 
     /// Disable a user.
+    #[allow(dead_code)]
     pub async fn disable_user(&self, pubkey: &str) -> Result<serde_json::Value, String> {
         self.admin_post(&format!("/users/{}/disable", pubkey)).await
     }
 
     /// Enable a user.
+    #[allow(dead_code)]
     pub async fn enable_user(&self, pubkey: &str) -> Result<serde_json::Value, String> {
         self.admin_post(&format!("/users/{}/enable", pubkey)).await
     }

@@ -387,3 +387,250 @@ fn days_to_date(days: u64) -> (u64, u64, u64) {
     let y = if m <= 2 { y + 1 } else { y };
     (y, m, d)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn temp_dir() -> tempfile::TempDir {
+        tempfile::tempdir().expect("tempdir")
+    }
+
+    fn make_vault(dir: &PathBuf) -> KeyVault {
+        KeyVault::new(dir)
+    }
+
+    // ─── Lifecycle ───────────────────────────────────────────────
+
+    #[test]
+    fn test_create_vault_new() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        assert!(!v.exists());
+        v.create("password123").unwrap();
+        assert!(v.exists());
+        assert!(v.is_unlocked());
+    }
+
+    #[test]
+    fn test_create_vault_twice_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        let err = v.create("pw").unwrap_err();
+        assert!(err.contains("already exists"));
+    }
+
+    #[test]
+    fn test_unlock_correct_password() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("secret").unwrap();
+        v.lock();
+        assert!(!v.is_unlocked());
+        v.unlock("secret").unwrap();
+        assert!(v.is_unlocked());
+    }
+
+    #[test]
+    fn test_unlock_wrong_password_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("correct").unwrap();
+        v.lock();
+        let err = v.unlock("wrong").unwrap_err();
+        assert!(err.contains("Invalid password") || err.contains("corrupted"));
+    }
+
+    #[test]
+    fn test_unlock_nonexistent_vault_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        let err = v.unlock("pw").unwrap_err();
+        assert!(err.contains("does not exist"));
+    }
+
+    #[test]
+    fn test_list_locked_returns_error() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        let err = v.list_keys().unwrap_err();
+        assert!(err.contains("locked"));
+    }
+
+    // ─── CRUD ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_add_and_list_key() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+
+        let info = v.add_key("My Key", "deadbeef", "pkarr", "pubkey_abc").unwrap();
+        assert_eq!(info.name, "My Key");
+        assert_eq!(info.pubkey, "pubkey_abc");
+        assert_eq!(info.key_type, "pkarr");
+
+        let keys = v.list_keys().unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].pubkey, "pubkey_abc");
+    }
+
+    #[test]
+    fn test_add_duplicate_pubkey_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        v.add_key("Key 1", "hex1", "pkarr", "pubkey_dup").unwrap();
+        let err = v.add_key("Key 2", "hex2", "pkarr", "pubkey_dup").unwrap_err();
+        assert!(err.contains("already exists"));
+    }
+
+    #[test]
+    fn test_export_key() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        v.add_key("K", "secrethex", "pkarr", "mypubkey").unwrap();
+        let secret = v.export_key("mypubkey").unwrap();
+        assert_eq!(secret, "secrethex");
+    }
+
+    #[test]
+    fn test_export_nonexistent_key_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        let err = v.export_key("nope").unwrap_err();
+        assert!(err.contains("not found") || err.contains("Key not found"));
+    }
+
+    #[test]
+    fn test_delete_key() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        v.add_key("K", "h", "pkarr", "pk1").unwrap();
+        v.delete_key("pk1").unwrap();
+        let keys = v.list_keys().unwrap();
+        assert!(keys.is_empty());
+    }
+
+    #[test]
+    fn test_delete_nonexistent_fails() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        let err = v.delete_key("ghost").unwrap_err();
+        assert!(err.contains("not found") || err.contains("Key not found"));
+    }
+
+    #[test]
+    fn test_rename_key() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        v.add_key("OldName", "h", "pkarr", "pk1").unwrap();
+        v.rename_key("pk1", "NewName").unwrap();
+        let keys = v.list_keys().unwrap();
+        assert_eq!(keys[0].name, "NewName");
+    }
+
+    // ─── Persist roundtrip ───────────────────────────────────────
+
+    #[test]
+    fn test_persist_and_reload() {
+        let td = temp_dir();
+        let path = td.path().to_path_buf();
+
+        {
+            let v = make_vault(&path);
+            v.create("mypass").unwrap();
+            v.add_key("TestKey", "secretdata", "manual", "pubkey_rt").unwrap();
+        }
+
+        // Reload from disk with a new vault instance
+        let v2 = make_vault(&path);
+        assert!(v2.exists());
+        v2.unlock("mypass").unwrap();
+        let keys = v2.list_keys().unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].pubkey, "pubkey_rt");
+        assert_eq!(keys[0].name, "TestKey");
+    }
+
+    // ─── Import / Export All ────────────────────────────────────
+
+    #[test]
+    fn test_import_skips_duplicates() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+        v.add_key("K1", "h1", "pkarr", "pk1").unwrap();
+
+        let full = v.export_all_keys().unwrap();
+        assert_eq!(full.len(), 1);
+        assert_eq!(full[0].secret_hex, "h1");
+
+        // Import same keys again — should be skipped
+        let imported = v.import_keys(full).unwrap();
+        assert_eq!(imported, 0);
+        assert_eq!(v.list_keys().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_import_new_keys() {
+        let td = temp_dir();
+        let v = make_vault(&td.path().to_path_buf());
+        v.create("pw").unwrap();
+
+        let new_keys = vec![VaultKey {
+            id: "id1".to_string(),
+            name: "Imported".to_string(),
+            key_type: "pkarr".to_string(),
+            pubkey: "pk_imported".to_string(),
+            secret_hex: "hexdata".to_string(),
+            created_at: "2025-01-01T00:00:00Z".to_string(),
+        }];
+
+        let imported = v.import_keys(new_keys).unwrap();
+        assert_eq!(imported, 1);
+        let keys = v.list_keys().unwrap();
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].pubkey, "pk_imported");
+    }
+
+    // ─── Date helper ─────────────────────────────────────────────
+
+    #[test]
+    fn test_days_to_date_unix_epoch() {
+        // Day 0 = 1970-01-01
+        let (y, m, d) = days_to_date(0);
+        assert_eq!(y, 1970);
+        assert_eq!(m, 1);
+        assert_eq!(d, 1);
+    }
+
+    #[test]
+    fn test_days_to_date_known_date() {
+        // 2025-03-01 = days since epoch
+        // 2025-01-01 = 365*55 + 14 leap days = 20089 days from 1970
+        // 2025-03-01 = 20089 + 31 + 28 = 20148
+        let (y, m, d) = days_to_date(20148);
+        assert_eq!(y, 2025);
+        assert_eq!(m, 3);
+        assert_eq!(d, 1);
+    }
+
+    #[test]
+    fn test_chrono_now_format() {
+        let ts = chrono_now();
+        // Should match YYYY-MM-DDTHH:MM:SSZ
+        assert_eq!(ts.len(), 20);
+        assert!(ts.contains('T'));
+        assert!(ts.ends_with('Z'));
+        assert!(ts.starts_with("20")); // 21st century
+    }
+}
+

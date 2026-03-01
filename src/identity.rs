@@ -240,3 +240,100 @@ fn urlencoding_encode(s: &str) -> String {
         .collect::<Vec<_>>()
         .join("")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ─── decode_keypair ──────────────────────────────────────────
+
+    #[test]
+    fn test_decode_keypair_valid() {
+        // 32 zero bytes = valid (all-zero key)
+        let hex = "0".repeat(64);
+        let result = decode_keypair(&hex);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_decode_keypair_invalid_hex() {
+        let result = decode_keypair("not_hex!!");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("Invalid secret hex"));
+    }
+
+    #[test]
+    fn test_decode_keypair_wrong_length() {
+        // 16 bytes (32 hex chars) — too short
+        let result = decode_keypair(&"ab".repeat(16));
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("32 bytes"));
+    }
+
+    // ─── build_auth_token ────────────────────────────────────────
+
+    #[test]
+    fn test_build_auth_token_length() {
+        // version(1) + caps(0) + Ed25519 signature(64) = 65 bytes
+        let kp = pkarr::Keypair::random();
+        let token = build_auth_token(&kp).unwrap();
+        assert_eq!(token.len(), 65, "token must be 65 bytes: 1 version + 64 sig");
+    }
+
+    #[test]
+    fn test_build_auth_token_starts_with_version() {
+        let kp = pkarr::Keypair::random();
+        let token = build_auth_token(&kp).unwrap();
+        assert_eq!(token[0], 0, "first byte must be version 0");
+    }
+
+    #[test]
+    fn test_build_auth_token_signature_is_nonzero() {
+        // A real Ed25519 signature over a non-empty message will never be all zeros
+        let kp = pkarr::Keypair::random();
+        let token = build_auth_token(&kp).unwrap();
+        let sig_bytes = &token[1..65];
+        assert!(
+            sig_bytes.iter().any(|&b| b != 0),
+            "signature bytes should not all be zero"
+        );
+    }
+
+    #[test]
+    fn test_build_auth_token_different_keys_differ() {
+        let kp1 = pkarr::Keypair::random();
+        let kp2 = pkarr::Keypair::random();
+        let t1 = build_auth_token(&kp1).unwrap();
+        let t2 = build_auth_token(&kp2).unwrap();
+        // Signatures for different keys must differ
+        assert_ne!(t1, t2);
+    }
+
+    // ─── urlencoding_encode ──────────────────────────────────────
+
+    #[test]
+    fn test_urlencoding_safe_chars_unchanged() {
+        let input = "ABCZabcz0129-_.~";
+        assert_eq!(urlencoding_encode(input), input);
+    }
+
+    #[test]
+    fn test_urlencoding_space_encoded() {
+        assert_eq!(urlencoding_encode(" "), "%20");
+    }
+
+    #[test]
+    fn test_urlencoding_special_chars() {
+        assert_eq!(urlencoding_encode("a+b"), "a%2Bb");
+        assert_eq!(urlencoding_encode("a/b"), "a%2Fb");
+        assert_eq!(urlencoding_encode("a=b"), "a%3Db");
+    }
+
+    #[test]
+    fn test_urlencoding_empty_string() {
+        assert_eq!(urlencoding_encode(""), "");
+    }
+}
+
