@@ -1112,6 +1112,49 @@
             publisherRecordsEl.appendChild(row);
         }
 
+        // --- Vault key dropdown ---
+        async function loadPublisherVaultKeys() {
+            var sel = document.getElementById('publisher-vault-select');
+            try {
+                var resp = await authFetch('/api/vault/keys');
+                if (!resp.ok) {
+                    sel.innerHTML = '<option value="">Vault locked — unlock or use Manual</option>';
+                    return;
+                }
+                var data = await resp.json();
+                var keys = data.keys || [];
+                sel.innerHTML = '<option value="">— Select a vault key (' + keys.length + ') —</option>';
+                keys.forEach(function (k) {
+                    var label = (k.name || 'Unnamed') + ' — ' + (k.pubkey || '').slice(0, 12) + '…';
+                    var opt = document.createElement('option');
+                    opt.value = k.pubkey;
+                    opt.textContent = label;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                sel.innerHTML = '<option value="">No vault — use Manual</option>';
+            }
+        }
+        // Load on init and after vault changes
+        loadPublisherVaultKeys();
+
+        // --- Source tab switching ---
+        document.querySelectorAll('.pub-source-tab').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.pub-source-tab').forEach(function (t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                var source = this.dataset.source;
+                document.getElementById('pub-source-vault').style.display = source === 'vault' ? '' : 'none';
+                document.getElementById('pub-source-manual').style.display = source === 'manual' ? '' : 'none';
+            });
+        });
+
+        // --- Get active key source ---
+        function getPublisherKeySource() {
+            var active = document.querySelector('.pub-source-tab.active');
+            return active ? active.dataset.source : 'vault';
+        }
+
         // Preset buttons
         document.querySelectorAll('.publisher-preset-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -1142,19 +1185,68 @@
             }
         });
 
-        // Generate keypair
-        document.getElementById('publisher-generate-key').addEventListener('click', function () {
-            // Generate 32 random bytes as secret key
+        // Generate keypair → save to vault → select it
+        document.getElementById('publisher-generate-key').addEventListener('click', async function () {
             var bytes = new Uint8Array(32);
             crypto.getRandomValues(bytes);
             var hex = Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-            document.getElementById('publisher-secret-key').value = hex;
-            document.getElementById('publisher-secret-key').type = 'text';
 
-            // Show info panel — actual pubkey will be computed server-side on publish
-            var info = document.getElementById('publisher-generated-info');
-            info.style.display = 'block';
-            document.getElementById('publisher-pubkey-display').textContent = '(will be computed on publish)';
+            var statusEl = document.getElementById('publisher-status');
+            statusEl.style.display = 'block';
+            statusEl.style.background = 'rgba(99,102,241,0.15)';
+            statusEl.style.color = '#a5b4fc';
+            statusEl.textContent = '⏳ Generating key and saving to vault...';
+
+            // Publish a dummy packet to get the public key from the server
+            try {
+                var resp = await authFetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secret_key: hex,
+                        records: [{ type: 'TXT', name: '_generated', value: 'temp', ttl: 300 }],
+                        add_to_watchlist: false
+                    })
+                });
+                var data = await resp.json();
+                if (data.public_key) {
+                    // Save to vault
+                    await authFetch('/api/vault/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: 'PKARR: ' + data.public_key.slice(0, 8) + '...',
+                            secret_hex: hex,
+                            pubkey: data.public_key,
+                            key_type: 'pkarr'
+                        })
+                    });
+                    // Reload dropdown and select the new key
+                    await loadPublisherVaultKeys();
+                    document.getElementById('publisher-vault-select').value = data.public_key;
+                    // Switch to vault tab
+                    document.querySelectorAll('.pub-source-tab').forEach(function (t) { t.classList.remove('active'); });
+                    document.querySelector('.pub-source-tab[data-source="vault"]').classList.add('active');
+                    document.getElementById('pub-source-vault').style.display = '';
+                    document.getElementById('pub-source-manual').style.display = 'none';
+                    statusEl.style.background = 'rgba(34,197,94,0.15)';
+                    statusEl.style.color = '#4ade80';
+                    statusEl.textContent = '✅ Key generated and saved to vault: ' + data.public_key.slice(0, 16) + '…';
+                } else {
+                    throw new Error('No public key returned');
+                }
+            } catch (e) {
+                // Fallback: put in manual field
+                document.getElementById('publisher-secret-key').value = hex;
+                document.getElementById('publisher-secret-key').type = 'text';
+                document.querySelectorAll('.pub-source-tab').forEach(function (t) { t.classList.remove('active'); });
+                document.querySelector('.pub-source-tab[data-source="manual"]').classList.add('active');
+                document.getElementById('pub-source-vault').style.display = 'none';
+                document.getElementById('pub-source-manual').style.display = '';
+                statusEl.style.background = 'rgba(245,158,11,0.15)';
+                statusEl.style.color = '#fbbf24';
+                statusEl.textContent = '⚠ Key generated (vault unavailable). Copy and save this key!';
+            }
         });
 
         // Toggle key visibility
@@ -1163,30 +1255,52 @@
             inp.type = inp.type === 'password' ? 'text' : 'password';
         });
 
-        // Copy pubkey
-        document.getElementById('publisher-copy-pubkey').addEventListener('click', function () {
-            var text = document.getElementById('publisher-pubkey-display').textContent;
-            if (text && !text.startsWith('(')) {
-                navigator.clipboard.writeText(text);
-                this.textContent = '✓';
-                var btn = this;
-                setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
-            }
-        });
-
         // Publish to DHT
         document.getElementById('publisher-submit-btn').addEventListener('click', async function () {
-            var secretKey = document.getElementById('publisher-secret-key').value.trim();
             var statusEl = document.getElementById('publisher-status');
             var badge = document.getElementById('publisher-badge');
+            var source = getPublisherKeySource();
+            var secretHex = null;
 
-            var secretHex = normalizeSecretKey(secretKey);
-            if (!secretHex) {
-                statusEl.style.display = 'block';
-                statusEl.style.background = 'rgba(239,68,68,0.15)';
-                statusEl.style.color = '#f87171';
-                statusEl.textContent = '❌ Invalid key format. Accepts hex (64/128 chars) or z-base-32.';
-                return;
+            if (source === 'vault') {
+                // Get secret from vault via export
+                var pubkey = document.getElementById('publisher-vault-select').value;
+                if (!pubkey) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = 'rgba(239,68,68,0.15)';
+                    statusEl.style.color = '#f87171';
+                    statusEl.textContent = '❌ Select a key from the vault dropdown.';
+                    return;
+                }
+                try {
+                    var expResp = await authFetch('/api/vault/export', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pubkey: pubkey })
+                    });
+                    var expData = await expResp.json();
+                    if (!expResp.ok || !expData.secret_hex) {
+                        throw new Error(expData.error || 'Failed to export key');
+                    }
+                    secretHex = expData.secret_hex;
+                } catch (e) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = 'rgba(239,68,68,0.15)';
+                    statusEl.style.color = '#f87171';
+                    statusEl.textContent = '❌ Vault export failed: ' + e.message;
+                    return;
+                }
+            } else {
+                // Manual key
+                var raw = document.getElementById('publisher-secret-key').value.trim();
+                secretHex = normalizeSecretKey(raw);
+                if (!secretHex) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = 'rgba(239,68,68,0.15)';
+                    statusEl.style.color = '#f87171';
+                    statusEl.textContent = '❌ Invalid key format. Accepts hex (64/128 chars) or z-base-32.';
+                    return;
+                }
             }
 
             // Collect records
@@ -1241,34 +1355,16 @@
                     badge.textContent = 'Published';
                     badge.className = 'badge badge-success';
 
-                    // Show the public key
-                    document.getElementById('publisher-generated-info').style.display = 'block';
-                    document.getElementById('publisher-pubkey-display').textContent = data.public_key;
-
                     // Refresh watchlist
                     if (addToWatchlist) {
                         fetchWatchlistKeys();
                     }
 
-                    // Save key to vault if checkbox checked
-                    if (document.getElementById('publisher-save-vault').checked && data.public_key) {
-                        try {
-                            await authFetch('/api/vault/add', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    name: 'PKARR: ' + data.public_key.slice(0, 8) + '...',
-                                    secret_hex: secretHex,
-                                    pubkey: data.public_key,
-                                    key_type: 'pkarr'
-                                })
-                            });
-                        } catch (e) { /* ignore vault errors */ }
+                    // Clear manual secret key for security
+                    if (source === 'manual') {
+                        document.getElementById('publisher-secret-key').value = '';
+                        document.getElementById('publisher-secret-key').type = 'password';
                     }
-
-                    // Clear secret key for security
-                    document.getElementById('publisher-secret-key').value = '';
-                    document.getElementById('publisher-secret-key').type = 'password';
                 } else {
                     throw new Error(data.message || JSON.stringify(data));
                 }

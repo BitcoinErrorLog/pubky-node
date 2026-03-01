@@ -497,63 +497,57 @@
                             <span class="badge" id="publisher-badge">Ready</span>
                         </div>
                         <div class="card-body">
-                            <p class="publisher-desc">Sign &amp; publish DNS records to the DHT. Your secret key is used
-                                once to sign and is never stored.</p>
-
-                            <!-- Secret Key -->
+                            <!-- Key source selector -->
                             <div class="publisher-field">
-                                <label class="publisher-label">Secret Key</label>
-                                <div class="publisher-key-row">
-                                    <input type="password" id="publisher-secret-key"
-                                        placeholder="Secret key (hex or z-base-32)" spellcheck="false"
-                                        autocomplete="off" class="publisher-key-input">
-                                    <button class="btn-sm publisher-icon-btn" id="publisher-toggle-key"
-                                        title="Show/Hide">👁</button>
-                                    <button class="btn-sm btn-primary" id="publisher-generate-key">🎲 New</button>
+                                <label class="publisher-label">Signing Key</label>
+                                <div class="publisher-key-source-tabs">
+                                    <button class="pub-source-tab active" data-source="vault">🔐 From Vault</button>
+                                    <button class="pub-source-tab" data-source="manual">✏️ Manual</button>
+                                    <button class="btn-sm btn-primary pub-generate-btn" id="publisher-generate-key"
+                                        title="Generate a new random keypair and save to vault">🎲 New</button>
+                                </div>
+                                <!-- Vault key dropdown -->
+                                <div id="pub-source-vault" class="pub-source-panel">
+                                    <select id="publisher-vault-select" class="pub-vault-select">
+                                        <option value="">— Select a vault key —</option>
+                                    </select>
+                                </div>
+                                <!-- Manual key input -->
+                                <div id="pub-source-manual" class="pub-source-panel" style="display:none;">
+                                    <div class="publisher-key-row">
+                                        <input type="password" id="publisher-secret-key"
+                                            placeholder="Hex (64/128 chars) or z-base-32" spellcheck="false"
+                                            autocomplete="off" class="publisher-key-input">
+                                        <button class="btn-sm publisher-icon-btn" id="publisher-toggle-key"
+                                            title="Show/Hide">👁</button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Generated key info -->
-                            <div id="publisher-generated-info" class="publisher-info-box" style="display:none;">
-                                <div class="publisher-info-header">
-                                    <span class="publisher-info-label">Public Key</span>
-                                    <button class="btn-sm publisher-icon-btn" id="publisher-copy-pubkey">📋</button>
+                            <!-- Template + Records (compact) -->
+                            <div class="pub-template-records">
+                                <div class="pub-template-row">
+                                    <label class="publisher-label">Template</label>
+                                    <div class="publisher-presets">
+                                        <button class="publisher-preset-btn active" data-preset="homeserver">🏠
+                                            Homeserver</button>
+                                        <button class="publisher-preset-btn" data-preset="custom">✏️ Custom</button>
+                                    </div>
                                 </div>
-                                <code class="publisher-pubkey" id="publisher-pubkey-display"></code>
-                                <p class="publisher-warning">⚠ Save your secret key — it won't be stored!</p>
-                            </div>
-
-                            <!-- Presets -->
-                            <div class="publisher-field">
-                                <label class="publisher-label">Template</label>
-                                <div class="publisher-presets">
-                                    <button class="publisher-preset-btn active" data-preset="homeserver">🏠
-                                        Homeserver</button>
-                                    <button class="publisher-preset-btn" data-preset="custom">✏️ Custom</button>
-                                </div>
-                            </div>
-
-                            <!-- Records -->
-                            <div class="publisher-field">
-                                <label class="publisher-label">Records</label>
                                 <div id="publisher-records" class="publisher-records"></div>
                                 <button class="btn-sm" id="publisher-add-record">+ Add Record</button>
                             </div>
 
-                            <!-- Options -->
-                            <label class="publisher-option">
-                                <input type="checkbox" id="publisher-add-watchlist" checked>
-                                <span>Add to watchlist for auto-republishing</span>
-                            </label>
-                            <label class="publisher-option">
-                                <input type="checkbox" id="publisher-save-vault">
-                                <span>Save key to vault</span>
-                            </label>
-
-                            <!-- Submit -->
-                            <button class="btn-primary publisher-submit" id="publisher-submit-btn">
-                                🚀 Sign &amp; Publish to DHT
-                            </button>
+                            <!-- Options + Submit row -->
+                            <div class="pub-bottom-row">
+                                <label class="publisher-option">
+                                    <input type="checkbox" id="publisher-add-watchlist" checked>
+                                    <span>Auto-republish</span>
+                                </label>
+                                <button class="btn-primary publisher-submit" id="publisher-submit-btn">
+                                    🚀 Sign &amp; Publish to DHT
+                                </button>
+                            </div>
 
                             <!-- Status -->
                             <div id="publisher-status" class="publisher-status"></div>
