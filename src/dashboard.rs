@@ -112,8 +112,10 @@ struct DashboardState {
     vault: KeyVault,
     /// Homeserver process manager.
     homeserver: HomeserverManager,
-    /// Cloudflare tunnel manager.
+    /// Cloudflare tunnel manager (homeserver).
     tunnel: TunnelManager,
+    /// Cloudflare tunnel manager (relay HTTP API).
+    relay_tunnel: TunnelManager,
     /// Identity manager (signup/signin tracking).
     identity: IdentityManager,
     /// Broadcast channel for log streaming (homeserver stdout lines).
@@ -171,6 +173,7 @@ pub fn start_dashboard(
     let vault = KeyVault::new(&data_dir);
     let homeserver = HomeserverManager::new(&data_dir);
     let tunnel = TunnelManager::new(homeserver.get_config().drive_icann_port);
+    let relay_tunnel = TunnelManager::new(relay_port);
     let identity = IdentityManager::new(&data_dir);
     let (log_tx, _) = broadcast::channel::<String>(1000);
 
@@ -194,6 +197,7 @@ pub fn start_dashboard(
         vault,
         homeserver,
         tunnel,
+        relay_tunnel,
         identity,
         log_tx,
     });
@@ -256,6 +260,9 @@ pub fn start_dashboard(
         .route("/api/tunnel/start", post(api_tunnel_start))
         .route("/api/tunnel/stop", post(api_tunnel_stop))
         .route("/api/tunnel/check", get(api_tunnel_check))
+        .route("/api/relay-tunnel/status", get(api_relay_tunnel_status))
+        .route("/api/relay-tunnel/start", post(api_relay_tunnel_start))
+        .route("/api/relay-tunnel/stop", post(api_relay_tunnel_stop))
         .route("/api/logs/stream", get(api_logs_stream))
         .route("/api/status", get(api_status))
         .route("/api/resolve/{public_key}", get(api_resolve))
@@ -1302,6 +1309,42 @@ async fn api_tunnel_check(
         "available": crate::tunnel::TunnelManager::binary_available(),
         "download_url": "https://github.com/cloudflare/cloudflared/releases/latest"
     }))
+}
+
+// ─── Relay Tunnel API Handlers ────────────────────────────────
+
+/// GET /api/relay-tunnel/status
+async fn api_relay_tunnel_status(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.relay_tunnel.check_process();
+    let tunnel_state = state.relay_tunnel.state();
+    Json(serde_json::json!({
+        "state": tunnel_state.as_str(),
+        "error": if let crate::tunnel::TunnelState::Error(ref e) = tunnel_state { Some(e.as_str()) } else { None::<&str> },
+        "public_url": state.relay_tunnel.public_url(),
+        "relay_port": state.relay_port,
+    }))
+}
+
+/// POST /api/relay-tunnel/start
+async fn api_relay_tunnel_start(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.relay_tunnel.start() {
+        Ok(()) => {
+            (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "Relay tunnel starting..." })))
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/relay-tunnel/stop
+async fn api_relay_tunnel_stop(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.relay_tunnel.stop();
+    Json(serde_json::json!({ "success": true }))
 }
 
 // ─── SSE Log Stream ───────────────────────────────────────────
@@ -3041,6 +3084,7 @@ fn build_test_router(data_dir: &std::path::Path) -> Router {
     let vault = KeyVault::new(data_dir);
     let homeserver = HomeserverManager::new(data_dir);
     let tunnel = TunnelManager::new(homeserver.get_config().drive_icann_port);
+    let relay_tunnel = TunnelManager::new(8080);
     let identity = IdentityManager::new(data_dir);
     let (log_tx, _) = broadcast::channel::<String>(100);
 
@@ -3064,6 +3108,7 @@ fn build_test_router(data_dir: &std::path::Path) -> Router {
         vault,
         homeserver,
         tunnel,
+        relay_tunnel,
         identity,
         log_tx,
     });
@@ -3095,6 +3140,7 @@ fn build_test_router(data_dir: &std::path::Path) -> Router {
         .route("/api/homeserver/logs", get(api_hs_logs))
         .route("/api/tunnel/status", get(api_tunnel_status))
         .route("/api/tunnel/check", get(api_tunnel_check))
+        .route("/api/relay-tunnel/status", get(api_relay_tunnel_status))
         .route("/api/status", get(api_status))
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
         .route("/api/watchlist/{key}", delete(api_watchlist_remove))

@@ -2412,6 +2412,54 @@
                 } catch (e) { console.error(e); hsTunnelRefresh(); }
             });
         }
+        // ─── Relay Tunnel ─────────────────────────────────
+        var relayTunnelBadge = document.getElementById('relay-tunnel-badge');
+        var relayTunnelUrl = document.getElementById('relay-tunnel-url');
+        var relayTunnelStartBtn = document.getElementById('relay-tunnel-start-btn');
+        var relayTunnelStopBtn = document.getElementById('relay-tunnel-stop-btn');
+
+        async function relayTunnelRefresh() {
+            try {
+                var res = await authFetch('/api/relay-tunnel/status');
+                var data = await res.json();
+                var st = data.state || 'stopped';
+                if (relayTunnelBadge) {
+                    relayTunnelBadge.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+                    relayTunnelBadge.className = 'badge' + (st === 'running' ? ' badge-active' : st === 'starting' ? ' badge-warning' : '');
+                }
+                if (relayTunnelUrl) {
+                    if (data.public_url) {
+                        relayTunnelUrl.style.display = '';
+                        relayTunnelUrl.innerHTML = '🌐 <a href="' + data.public_url + '" target="_blank" rel="noopener" style="color:var(--primary);">' + data.public_url + '</a>';
+                    } else {
+                        relayTunnelUrl.style.display = 'none';
+                    }
+                }
+                if (relayTunnelStartBtn) relayTunnelStartBtn.disabled = (st === 'running' || st === 'starting');
+                if (relayTunnelStopBtn) relayTunnelStopBtn.disabled = (st === 'stopped');
+            } catch (e) { console.error('relay tunnel status:', e); }
+        }
+
+        if (relayTunnelStartBtn) {
+            relayTunnelStartBtn.addEventListener('click', async function () {
+                relayTunnelStartBtn.disabled = true;
+                if (relayTunnelBadge) relayTunnelBadge.textContent = 'Starting…';
+                try {
+                    await authFetch('/api/relay-tunnel/start', { method: 'POST' });
+                    setTimeout(relayTunnelRefresh, 3000);
+                    setTimeout(relayTunnelRefresh, 8000);
+                } catch (e) { console.error(e); relayTunnelRefresh(); }
+            });
+        }
+        if (relayTunnelStopBtn) {
+            relayTunnelStopBtn.addEventListener('click', async function () {
+                relayTunnelStopBtn.disabled = true;
+                try {
+                    await authFetch('/api/relay-tunnel/stop', { method: 'POST' });
+                    setTimeout(relayTunnelRefresh, 1000);
+                } catch (e) { console.error(e); relayTunnelRefresh(); }
+            });
+        }
 
         // ─── Identity Signup ─────────────────────────────
         var identityKeySelect = document.getElementById('hs-identity-key-select');
