@@ -43,6 +43,8 @@
                     <button class="tab" data-tab="explorer">Explorer</button>
                     <button class="tab" data-tab="keys">Keys</button>
                     <button class="tab" data-tab="guide">Guide</button>
+                    <button class="tab" data-tab="homeserver">Homeserver</button>
+                    <button class="tab" data-tab="settings">Settings</button>
                 </nav>
                 <div class="status-indicator" id="connection-status">
                     <span class="status-dot"></span>
@@ -360,6 +362,103 @@
             <!-- ===== KEYS TAB ===== -->
             <div class="tab-content" id="tab-keys">
                 <div class="grid">
+                    <!-- Key Vault -->
+                    <section class="card" id="vault-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                    </svg>
+                                </div>
+                                <h2>Key Vault</h2>
+                            </div>
+                            <span class="badge" id="vault-badge">--</span>
+                        </div>
+                        <div class="card-body">
+                            <!-- State: No vault exists -->
+                            <div id="vault-create" style="display: none;">
+                                <p class="settings-desc">Create an encrypted vault to securely store your secret keys.
+                                </p>
+                                <div class="settings-form">
+                                    <div class="settings-field">
+                                        <label for="vault-create-pw">Vault Password</label>
+                                        <input type="password" id="vault-create-pw"
+                                            placeholder="Choose a vault password (4+ chars)"
+                                            autocomplete="new-password">
+                                    </div>
+                                    <div class="settings-field">
+                                        <label for="vault-create-confirm">Confirm Password</label>
+                                        <input type="password" id="vault-create-confirm"
+                                            placeholder="Confirm vault password" autocomplete="new-password">
+                                    </div>
+                                    <button class="btn-primary" id="vault-create-btn">🔐 Create Vault</button>
+                                    <div id="vault-create-error" class="settings-feedback error"></div>
+                                </div>
+                            </div>
+
+                            <!-- State: Vault locked -->
+                            <div id="vault-locked" style="display: none;">
+                                <p class="settings-desc">Unlock your vault to view and manage keys.</p>
+                                <div class="settings-form">
+                                    <div class="settings-field">
+                                        <label for="vault-unlock-pw">Vault Password</label>
+                                        <input type="password" id="vault-unlock-pw" placeholder="Enter vault password"
+                                            autocomplete="current-password">
+                                    </div>
+                                    <button class="btn-primary" id="vault-unlock-btn">🔓 Unlock Vault</button>
+                                    <div id="vault-unlock-error" class="settings-feedback error"></div>
+                                </div>
+                            </div>
+
+                            <!-- State: Vault unlocked -->
+                            <div id="vault-unlocked" style="display: none;">
+                                <div class="vault-toolbar">
+                                    <button class="btn-sm btn-secondary" id="vault-lock-btn">🔒 Lock</button>
+                                    <button class="btn-sm btn-secondary" id="vault-add-manual-btn">+ Add Key</button>
+                                    <button class="btn-sm btn-secondary" id="vault-export-all-btn">📥 Export</button>
+                                    <button class="btn-sm btn-secondary" id="vault-import-btn">📤 Import</button>
+                                    <input type="file" id="vault-import-file" accept=".json" style="display:none;">
+                                </div>
+                                <div id="vault-keys-list" class="vault-keys-list"></div>
+                                <div id="vault-empty" class="vault-empty" style="display: none;">
+                                    <p>No keys in vault. Add keys from the Vanity Generator or PKARR Publisher, or add
+                                        manually.</p>
+                                </div>
+                            </div>
+
+                            <!-- Manual key add form (hidden until + Add Key clicked) -->
+                            <div id="vault-add-form" style="display: none;">
+                                <div class="settings-form">
+                                    <div class="settings-field">
+                                        <label for="vault-add-name">Key Name</label>
+                                        <input type="text" id="vault-add-name" placeholder="e.g. My Vanity Key"
+                                            autocomplete="off">
+                                    </div>
+                                    <div class="settings-field">
+                                        <label for="vault-add-secret">Secret Key (hex)</label>
+                                        <input type="password" id="vault-add-secret"
+                                            placeholder="Hex or z-base-32 encoded secret" autocomplete="off"
+                                            spellcheck="false">
+                                    </div>
+                                    <div class="settings-field">
+                                        <label for="vault-add-pubkey">Public Key</label>
+                                        <input type="text" id="vault-add-pubkey" placeholder="Public key (z-base-32)"
+                                            autocomplete="off" spellcheck="false">
+                                    </div>
+                                    <div class="vault-add-actions">
+                                        <button class="btn-primary btn-sm" id="vault-add-save-btn">💾 Save to
+                                            Vault</button>
+                                        <button class="btn-sm btn-secondary" id="vault-add-cancel-btn">Cancel</button>
+                                    </div>
+                                    <div id="vault-add-error" class="settings-feedback error"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- Identity Watchlist (moved from Status) -->
                     <section class="card" id="watchlist-panel">
                         <div class="card-header">
@@ -387,6 +486,84 @@
                             </div>
                             <div id="watchlist-error" class="watchlist-error"></div>
                             <div class="watchlist-keys" id="watchlist-keys"></div>
+                        </div>
+                    </section>
+
+                    <!-- PKARR Publisher -->
+                    <section class="card" id="publisher-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M12 19V5M5 12l7-7 7 7" />
+                                    </svg>
+                                </div>
+                                <h2>PKARR Publisher</h2>
+                            </div>
+                            <span class="badge" id="publisher-badge">Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="publisher-desc">Sign &amp; publish DNS records to the DHT. Your secret key is used
+                                once to sign and is never stored.</p>
+
+                            <!-- Secret Key -->
+                            <div class="publisher-field">
+                                <label class="publisher-label">Secret Key</label>
+                                <div class="publisher-key-row">
+                                    <input type="password" id="publisher-secret-key"
+                                        placeholder="Secret key (hex or z-base-32)" spellcheck="false"
+                                        autocomplete="off" class="publisher-key-input">
+                                    <button class="btn-sm publisher-icon-btn" id="publisher-toggle-key"
+                                        title="Show/Hide">👁</button>
+                                    <button class="btn-sm btn-primary" id="publisher-generate-key">🎲 New</button>
+                                </div>
+                            </div>
+
+                            <!-- Generated key info -->
+                            <div id="publisher-generated-info" class="publisher-info-box" style="display:none;">
+                                <div class="publisher-info-header">
+                                    <span class="publisher-info-label">Public Key</span>
+                                    <button class="btn-sm publisher-icon-btn" id="publisher-copy-pubkey">📋</button>
+                                </div>
+                                <code class="publisher-pubkey" id="publisher-pubkey-display"></code>
+                                <p class="publisher-warning">⚠ Save your secret key — it won't be stored!</p>
+                            </div>
+
+                            <!-- Presets -->
+                            <div class="publisher-field">
+                                <label class="publisher-label">Template</label>
+                                <div class="publisher-presets">
+                                    <button class="publisher-preset-btn active" data-preset="homeserver">🏠
+                                        Homeserver</button>
+                                    <button class="publisher-preset-btn" data-preset="custom">✏️ Custom</button>
+                                </div>
+                            </div>
+
+                            <!-- Records -->
+                            <div class="publisher-field">
+                                <label class="publisher-label">Records</label>
+                                <div id="publisher-records" class="publisher-records"></div>
+                                <button class="btn-sm" id="publisher-add-record">+ Add Record</button>
+                            </div>
+
+                            <!-- Options -->
+                            <label class="publisher-option">
+                                <input type="checkbox" id="publisher-add-watchlist" checked>
+                                <span>Add to watchlist for auto-republishing</span>
+                            </label>
+                            <label class="publisher-option">
+                                <input type="checkbox" id="publisher-save-vault">
+                                <span>Save key to vault</span>
+                            </label>
+
+                            <!-- Submit -->
+                            <button class="btn-primary publisher-submit" id="publisher-submit-btn">
+                                🚀 Sign &amp; Publish to DHT
+                            </button>
+
+                            <!-- Status -->
+                            <div id="publisher-status" class="publisher-status"></div>
                         </div>
                     </section>
 
@@ -456,6 +633,8 @@
                                 <div class="vanity-warning">
                                     ⚠️ <strong>Back up your seed!</strong> It cannot be recovered.
                                 </div>
+                                <button class="btn-primary btn-sm" id="vanity-save-vault-btn"
+                                    style="margin-top: 8px;">💾 Save to Vault</button>
                             </div>
                             <div class="vanity-info collapsible" id="vanity-info">
                                 <div class="collapsible-toggle vanity-info-toggle" id="vanity-info-toggle">
@@ -848,13 +1027,315 @@ dig @127.0.0.1 yg4gxe7z1r7mr6orids9fh95y7gxhdsxjqi6nngsxxtakqaxr5no.pkarr</code>
                     <section class="guide-section guide-section-wide">
                         <div class="guide-section-icon">🚀</div>
                         <h2>CLI Quick Reference</h2>
-                        <pre class="code-block"><code>cargo run --release                           # Run with defaults
-cargo run --release -- --no-dns               # Skip DNS resolver
-cargo run --release -- --verbose              # Debug logging
-cargo run --release -- --relay-port 8080      # Custom relay port
-cargo run --release -- --dashboard-port 3000  # Custom dashboard port
-cargo run --release -- --data-dir ./my-data   # Custom data directory
-RUST_LOG=debug cargo run                      # Fine-grained log control</code></pre>
+                        <pre class="code-block"><code>## Running the Node
+pubky-node                                    # Run with defaults
+pubky-node run --no-dns                       # Skip DNS resolver
+pubky-node run --verbose                      # Debug logging
+pubky-node run --relay-port 8080              # Custom relay port
+pubky-node run --dashboard-port 3000          # Custom dashboard port
+pubky-node run --data-dir ./my-data           # Custom data directory
+
+## DHT Operations
+pubky-node resolve &lt;KEY&gt;                      # Resolve a key's DNS records
+pubky-node resolve &lt;KEY&gt; --json               # Output as JSON
+pubky-node publish --secret-key &lt;HEX&gt; \
+  --record "HTTPS _pubky . target=host.com"   # Publish DNS records
+pubky-node keygen                             # Generate new Ed25519 keypair
+pubky-node keygen --json                      # Output keypair as JSON
+
+## Vanity Keys
+pubky-node vanity abc                         # Find key starting with "abc"
+pubky-node vanity xyz --suffix                # Find key ending with "xyz"
+pubky-node vanity pk -t 8                     # Use 8 threads
+
+## HTTP Proxy
+pubky-node proxy-hosts &lt;KEY1&gt; &lt;KEY2&gt;          # Add keys to /etc/hosts
+pubky-node proxy-hosts --reset                # Remove proxy entries
+
+## System
+pubky-node status                             # Query running node status
+pubky-node status --json                      # Raw JSON output
+pubky-node dns-setup                          # Configure OS DNS resolver
+pubky-node dns-setup --remove                 # Remove DNS configuration
+pubky-node dns-setup --dry-run                # Preview changes</code></pre>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ═══════ Settings Tab ═══════ -->
+            <div class="tab-content" id="tab-settings">
+                <div class="grid-1">
+                    <!-- Password Management -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">🔐 Dashboard Password</div>
+                        </div>
+                        <div class="card-body">
+                            <p class="settings-desc">Change your dashboard login password.</p>
+                            <div class="settings-form" id="settings-password-form">
+                                <div class="settings-field">
+                                    <label for="settings-current-pw">Current Password</label>
+                                    <input type="password" id="settings-current-pw" placeholder="Enter current password"
+                                        autocomplete="current-password">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="settings-new-pw">New Password</label>
+                                    <input type="password" id="settings-new-pw"
+                                        placeholder="Enter new password (4+ chars)" autocomplete="new-password">
+                                </div>
+                                <div class="settings-field">
+                                    <label for="settings-confirm-pw">Confirm New Password</label>
+                                    <input type="password" id="settings-confirm-pw" placeholder="Confirm new password"
+                                        autocomplete="new-password">
+                                </div>
+                                <button class="btn-primary" id="settings-change-pw-btn">🔄 Change Password</button>
+                                <div id="settings-pw-feedback" class="settings-feedback"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Node Info -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📂 Data & Storage</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-row">
+                                <span class="info-label">Data Directory</span>
+                                <span class="info-value mono" id="settings-data-dir">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Config File</span>
+                                <span class="info-value mono" id="settings-config-file">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Auth File</span>
+                                <span class="info-value mono" id="settings-auth-file">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Dashboard Port</span>
+                                <span class="info-value" id="settings-port">9090</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- About -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">ℹ️ About Pubky Node</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-row">
+                                <span class="info-label">Version</span>
+                                <span class="info-value" id="settings-version">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Platform</span>
+                                <span class="info-value" id="settings-platform">—</span>
+                            </div>
+                            <p class="settings-about-text">
+                                Pubky Node is sovereign infrastructure for the open web.
+                                Run your own DHT relay, DNS resolver, HTTP proxy, and homeserver.
+                            </p>
+                            <div class="settings-links">
+                                <a href="https://pubky.tech" target="_blank" rel="noopener">pubky.tech</a>
+                                <a href="https://github.com/pubky" target="_blank" rel="noopener">GitHub</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== Homeserver Tab ========== -->
+            <div class="tab-content" id="tab-homeserver">
+                <div class="grid">
+                    <!-- Prerequisites Check -->
+                    <section class="card" id="hs-prereq-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-blue">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                                    </svg>
+                                </div>
+                                <h2>Prerequisites</h2>
+                            </div>
+                            <button class="btn-sm btn-secondary" id="hs-check-btn">Check</button>
+                            <button class="btn-sm btn-primary" id="hs-fix-btn">🔧 Fix All</button>
+                        </div>
+                        <div class="card-body">
+                            <div id="hs-prereq-list" class="hs-prereq-list">
+                                <div class="hs-prereq-item"><span class="hs-prereq-label">PostgreSQL</span><span
+                                        class="hs-prereq-status" id="hs-pg-status">—</span></div>
+                                <div class="hs-prereq-item"><span class="hs-prereq-label">Database</span><span
+                                        class="hs-prereq-status" id="hs-db-status">—</span></div>
+                                <div class="hs-prereq-item"><span class="hs-prereq-label">Binary</span><span
+                                        class="hs-prereq-status" id="hs-bin-status">—</span></div>
+                                <div class="hs-prereq-item"><span class="hs-prereq-label">Config</span><span
+                                        class="hs-prereq-status" id="hs-cfg-status">—</span></div>
+                            </div>
+                            <button class="btn-sm btn-primary" id="hs-gen-config-btn" style="margin-top: 10px;">Generate
+                                Config</button>
+                            <div id="hs-fix-log"
+                                style="display:none; margin-top:10px; font-size:12px; line-height:1.8;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Server Control -->
+                    <section class="card" id="hs-control-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="2" y="2" width="20" height="8" rx="2" />
+                                        <rect x="2" y="14" width="20" height="8" rx="2" />
+                                        <circle cx="6" cy="6" r="1" />
+                                        <circle cx="6" cy="18" r="1" />
+                                    </svg>
+                                </div>
+                                <h2>Homeserver Control</h2>
+                            </div>
+                            <span class="badge" id="hs-state-badge">Stopped</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="hs-server-info" class="hs-server-info" style="display:none;">
+                                <div class="info-row"><span class="info-label">PID</span><span class="info-value"
+                                        id="hs-pid">—</span></div>
+                                <div class="info-row"><span class="info-label">Uptime</span><span class="info-value"
+                                        id="hs-uptime">—</span></div>
+                                <div class="info-row"><span class="info-label">HTTP</span><span class="info-value"
+                                        id="hs-port-icann">—</span></div>
+                                <div class="info-row"><span class="info-label">Pubky</span><span class="info-value"
+                                        id="hs-port-pubky">—</span></div>
+                                <div class="info-row"><span class="info-label">Admin</span><span class="info-value"
+                                        id="hs-port-admin">—</span></div>
+                            </div>
+                            <div class="hs-control-btns">
+                                <button class="btn-primary" id="hs-start-btn">▶ Start Server</button>
+                                <button class="btn-secondary" id="hs-stop-btn" style="display:none;">■ Stop
+                                    Server</button>
+                            </div>
+                            <div id="hs-control-msg" class="publisher-status" style="display:none;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Server Stats -->
+                    <section class="card" id="hs-stats-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-orange">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 20V10" />
+                                        <path d="M12 20V4" />
+                                        <path d="M6 20v-6" />
+                                    </svg>
+                                </div>
+                                <h2>Server Stats</h2>
+                            </div>
+                            <span class="badge" id="hs-stats-badge">Offline</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="hs-stats-info">
+                                <div class="info-row"><span class="info-label">Version</span><span class="info-value"
+                                        id="hs-version">—</span></div>
+                                <div class="info-row"><span class="info-label">Users</span><span class="info-value"
+                                        id="hs-users">—</span></div>
+                                <div class="info-row"><span class="info-label">Signup Mode</span><span
+                                        class="info-value" id="hs-signup-mode">—</span></div>
+                                <div class="info-row"><span class="info-label">Server Key</span><span
+                                        class="info-value mono" id="hs-server-key" style="font-size:10px;">—</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Invite Tokens -->
+                    <section class="card" id="hs-invite-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M2 12h5" />
+                                        <path d="M17 12h5" />
+                                        <rect x="7" y="4" width="10" height="16" rx="2" />
+                                        <path d="M12 8v8" />
+                                    </svg>
+                                </div>
+                                <h2>Invite Tokens</h2>
+                            </div>
+                            <span class="badge" id="hs-invite-badge">Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn-primary btn-sm" id="hs-gen-token-btn">Generate Token</button>
+                            <div id="hs-token-display" style="display:none; margin-top:12px;">
+                                <div class="export-hex-row">
+                                    <code class="export-hex" id="hs-token-value">—</code>
+                                    <button class="btn-sm" id="hs-token-copy">📋</button>
+                                </div>
+                                <div id="hs-token-qr" class="export-qr" style="margin-top: 12px;"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Configuration -->
+                    <section class="card" id="hs-config-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path
+                                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                                    </svg>
+                                </div>
+                                <h2>Configuration</h2>
+                            </div>
+                            <span class="badge" id="hs-config-badge">—</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="hs-config-form">
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Database URL</label>
+                                    <input type="text" id="hs-cfg-db-url" class="publisher-key-input"
+                                        placeholder="postgres://localhost:5432/pubky_homeserver">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Signup Mode</label>
+                                    <select id="hs-cfg-signup-mode" class="publisher-key-input">
+                                        <option value="token_required">Token Required</option>
+                                        <option value="open">Open</option>
+                                        <option value="closed">Closed</option>
+                                    </select>
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Admin Password</label>
+                                    <input type="password" id="hs-cfg-admin-pw" class="publisher-key-input">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Public IP</label>
+                                    <input type="text" id="hs-cfg-public-ip" class="publisher-key-input"
+                                        placeholder="auto-detected">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">ICANN Domain</label>
+                                    <input type="text" id="hs-cfg-domain" class="publisher-key-input"
+                                        placeholder="localhost">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Storage Quota (MB, 0 = unlimited)</label>
+                                    <input type="number" id="hs-cfg-quota" class="publisher-key-input" value="0"
+                                        min="0">
+                                </div>
+                                <button class="btn-primary" id="hs-save-config-btn">Save Config</button>
+                                <span id="hs-config-msg" style="margin-left:8px;font-size:12px;"></span>
+                            </div>
+                        </div>
                     </section>
                 </div>
             </div>
@@ -866,7 +1347,32 @@ RUST_LOG=debug cargo run                      # Fine-grained log control</code><
         </footer>
     </div>
 
+    <script src="/qrcode.min.js"></script>
     <script src="/dashboard.js"></script>
+
+    <!-- Ring Export Modal -->
+    <div id="ring-export-modal" class="modal-overlay">
+        <div class="modal-box" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>🔑 Export Key</h3>
+                <button id="ring-export-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-section">
+                    <label class="export-label">Secret Key (hex)</label>
+                    <div class="export-hex-row">
+                        <code class="export-hex" id="export-hex-value">--</code>
+                        <button class="btn-sm" id="export-copy-hex" title="Copy">📋</button>
+                    </div>
+                </div>
+                <div class="export-section">
+                    <label class="export-label">Ring Migrate QR</label>
+                    <p class="export-hint">Scan with Pubky Ring to import this key</p>
+                    <div id="export-qr-container" class="export-qr"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

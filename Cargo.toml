@@ -44,6 +44,21 @@ hex = "0.4"
 # Secure memory zeroization for secret keys
 zeroize = "1"
 
+# Password hashing for dashboard auth
+argon2 = "0.5"
+
+# Base64 for HTTP Basic Auth
+base64 = "0.22"
+
+# Encrypted key vault (chacha20-poly1305 AEAD)
+chacha20poly1305 = "0.10"
+
+# UUID for key identifiers
+uuid = { version = "1", features = ["v4"] }
+
+# Random number generation for salts/nonces
+rand = "0.8"
+
 # UPnP auto-port-forwarding
 igd-next = { version = "0.15", features = ["aio_tokio"] }
 

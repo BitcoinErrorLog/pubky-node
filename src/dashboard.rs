@@ -2,13 +2,16 @@
 //!
 //! Provides a real-time monitoring UI, key explorer, user guide,
 //! and JSON API endpoints for node status and DHT key resolution.
-//! Includes security headers, rate limiting, and a health check endpoint.
+//! Includes security headers, rate limiting, authentication, key vault, and a health check endpoint.
+
+use crate::keyvault::{KeyVault, VaultKey};
+use crate::homeserver::HomeserverManager;
 
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicU64, AtomicBool, Ordering}};
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, State, Extension},
     http::{header, HeaderValue, StatusCode},
     middleware::{self, Next},
     response::{Html, IntoResponse, Json, Response},
@@ -23,6 +26,59 @@ use tracing::info;
 
 use crate::config::WatchlistConfig;
 use crate::upnp::UpnpStatus;
+
+// ─── Auth helpers ───────────────────────────────────────────────
+
+/// Auth configuration stored on disk at `~/.pubky-node/auth.json`
+#[derive(Serialize, Deserialize)]
+struct AuthConfig {
+    password_hash: String,
+}
+
+fn auth_config_path(data_dir: &std::path::Path) -> PathBuf {
+    data_dir.join("auth.json")
+}
+
+fn load_auth_config(data_dir: &std::path::Path) -> Option<AuthConfig> {
+    let path = auth_config_path(data_dir);
+    let data = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&data).ok()
+}
+
+fn save_auth_config(data_dir: &std::path::Path, config: &AuthConfig) -> Result<(), String> {
+    let path = auth_config_path(data_dir);
+    let data = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())
+}
+
+fn hash_password(password: &str) -> Result<String, String> {
+    use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+    let salt = SaltString::generate(&mut argon2::password_hash::rand_core::OsRng);
+    let argon2 = Argon2::default();
+    argon2
+        .hash_password(password.as_bytes(), &salt)
+        .map(|h| h.to_string())
+        .map_err(|e| e.to_string())
+}
+
+fn verify_password(password: &str, hash: &str) -> bool {
+    use argon2::{Argon2, PasswordVerifier, PasswordHash};
+    let parsed = match PasswordHash::new(hash) {
+        Ok(h) => h,
+        Err(_) => return false,
+    };
+    Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok()
+}
+
+/// Extract Basic Auth credentials from request header.
+fn extract_basic_auth(req: &axum::extract::Request) -> Option<(String, String)> {
+    let header_val = req.headers().get(header::AUTHORIZATION)?.to_str().ok()?;
+    let encoded = header_val.strip_prefix("Basic ")?;
+    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded).ok()?;
+    let decoded_str = String::from_utf8(decoded).ok()?;
+    let (user, pass) = decoded_str.split_once(':')?;
+    Some((user.to_string(), pass.to_string()))
+}
 
 /// Shared mutable list of watchlist public keys.
 pub type SharedWatchlistKeys = Arc<RwLock<Vec<String>>>;
@@ -47,6 +103,13 @@ struct DashboardState {
     proxy_running: AtomicBool,
     proxy_port: u16,
     proxy_requests: AtomicU64,
+    /// Dashboard password hash (argon2). None = no password set yet.
+    /// Shared with auth middleware via Extension.
+    auth_hash: Arc<RwLock<Option<String>>>,
+    /// Encrypted key vault.
+    vault: KeyVault,
+    /// Homeserver process manager.
+    homeserver: HomeserverManager,
 }
 
 /// Load watchlist keys from disk, falling back to config keys.
@@ -87,6 +150,19 @@ pub fn start_dashboard(
     dns_socket: String,
     dns_forward: String,
 ) -> JoinHandle<()> {
+    // Load existing auth config if present
+    let loaded_hash = load_auth_config(&data_dir).map(|c| c.password_hash);
+    if loaded_hash.is_some() {
+        info!("Dashboard auth: password configured");
+    } else {
+        info!("Dashboard auth: no password set — setup required on first visit");
+    }
+    // Shared auth hash — same Arc used in both DashboardState and Extension middleware
+    let auth_hash: Arc<RwLock<Option<String>>> = Arc::new(RwLock::new(loaded_hash));
+
+    let vault = KeyVault::new(&data_dir);
+    let homeserver = HomeserverManager::new(&data_dir);
+
     let state = Arc::new(DashboardState {
         client,
         watchlist_config,
@@ -103,6 +179,9 @@ pub fn start_dashboard(
         proxy_running: AtomicBool::new(false),
         proxy_port: 9091,
         proxy_requests: AtomicU64::new(0),
+        auth_hash: auth_hash.clone(),
+        vault,
+        homeserver,
     });
 
     // Start HTTP proxy for .pkarr domains
@@ -111,9 +190,39 @@ pub fn start_dashboard(
         start_http_proxy(proxy_state).await;
     });
 
+    // Shared auth hash ref for Extension middleware (same Arc as in DashboardState)
+    let shared_auth = auth_hash;
+
+    // Single router — auth middleware checks path and skips public routes
     let app = Router::new()
         .route("/", get(serve_dashboard))
         .route("/health", get(health_check))
+        .route("/api/auth/check", get(api_auth_check))
+        .route("/api/auth/setup", post(api_auth_setup))
+        .route("/api/auth/login", post(api_auth_login))
+        .route("/api/auth/change-password", post(api_auth_change_password))
+        .route("/api/settings", get(api_settings))
+        .route("/api/vault/create", post(api_vault_create))
+        .route("/api/vault/unlock", post(api_vault_unlock))
+        .route("/api/vault/lock", post(api_vault_lock))
+        .route("/api/vault/keys", get(api_vault_keys))
+        .route("/api/vault/add", post(api_vault_add))
+        .route("/api/vault/export", post(api_vault_export))
+        .route("/api/vault/export-all", get(api_vault_export_all))
+        .route("/api/vault/import", post(api_vault_import))
+        .route("/api/vault/rename", post(api_vault_rename))
+        .route("/api/vault/delete/{pubkey}", delete(api_vault_delete))
+        .route("/api/vault/status", get(api_vault_status))
+        .route("/api/homeserver/status", get(api_hs_status))
+        .route("/api/homeserver/start", post(api_hs_start))
+        .route("/api/homeserver/stop", post(api_hs_stop))
+        .route("/api/homeserver/info", get(api_hs_info))
+        .route("/api/homeserver/signup-token", get(api_hs_signup_token))
+        .route("/api/homeserver/setup-check", get(api_hs_setup_check))
+        .route("/api/homeserver/config", get(api_hs_config).post(api_hs_config_save))
+        .route("/api/homeserver/generate-config", post(api_hs_generate_config))
+        .route("/api/homeserver/logs", get(api_hs_logs))
+        .route("/api/homeserver/fix", post(api_hs_fix))
         .route("/api/status", get(api_status))
         .route("/api/resolve/{public_key}", get(api_resolve))
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
@@ -129,9 +238,13 @@ pub fn start_dashboard(
         .route("/api/proxy/setup-hosts", post(api_proxy_setup_hosts))
         .route("/api/proxy/reset-hosts", post(api_proxy_reset_hosts))
         .route("/api/proxy/hosts-status", get(api_proxy_hosts_status))
+        .route("/api/publish", post(api_publish))
         .route("/dashboard.js", get(serve_js))
         .route("/dashboard.css", get(serve_css))
+        .route("/qrcode.min.js", get(serve_qr_js))
         .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn(auth_check))
+        .layer(Extension(shared_auth))
         .with_state(state);
 
     let addr = std::net::SocketAddr::from((bind_addr, port));
@@ -149,6 +262,595 @@ pub fn start_dashboard(
             .await
             .expect("Dashboard server error");
     })
+}
+
+// ─── Auth middleware & handlers ─────────────────────────────────
+
+/// Middleware: check auth on protected routes.
+/// Supports Basic Auth (curl) and X-Auth-Password header (dashboard JS).
+/// Public paths (root page, auth endpoints, static assets) always allowed.
+async fn auth_check(
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    // Skip auth for public routes — root page must always load for Tauri webview
+    let path = request.uri().path();
+    if path == "/"
+        || path == "/health"
+        || path.starts_with("/api/auth/")
+        || path == "/dashboard.js"
+        || path == "/dashboard.css"
+    {
+        return next.run(request).await;
+    }
+
+    // Get auth hash from Extension
+    let hash_opt = request.extensions()
+        .get::<Arc<RwLock<Option<String>>>>()
+        .and_then(|h| h.read().ok())
+        .and_then(|guard| guard.clone());
+
+    let hash = match hash_opt {
+        Some(h) => h,
+        None => {
+            // No password set — allow through, dashboard JS will show setup
+            return next.run(request).await;
+        }
+    };
+
+    // Check X-Auth-Password header (dashboard JS sends password with every API call)
+    if let Some(pw) = request.headers().get("X-Auth-Password").and_then(|v| v.to_str().ok()) {
+        if verify_password(pw, &hash) {
+            return next.run(request).await;
+        }
+    }
+
+    // Check Basic Auth header (curl/API clients)
+    if let Some((_user, pass)) = extract_basic_auth(&request) {
+        if verify_password(&pass, &hash) {
+            return next.run(request).await;
+        }
+    }
+
+    // 401 — return JSON error
+    Response::builder()
+        .status(StatusCode::UNAUTHORIZED)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(axum::body::Body::from("{\"error\":\"Unauthorized\"}"))
+        .unwrap()
+}
+
+/// GET /api/auth/check — returns whether a password is configured.
+/// Public route (no auth needed).
+async fn api_auth_check(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let has_password = state.auth_hash.read().unwrap().is_some();
+    Json(serde_json::json!({
+        "has_password": has_password
+    }))
+}
+
+/// POST /api/auth/setup — set the dashboard password (first-run only).
+/// Rejects if a password is already set.
+async fn api_auth_setup(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    // Reject if password already set
+    if state.auth_hash.read().unwrap().is_some() {
+        return (StatusCode::CONFLICT, Json(serde_json::json!({
+            "error": "Password already configured. Use change-password instead."
+        })));
+    }
+
+    let password = match body.get("password").and_then(|v| v.as_str()) {
+        Some(p) if p.len() >= 4 => p,
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "Password must be at least 4 characters."
+        }))),
+    };
+
+    // Hash and save
+    let hash = match hash_password(password) {
+        Ok(h) => h,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "error": format!("Failed to hash password: {}", e)
+        }))),
+    };
+
+    let config = AuthConfig { password_hash: hash.clone() };
+    if let Err(e) = save_auth_config(&state.data_dir, &config) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "error": format!("Failed to save auth config: {}", e)
+        })));
+    }
+
+    // Update in-memory state
+    *state.auth_hash.write().unwrap() = Some(hash);
+    info!("Dashboard password set successfully");
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "success": true,
+        "message": "Password set. The dashboard now requires authentication."
+    })))
+}
+
+/// POST /api/auth/login — validate password.
+/// JS calls this to verify the password, then stores it in memory for API calls.
+async fn api_auth_login(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let password = match body.get("password").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "Password required."
+        }))),
+    };
+
+    let hash = state.auth_hash.read().unwrap();
+    match hash.as_ref() {
+        Some(h) if verify_password(password, h) => {
+            (StatusCode::OK, Json(serde_json::json!({
+                "success": true
+            })))
+        }
+        _ => {
+            (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+                "error": "Invalid password."
+            })))
+        }
+    }
+}
+
+/// POST /api/auth/change-password — change the dashboard password.
+/// Requires the current password for verification.
+async fn api_auth_change_password(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let current_pw = match body.get("current_password").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "Current password required."
+        }))),
+    };
+    let new_pw = match body.get("new_password").and_then(|v| v.as_str()) {
+        Some(p) if p.len() >= 4 => p,
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "New password must be at least 4 characters."
+        }))),
+    };
+
+    // Verify current password
+    let hash_guard = state.auth_hash.read().unwrap();
+    match hash_guard.as_ref() {
+        Some(h) if verify_password(current_pw, h) => {},
+        _ => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+            "error": "Current password is incorrect."
+        }))),
+    }
+    drop(hash_guard);
+
+    // Hash new password and save
+    let new_hash = match hash_password(new_pw) {
+        Ok(h) => h,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "error": format!("Failed to hash password: {}", e)
+        }))),
+    };
+
+    let config = AuthConfig { password_hash: new_hash.clone() };
+    if let Err(e) = save_auth_config(&state.data_dir, &config) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "error": format!("Failed to save auth config: {}", e)
+        })));
+    }
+
+    *state.auth_hash.write().unwrap() = Some(new_hash);
+    info!("Dashboard password changed successfully");
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "success": true,
+        "message": "Password changed successfully."
+    })))
+}
+
+/// GET /api/settings — return data directory paths and platform info.
+async fn api_settings(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let data_dir = state.data_dir.display().to_string();
+    let config_file = state.data_dir.join("config.toml").display().to_string();
+    let auth_file = state.data_dir.join("auth.json").display().to_string();
+
+    Json(serde_json::json!({
+        "data_dir": data_dir,
+        "config_file": config_file,
+        "auth_file": auth_file,
+        "dashboard_port": 9090,
+        "platform": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+    }))
+}
+
+// ─── Key Vault API handlers ────────────────────────────────────
+
+/// GET /api/vault/status — check if vault exists and is unlocked.
+async fn api_vault_status(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "exists": state.vault.exists(),
+        "unlocked": state.vault.is_unlocked(),
+    }))
+}
+
+/// POST /api/vault/create — create a new vault with password.
+async fn api_vault_create(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let password = match body.get("password").and_then(|v| v.as_str()) {
+        Some(p) if p.len() >= 4 => p,
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "Password must be at least 4 characters."
+        }))),
+    };
+
+    match state.vault.create(password) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
+            "success": true,
+            "message": "Vault created and unlocked."
+        }))),
+        Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({
+            "error": e
+        }))),
+    }
+}
+
+/// POST /api/vault/unlock — unlock vault with password.
+async fn api_vault_unlock(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let password = match body.get("password").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "Password required."
+        }))),
+    };
+
+    match state.vault.unlock(password) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
+            "success": true
+        }))),
+        Err(e) => (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+            "error": e
+        }))),
+    }
+}
+
+/// POST /api/vault/lock — lock the vault (clear in-memory keys).
+async fn api_vault_lock(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.vault.lock();
+    Json(serde_json::json!({ "success": true }))
+}
+
+/// GET /api/vault/keys — list keys (public info, no secrets).
+async fn api_vault_keys(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.vault.list_keys() {
+        Ok(keys) => (StatusCode::OK, Json(serde_json::json!({ "keys": keys }))),
+        Err(e) => (StatusCode::LOCKED, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/vault/add — add a key to the vault.
+async fn api_vault_add(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("Unnamed Key");
+    let secret_hex = match body.get("secret_hex").and_then(|v| v.as_str()) {
+        Some(s) if s.len() == 64 || s.len() == 128 => s,
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "secret_hex must be a 64 or 128-character hex string."
+        }))),
+    };
+    let key_type = body.get("key_type").and_then(|v| v.as_str()).unwrap_or("manual");
+    let pubkey = match body.get("pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "pubkey is required."
+        }))),
+    };
+
+    match state.vault.add_key(name, secret_hex, key_type, pubkey) {
+        Ok(info) => (StatusCode::OK, Json(serde_json::json!({
+            "success": true,
+            "key": info
+        }))),
+        Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({
+            "error": e
+        }))),
+    }
+}
+
+/// POST /api/vault/export — export a key's secret hex.
+async fn api_vault_export(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = match body.get("pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "pubkey is required."
+        }))),
+    };
+
+    match state.vault.export_key(pubkey) {
+        Ok(secret_hex) => (StatusCode::OK, Json(serde_json::json!({
+            "secret_hex": secret_hex
+        }))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": e
+        }))),
+    }
+}
+
+/// DELETE /api/vault/delete/{pubkey} — remove a key from the vault.
+async fn api_vault_delete(
+    State(state): State<Arc<DashboardState>>,
+    Path(pubkey): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.vault.delete_key(&pubkey) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
+            "success": true
+        }))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(serde_json::json!({
+            "error": e
+        }))),
+    }
+}
+
+/// POST /api/vault/rename — rename a key's label.
+async fn api_vault_rename(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let pubkey = match body.get("pubkey").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "pubkey is required."
+        }))),
+    };
+    let name = match body.get("name").and_then(|v| v.as_str()) {
+        Some(n) if !n.trim().is_empty() => n.trim(),
+        _ => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "name is required."
+        }))),
+    };
+
+    match state.vault.rename_key(pubkey, name) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({ "success": true }))),
+        Err(e) => (StatusCode::NOT_FOUND, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// GET /api/vault/export-all — export all keys with secrets (for backup).
+async fn api_vault_export_all(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.vault.export_all_keys() {
+        Ok(keys) => (StatusCode::OK, Json(serde_json::json!({
+            "keys": keys,
+            "exported_at": chrono_now_utc(),
+            "format": "pubky-vault-backup-v1"
+        }))),
+        Err(e) => (StatusCode::LOCKED, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/vault/import — import keys from a backup file.
+async fn api_vault_import(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let keys_val = match body.get("keys") {
+        Some(v) => v,
+        None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": "keys array is required."
+        }))),
+    };
+
+    let keys: Vec<VaultKey> = match serde_json::from_value(keys_val.clone()) {
+        Ok(k) => k,
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+            "error": format!("Invalid key data: {}", e)
+        }))),
+    };
+
+    match state.vault.import_keys(keys) {
+        Ok(count) => (StatusCode::OK, Json(serde_json::json!({
+            "success": true,
+            "imported": count
+        }))),
+        Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// Simple UTC timestamp for export metadata.
+fn chrono_now_utc() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    format!("{}", secs)
+}
+
+// ─── Homeserver API Handlers ────────────────────────────────────
+
+/// GET /api/homeserver/status
+async fn api_hs_status(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.homeserver.check_process();
+    let hs_state = state.homeserver.state();
+    let cfg = state.homeserver.get_config();
+    Json(serde_json::json!({
+        "state": hs_state.as_str(),
+        "error": if let crate::homeserver::HomeserverState::Error(ref e) = hs_state { Some(e.as_str()) } else { None::<&str> },
+        "uptime_secs": state.homeserver.uptime_secs(),
+        "pid": state.homeserver.pid(),
+        "pubkey": state.homeserver.server_pubkey(),
+        "ports": {
+            "icann": cfg.drive_icann_port,
+            "pubky": cfg.drive_pubky_port,
+            "admin": cfg.admin_port,
+            "metrics": cfg.metrics_port,
+        }
+    }))
+}
+
+/// POST /api/homeserver/start
+async fn api_hs_start(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.homeserver.start() {
+        Ok(msg) => (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": msg }))),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/stop
+async fn api_hs_stop(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.homeserver.stop() {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({ "success": true }))),
+        Err(e) => (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": e }))),
+    }
+}
+
+/// GET /api/homeserver/info — proxy admin /info
+async fn api_hs_info(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let cfg = state.homeserver.get_config();
+    let url = format!("http://127.0.0.1:{}/info", cfg.admin_port);
+    let password = cfg.admin_password.clone();
+
+    match admin_fetch_get(&url, &password).await {
+        Ok(info) => (StatusCode::OK, Json(info)),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// GET /api/homeserver/signup-token
+async fn api_hs_signup_token(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let cfg = state.homeserver.get_config();
+    let url = format!("http://127.0.0.1:{}/generate_signup_token", cfg.admin_port);
+    let password = cfg.admin_password.clone();
+
+    match admin_fetch_get(&url, &password).await {
+        Ok(resp) => {
+            let token = resp.get("token")
+                .or(resp.get("signup_token"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            (StatusCode::OK, Json(serde_json::json!({ "token": token })))
+        }
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// Helper: GET request to admin API (uses HTTP Basic Auth).
+async fn admin_fetch_get(url: &str, password: &str) -> Result<serde_json::Value, String> {
+    use base64::Engine;
+    let credentials = base64::engine::general_purpose::STANDARD.encode(format!("admin:{}", password));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client.get(url)
+        .header("Authorization", format!("Basic {}", credentials))
+        .send()
+        .await
+        .map_err(|e| format!("Admin API error: {}", e))?;
+    let body = resp.text().await.map_err(|e| e.to_string())?;
+    serde_json::from_str(&body).map_err(|_| body)
+}
+
+/// GET /api/homeserver/setup-check
+async fn api_hs_setup_check(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let check = state.homeserver.check_setup();
+    Json(serde_json::to_value(check).unwrap_or_default())
+}
+
+/// GET /api/homeserver/config
+async fn api_hs_config(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let cfg = state.homeserver.get_config();
+    Json(serde_json::json!({
+        "database_url": cfg.database_url,
+        "signup_mode": cfg.signup_mode,
+        "admin_password": cfg.admin_password,
+        "public_ip": cfg.public_ip,
+        "icann_domain": cfg.icann_domain,
+        "storage_quota_mb": cfg.storage_quota_mb,
+        "admin_port": cfg.admin_port,
+        "drive_icann_port": cfg.drive_icann_port,
+        "drive_pubky_port": cfg.drive_pubky_port,
+        "metrics_port": cfg.metrics_port,
+    }))
+}
+
+/// POST /api/homeserver/config — save config changes
+async fn api_hs_config_save(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.homeserver.update_config(body) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({ "success": true }))),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/generate-config
+async fn api_hs_generate_config(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.homeserver.generate_config() {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "Config generated." }))),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/homeserver/fix — auto-fix all prerequisites
+async fn api_hs_fix(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let log = state.homeserver.auto_fix();
+    Json(serde_json::json!({ "log": log }))
+}
+
+/// GET /api/homeserver/logs
+async fn api_hs_logs(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let logs = state.homeserver.get_logs(100);
+    Json(serde_json::json!({ "lines": logs }))
 }
 
 /// Middleware that adds security headers to all responses.
@@ -273,6 +975,14 @@ async fn serve_css() -> impl IntoResponse {
         StatusCode::OK,
         [(header::CONTENT_TYPE, "text/css")],
         include_str!("dashboard.css"),
+    )
+}
+
+async fn serve_qr_js() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/javascript")],
+        include_str!("qrcode.min.js"),
     )
 }
 
@@ -902,6 +1612,90 @@ pub fn z32_encode(data: &[u8]) -> String {
 
 // === Proxy /etc/hosts Management ===
 
+/// Publish signed DNS records to the DHT.
+async fn api_publish(
+    State(state): State<Arc<DashboardState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let secret_hex = body.get("secret_key").and_then(|v| v.as_str())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing secret_key".to_string()))?;
+    let records_arr = body.get("records").and_then(|v| v.as_array())
+        .ok_or((StatusCode::BAD_REQUEST, "Missing records array".to_string()))?;
+    let add_to_watchlist = body.get("add_to_watchlist").and_then(|v| v.as_bool()).unwrap_or(true);
+
+    // Parse secret key
+    let secret_bytes = hex::decode(secret_hex)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid hex key: {}", e)))?;
+    if secret_bytes.len() != 32 {
+        return Err((StatusCode::BAD_REQUEST, format!("Secret key must be 32 bytes (64 hex chars), got {}", secret_bytes.len())));
+    }
+    let mut key_bytes = [0u8; 32];
+    key_bytes.copy_from_slice(&secret_bytes);
+    let keypair = pkarr::Keypair::from_secret_key(&key_bytes);
+    let public_key_str = keypair.public_key().to_string();
+
+    // Parse records
+    let mut record_configs = Vec::new();
+    for rec in records_arr {
+        let record_type = rec.get("type").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let name = rec.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let value = rec.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let ttl = rec.get("ttl").and_then(|v| v.as_u64()).map(|t| t as u32);
+
+        if record_type.is_empty() || name.is_empty() || value.is_empty() {
+            return Err((StatusCode::BAD_REQUEST, "Each record needs type, name, and value".to_string()));
+        }
+
+        // For HTTPS records, build an HTTPS SVCB-style record
+        if record_type == "HTTPS" {
+            // HTTPS records use the publisher's HTTPS builder
+            record_configs.push(crate::config::RecordConfig {
+                record_type: "HTTPS".to_string(),
+                name,
+                value,
+                ttl,
+            });
+        } else {
+            record_configs.push(crate::config::RecordConfig {
+                record_type,
+                name,
+                value,
+                ttl,
+            });
+        }
+    }
+
+    if record_configs.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "At least one record is required".to_string()));
+    }
+
+    // Build and sign the packet
+    let signed_packet = crate::publisher::build_signed_packet(&keypair, &record_configs)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to build packet: {}", e)))?;
+
+    // Publish to DHT
+    let client = pkarr::Client::builder().build()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create client: {}", e)))?;
+    client.publish(&signed_packet, None).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Publish failed: {}", e)))?;
+
+    // Optionally add to watchlist
+    if add_to_watchlist {
+        let mut keys = state.shared_keys.write().unwrap();
+        if !keys.contains(&public_key_str) {
+            keys.push(public_key_str.clone());
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "public_key": public_key_str,
+        "records_published": record_configs.len(),
+        "added_to_watchlist": add_to_watchlist,
+        "message": format!("Published {} record(s) for {}", record_configs.len(), &public_key_str[..12])
+    })))
+}
+
 const HOSTS_MARKER_BEGIN: &str = "# BEGIN PUBKY-NODE PROXY";
 const HOSTS_MARKER_END: &str = "# END PUBKY-NODE PROXY";
 
@@ -930,10 +1724,16 @@ async fn api_proxy_setup_hosts(
     let cleaned = remove_hosts_block(&hosts);
     let new_hosts = format!("{}\n\n{}\n", cleaned.trim_end(), block);
 
-    // Write via osascript (sudo)
+    // Single admin prompt: write hosts + flush DNS + enable pfctl port forwarding
+    let pf_rule = format!("rdr pass on lo0 inet proto tcp from any to 127.0.0.1 port 80 -> 127.0.0.1 port {}", state.proxy_port);
+    let shell_cmds = format!(
+        "echo '{}' | tee /etc/hosts > /dev/null && dscacheutil -flushcache && echo '{}' | pfctl -ef - 2>/dev/null; true",
+        new_hosts.replace('\\', "\\\\").replace('\'', "'\\''"),
+        pf_rule
+    );
     let script = format!(
-        "do shell script \"echo '{}' | sudo tee /etc/hosts > /dev/null\" with administrator privileges",
-        new_hosts.replace('\\', "\\\\").replace('\'', "'\\''").replace('"', "\\\"")
+        "do shell script \"{}\" with administrator privileges",
+        shell_cmds.replace('"', "\\\"")
     );
 
     let output = tokio::process::Command::new("osascript")
@@ -944,19 +1744,13 @@ async fn api_proxy_setup_hosts(
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update /etc/hosts: {}", err)));
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to configure proxy: {}", err)));
     }
-
-    // Flush DNS cache
-    let _ = tokio::process::Command::new("dscacheutil")
-        .args(["-flushcache"])
-        .output()
-        .await;
 
     Ok(Json(serde_json::json!({
         "success": true,
         "entries": keys.len() * 3,
-        "message": format!("Added {} host entries for {} keys", keys.len() * 3, keys.len())
+        "message": format!("Added {} host entries for {} keys (port 80 → {} forwarding enabled)", keys.len() * 3, keys.len(), state.proxy_port)
     })))
 }
 
@@ -965,9 +1759,14 @@ async fn api_proxy_reset_hosts() -> Result<Json<serde_json::Value>, (StatusCode,
     let hosts = std::fs::read_to_string("/etc/hosts").unwrap_or_default();
     let cleaned = remove_hosts_block(&hosts);
 
+    // Single admin prompt: restore hosts + flush DNS + disable pfctl
+    let shell_cmds = format!(
+        "echo '{}' | tee /etc/hosts > /dev/null && dscacheutil -flushcache && pfctl -d 2>/dev/null; true",
+        cleaned.trim_end().replace('\\', "\\\\").replace('\'', "'\\''")
+    );
     let script = format!(
-        "do shell script \"echo '{}' | sudo tee /etc/hosts > /dev/null\" with administrator privileges",
-        cleaned.trim_end().replace('\\', "\\\\").replace('\'', "'\\''").replace('"', "\\\"")
+        "do shell script \"{}\" with administrator privileges",
+        shell_cmds.replace('"', "\\\"")
     );
 
     let output = tokio::process::Command::new("osascript")
@@ -978,17 +1777,12 @@ async fn api_proxy_reset_hosts() -> Result<Json<serde_json::Value>, (StatusCode,
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reset /etc/hosts: {}", err)));
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reset proxy: {}", err)));
     }
-
-    let _ = tokio::process::Command::new("dscacheutil")
-        .args(["-flushcache"])
-        .output()
-        .await;
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "Removed proxy entries from /etc/hosts"
+        "message": "Removed proxy entries from /etc/hosts and disabled port forwarding"
     })))
 }
 
@@ -1027,6 +1821,7 @@ async fn start_http_proxy(state: Arc<DashboardState>) {
     info!("HTTP Proxy listening on http://127.0.0.1:{}/", state.proxy_port);
 
     let proxy_app = Router::new()
+        .route("/pubky-img", get(proxy_image_handler))
         .fallback(get(proxy_handler))
         .with_state(state.clone());
 
@@ -1043,6 +1838,130 @@ async fn start_http_proxy(state: Arc<DashboardState>) {
             tracing::error!("Failed to bind HTTP proxy on {}: {}", addr, e);
             state.proxy_running.store(false, Ordering::Relaxed);
         }
+    }
+}
+
+/// Proxy image requests to the homeserver with the pubky-host header.
+async fn proxy_image_handler(
+    State(state): State<Arc<DashboardState>>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let pubkey_str = match params.get("key") {
+        Some(k) => k.clone(),
+        None => return (StatusCode::BAD_REQUEST, "Missing key param").into_response(),
+    };
+    let path = match params.get("path") {
+        Some(p) => p.clone(),
+        None => return (StatusCode::BAD_REQUEST, "Missing path param").into_response(),
+    };
+    let client_opt = match &state.client {
+        Some(c) => c,
+        None => {
+            return (StatusCode::SERVICE_UNAVAILABLE, "DHT not available").into_response();
+        }
+    };
+
+    // Resolve user's PKARR to find homeserver
+    let pubkey = match PublicKey::try_from(pubkey_str.as_str()) {
+        Ok(pk) => pk,
+        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid key").into_response(),
+    };
+
+    let mut homeserver_host = "homeserver.pubky.app".to_string();
+    if let Some(packet) = client_opt.resolve(&pubkey).await {
+        for rr in packet.resource_records("_pubky") {
+            match &rr.rdata {
+                pkarr::dns::rdata::RData::HTTPS(https) => {
+                    let target = https.0.target.to_string();
+                    if !target.is_empty() && target != "." {
+                        // Resolve the homeserver key's PKARR to get its hostname
+                        if let Ok(hs_pk) = PublicKey::try_from(target.as_str()) {
+                            if let Some(hs_packet) = client_opt.resolve(&hs_pk).await {
+                                for hs_rr in hs_packet.all_resource_records() {
+                                    if let pkarr::dns::rdata::RData::HTTPS(hs_https) = &hs_rr.rdata {
+                                        let hs_target = hs_https.0.target.to_string();
+                                        if !hs_target.is_empty() && hs_target != "." {
+                                            homeserver_host = hs_target;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+                pkarr::dns::rdata::RData::SVCB(svcb) => {
+                    let target = svcb.target.to_string();
+                    if !target.is_empty() {
+                        if let Ok(hs_pk) = PublicKey::try_from(target.as_str()) {
+                            if let Some(hs_packet) = client_opt.resolve(&hs_pk).await {
+                                for hs_rr in hs_packet.all_resource_records() {
+                                    if let pkarr::dns::rdata::RData::HTTPS(hs_https) = &hs_rr.rdata {
+                                        let hs_target = hs_https.0.target.to_string();
+                                        if !hs_target.is_empty() && hs_target != "." {
+                                            homeserver_host = hs_target;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let url = format!("https://{}/{}", homeserver_host, path);
+    let http_client = reqwest::Client::new();
+    match http_client.get(&url).header("pubky-host", &pubkey_str).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let content_type = resp.headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("application/octet-stream")
+                .to_string();
+            match resp.bytes().await {
+                Ok(bytes) => {
+                    // Check if this is file metadata JSON (pubky files return metadata, not the actual blob)
+                    if content_type.contains("json") || (bytes.len() < 1024 && bytes.starts_with(b"{")) {
+                        if let Ok(meta) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                            if let Some(src) = meta.get("src").and_then(|v| v.as_str()) {
+                                let blob_content_type = meta.get("content_type").and_then(|v| v.as_str()).unwrap_or("image/jpeg");
+                                // Follow the src to get the actual blob
+                                let blob_path = src.strip_prefix(&format!("pubky://{}/", pubkey_str))
+                                    .unwrap_or(src.strip_prefix("pubky://").unwrap_or(src));
+                                let blob_url = format!("https://{}/{}", homeserver_host, blob_path);
+                                match http_client.get(&blob_url).header("pubky-host", &pubkey_str).send().await {
+                                    Ok(blob_resp) if blob_resp.status().is_success() => {
+                                        match blob_resp.bytes().await {
+                                            Ok(blob_bytes) => {
+                                                let mut headers = axum::http::HeaderMap::new();
+                                                headers.insert("content-type", blob_content_type.parse().unwrap_or_else(|_| "image/jpeg".parse().unwrap()));
+                                                headers.insert("cache-control", "public, max-age=86400".parse().unwrap());
+                                                return (headers, blob_bytes).into_response();
+                                            }
+                                            Err(_) => return (StatusCode::BAD_GATEWAY, "Failed to read blob").into_response(),
+                                        }
+                                    }
+                                    _ => return (StatusCode::NOT_FOUND, "Blob not found").into_response(),
+                                }
+                            }
+                        }
+                    }
+                    // Not metadata, serve directly
+                    let mut headers = axum::http::HeaderMap::new();
+                    headers.insert("content-type", content_type.parse().unwrap_or_else(|_| "application/octet-stream".parse().unwrap()));
+                    headers.insert("cache-control", "public, max-age=3600".parse().unwrap());
+                    (headers, bytes).into_response()
+                }
+                Err(_) => (StatusCode::BAD_GATEWAY, "Failed to read image").into_response(),
+            }
+        }
+        _ => (StatusCode::NOT_FOUND, "Image not found").into_response(),
     }
 }
 
@@ -1125,37 +2044,105 @@ async fn proxy_handler(
 
     // Try to fetch profile from homeserver
     let mut profile_html = String::new();
-    if let Some(hs_key) = &homeserver_key {
-        // Try fetching from the public relay API
-        let profile_url = format!("https://homeserver.pubky.app/{}/pub/pubky.app/profile.json", pubkey_str);
-        if let Ok(resp) = reqwest::get(&profile_url).await {
-            if let Ok(text) = resp.text().await {
-                if let Ok(profile) = serde_json::from_str::<serde_json::Value>(&text) {
-                    let name = profile.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown");
-                    let bio = profile.get("bio").and_then(|v| v.as_str()).unwrap_or("");
-                    let image = profile.get("image").and_then(|v| v.as_str()).unwrap_or("");
-                    let link = profile.get("links").and_then(|v| v.as_array());
+    if let Some(hs_key_str) = &homeserver_key {
+        // Resolve homeserver's PKARR records to find its ICANN hostname
+        let mut homeserver_host = String::new();
+        if let Ok(hs_pk) = PublicKey::try_from(hs_key_str.as_str()) {
+            if let Some(hs_packet) = client.resolve(&hs_pk).await {
+                for rr in hs_packet.all_resource_records() {
+                    if let pkarr::dns::rdata::RData::HTTPS(https) = &rr.rdata {
+                        let target = https.0.target.to_string();
+                        if !target.is_empty() && target != "." {
+                            homeserver_host = target;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
-                    profile_html = format!(
-                        r#"<div style="background:linear-gradient(135deg,#2d1b69,#1a1a2e);border-radius:16px;padding:32px;margin-bottom:24px;border:1px solid rgba(99,102,241,0.3);">
-                        {img_tag}
-                        <h2 style="margin:0 0 8px;color:#a5b4fc;">{name}</h2>
-                        <p style="color:#94a3b8;margin:0 0 16px;">{bio}</p>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;">{links}</div>
-                        <p style="color:#64748b;font-size:12px;margin-top:16px;">Homeserver: <code>{hs}</code></p>
-                        </div>"#,
-                        img_tag = if image.is_empty() { String::new() } else {
-                            format!(r#"<img src="{}" style="width:80px;height:80px;border-radius:50%;border:2px solid #6366f1;margin-bottom:16px;" alt="avatar">"#, image)
-                        },
-                        name = name,
-                        bio = bio,
-                        links = link.map(|l| l.iter().filter_map(|v| {
-                            let title = v.get("title").and_then(|t| t.as_str())?;
-                            let url = v.get("url").and_then(|u| u.as_str())?;
-                            Some(format!(r#"<a href="{}" style="background:#6366f1;color:white;padding:6px 14px;border-radius:8px;text-decoration:none;font-size:13px;" target="_blank">{}</a>"#, url, title))
-                        }).collect::<Vec<_>>().join("")).unwrap_or_default(),
-                        hs = hs_key,
-                    );
+        if homeserver_host.is_empty() {
+            homeserver_host = "homeserver.pubky.app".to_string();
+        }
+
+        // Fetch profile using pubky-host header
+        let profile_url = format!("https://{}/pub/pubky.app/profile.json", homeserver_host);
+        let http_client = reqwest::Client::new();
+        if let Ok(resp) = http_client
+            .get(&profile_url)
+            .header("pubky-host", pubkey_str)
+            .send()
+            .await
+        {
+            if resp.status().is_success() {
+                if let Ok(text) = resp.text().await {
+                    if let Ok(profile) = serde_json::from_str::<serde_json::Value>(&text) {
+                        let name = profile.get("name").and_then(|v| v.as_str()).unwrap_or("Unknown");
+                        let bio = profile.get("bio").and_then(|v| v.as_str()).unwrap_or("");
+                        let status = profile.get("status").and_then(|v| v.as_str()).unwrap_or("");
+                        let image = profile.get("image").and_then(|v| v.as_str()).unwrap_or("");
+                        let link = profile.get("links").and_then(|v| v.as_array());
+
+                        // Rewrite pubky:// image URLs to local proxy
+                        let img_url = if image.starts_with("pubky://") {
+                            let path = image.strip_prefix(&format!("pubky://{}/", pubkey_str))
+                                .unwrap_or(image.strip_prefix("pubky://").unwrap_or(image));
+                            format!("/pubky-img?key={}&path={}", pubkey_str, path)
+                        } else if !image.is_empty() {
+                            image.to_string()
+                        } else {
+                            String::new()
+                        };
+
+                        profile_html = format!(
+                            r#"<div class="profile-card">
+                            <div class="avatar-wrapper">
+                            {img_tag}
+                            </div>
+                            <h1 class="profile-name">{name}</h1>
+                            {status_tag}
+                            <p class="profile-bio">{bio}</p>
+                            <div class="profile-links">{links}</div>
+                            </div>"#,
+                            img_tag = if img_url.is_empty() {
+                                r#"<div class="avatar-placeholder">👤</div>"#.to_string()
+                            } else {
+                                format!(
+                                    r#"<img src="{url}" class="avatar" alt="{name}" onerror="this.parentElement.innerHTML='<div class=\'avatar-placeholder\'>👤</div>'">"#,
+                                    url = img_url, name = name
+                                )
+                            },
+                            name = name,
+                            status_tag = if status.is_empty() {
+                                String::new()
+                            } else {
+                                format!(r#"<div class="profile-status">{}</div>"#, status)
+                            },
+                            bio = bio,
+                            links = link.map(|l| l.iter().filter_map(|v| {
+                                let title = v.get("title").and_then(|t| t.as_str())?;
+                                let url = v.get("url").and_then(|u| u.as_str())?;
+                                let icon = match title.to_lowercase().as_str() {
+                                    t if t.contains("twitter") || t.contains("x (") || t == "x" => "𝕏",
+                                    t if t.contains("github") => "⌨",
+                                    t if t.contains("medium") => "✍",
+                                    t if t.contains("website") => "🌐",
+                                    t if t.contains("youtube") => "▶",
+                                    t if t.contains("discord") => "💬",
+                                    t if t.contains("telegram") => "✈",
+                                    t if t.contains("linkedin") => "💼",
+                                    _ => "🔗",
+                                };
+                                Some(format!(r#"<a href="{}" class="link-btn" target="_blank" rel="noopener"><span class="link-icon">{}</span><span>{}</span></a>"#, url, icon, title))
+                            }).collect::<Vec<_>>().join("")).unwrap_or_default(),
+                        );
+
+                        // Store homeserver info separately
+                        profile_html.push_str(&format!(
+                            r#"<div class="homeserver-info">Homeserver: <code>{}</code></div>"#,
+                            hs_key_str
+                        ));
+                    }
                 }
             }
         }
@@ -1166,37 +2153,288 @@ async fn proxy_handler(
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{key} — Pubky Profile</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<title>{title} — Pubky</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{{margin:0;padding:0;box-sizing:border-box;}}
-body{{background:#0f0f23;color:#e2e8f0;font-family:Inter,sans-serif;padding:40px 20px;}}
-.container{{max-width:640px;margin:0 auto;}}
-h1{{font-size:18px;color:#818cf8;margin-bottom:24px;word-break:break-all;}}
-code{{background:rgba(99,102,241,0.15);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:13px;}}
-ul{{list-style:none;margin-top:16px;}}
-li{{padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;}}
-.footer{{margin-top:32px;text-align:center;color:#475569;font-size:12px;}}
-.footer a{{color:#6366f1;text-decoration:none;}}
+:root{{
+  --bg: #111116;
+  --card: #1c1c22;
+  --card-hover: #25252d;
+  --border: #2a2a32;
+  --fg: #f0f0f4;
+  --muted: #89898f;
+  --brand: #a3e635;
+  --brand-dim: rgba(163,230,53,0.12);
+  --accent: #6366f1;
+  --accent-dim: rgba(99,102,241,0.12);
+  --radius: 12px;
+}}
+body{{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:'Inter Tight',Inter,system-ui,sans-serif;
+  min-height:100vh;
+  padding:0;
+  -webkit-font-smoothing:antialiased;
+}}
+.page{{
+  max-width:480px;
+  margin:0 auto;
+  padding:48px 20px 32px;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}}
+.profile-card{{
+  text-align:center;
+  margin-bottom:24px;
+}}
+.avatar-wrapper{{
+  margin:0 auto 16px;
+  width:104px;height:104px;
+  border-radius:50%;
+  padding:3px;
+  background:linear-gradient(135deg,var(--brand),var(--accent));
+}}
+.avatar{{
+  width:98px;height:98px;
+  border-radius:50%;
+  object-fit:cover;
+  display:block;
+  border:3px solid var(--bg);
+}}
+.avatar-placeholder{{
+  width:98px;height:98px;
+  border-radius:50%;
+  background:var(--card);
+  display:flex;align-items:center;justify-content:center;
+  font-size:36px;
+  border:3px solid var(--bg);
+}}
+.profile-name{{
+  font-size:28px;
+  font-weight:700;
+  color:var(--fg);
+  letter-spacing:-0.02em;
+  margin-bottom:4px;
+}}
+.profile-status{{
+  font-size:14px;
+  color:var(--brand);
+  margin:6px 0 8px;
+  font-weight:500;
+}}
+.profile-bio{{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+  max-width:380px;
+  margin:0 auto 20px;
+}}
+.profile-links{{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:8px;
+}}
+.link-btn{{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:14px 18px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  color:var(--fg);
+  text-decoration:none;
+  font-size:15px;
+  font-weight:500;
+  transition:all 0.2s ease;
+  cursor:pointer;
+}}
+.link-btn:hover{{
+  background:var(--card-hover);
+  border-color:var(--brand);
+  transform:translateY(-1px);
+  box-shadow:0 4px 12px rgba(163,230,53,0.08);
+}}
+.link-icon{{
+  font-size:18px;
+  width:24px;
+  text-align:center;
+  flex-shrink:0;
+}}
+.key-section{{
+  margin-top:auto;
+  padding-top:24px;
+}}
+.key-box{{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px 14px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  cursor:pointer;
+  transition:border-color 0.2s;
+}}
+.key-box:hover{{border-color:var(--brand);}}
+.key-box:active{{background:var(--card-hover);}}
+.key-label{{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  color:var(--muted);
+  font-weight:600;
+}}
+.key-value{{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  color:var(--fg);
+  word-break:break-all;
+  flex:1;
+  opacity:0.7;
+}}
+.copy-btn{{
+  background:none;border:none;
+  color:var(--muted);
+  cursor:pointer;
+  padding:4px;
+  font-size:16px;
+  transition:color 0.2s;
+  flex-shrink:0;
+}}
+.copy-btn:hover{{color:var(--brand);}}
+.records-toggle{{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:10px 0;
+  color:var(--muted);
+  font-size:12px;
+  cursor:pointer;
+  border:none;
+  background:none;
+  width:100%;
+  font-family:inherit;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+  font-weight:600;
+  margin-top:12px;
+}}
+.records-toggle:hover{{color:var(--fg);}}
+.records-toggle .chevron{{
+  transition:transform 0.2s;
+  font-size:10px;
+}}
+.records-toggle.open .chevron{{transform:rotate(90deg);}}
+.records-list{{
+  display:none;
+  margin-top:8px;
+  padding:12px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+}}
+.records-list.show{{display:block;}}
+.records-list li{{
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:12px;
+  color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+  word-break:break-all;
+}}
+.records-list li:last-child{{border:none;}}
+.homeserver-info{{
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:16px;
+  opacity:0.6;
+}}
+.homeserver-info code{{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  background:var(--card);
+  padding:2px 6px;
+  border-radius:4px;
+}}
+.footer{{
+  text-align:center;
+  padding:20px 0 8px;
+  color:var(--muted);
+  font-size:11px;
+  opacity:0.5;
+}}
+.footer a{{color:var(--brand);text-decoration:none;}}
+.footer a:hover{{opacity:0.8;}}
+.pubky-badge{{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  margin-top:4px;
+}}
+@media(max-width:480px){{
+  .page{{padding:32px 16px 24px;}}
+  .profile-name{{font-size:24px;}}
+  .link-btn{{padding:12px 16px;font-size:14px;}}
+  .avatar-wrapper{{width:88px;height:88px;}}
+  .avatar,.avatar-placeholder{{width:82px;height:82px;}}
+}}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="page">
 {profile}
-<h1>🔑 <code>{key}</code></h1>
-<div style="margin-top:16px;">
-<h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px;">PKARR Records</h3>
+<div class="key-section">
+<div class="key-box" onclick="copyKey()" id="key-box" title="Click to copy">
+<div style="flex:1;min-width:0;">
+<div class="key-label">Public Key</div>
+<div class="key-value" id="pubkey-text">{key}</div>
+</div>
+<button class="copy-btn" id="copy-icon" title="Copy">📋</button>
+</div>
+<button class="records-toggle" onclick="toggleRecords()" id="records-btn">
+<span class="chevron">▶</span> PKARR Records ({record_count})
+</button>
+<div class="records-list" id="records-list">
 <ul>{records}</ul>
 </div>
+</div>
 <div class="footer">
-<p>Served by <a href="http://127.0.0.1:9090">Pubky Node</a> HTTP Proxy</p>
+<div class="pubky-badge">
+<span>Powered by</span>
+<a href="http://127.0.0.1:9090">Pubky Node</a>
 </div>
 </div>
+</div>
+<script>
+function copyKey(){{
+  var t=document.getElementById('pubkey-text').textContent;
+  navigator.clipboard.writeText(t).then(function(){{
+    var b=document.getElementById('copy-icon');
+    b.textContent='✅';
+    setTimeout(function(){{b.textContent='📋';}},1500);
+  }});
+}}
+function toggleRecords(){{
+  var l=document.getElementById('records-list');
+  var b=document.getElementById('records-btn');
+  l.classList.toggle('show');
+  b.classList.toggle('open');
+}}
+</script>
 </body>
 </html>"#,
+        title = pubkey_str,
         key = pubkey_str,
         profile = profile_html,
         records = records_html,
+        record_count = records_html.matches("<li>").count(),
     );
 
     Html(page).into_response()

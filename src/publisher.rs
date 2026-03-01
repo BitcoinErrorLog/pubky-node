@@ -158,6 +158,17 @@ pub fn build_signed_packet(
                 let txt: TXT = record.value.as_str().try_into()?;
                 builder = builder.txt(name, txt, ttl);
             }
+            "HTTPS" | "SVCB" => {
+                use pkarr::dns::rdata::SVCB;
+                let name: Name = name_str.as_str().try_into()?;
+                let target: Name = record.value.as_str().try_into()?;
+                let svcb = SVCB::new(0, target);
+                if record.record_type.to_uppercase() == "HTTPS" {
+                    builder = builder.https(name, svcb, ttl);
+                } else {
+                    builder = builder.svcb(name, svcb, ttl);
+                }
+            }
             other => {
                 anyhow::bail!("Unsupported record type: {}", other);
             }

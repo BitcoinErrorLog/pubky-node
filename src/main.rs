@@ -2,6 +2,8 @@ mod cli;
 mod config;
 mod dashboard;
 mod dns;
+mod keyvault;
+mod homeserver;
 mod publisher;
 mod relay;
 mod upnp;
