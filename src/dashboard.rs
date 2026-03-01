@@ -1124,6 +1124,7 @@ async fn api_hs_set_user_quota(
 }
 
 /// POST /api/homeserver/user-action/disable
+#[allow(dead_code)]
 async fn api_hs_disable_user(
     State(state): State<Arc<DashboardState>>,
     Json(body): Json<serde_json::Value>,
@@ -1139,6 +1140,7 @@ async fn api_hs_disable_user(
 }
 
 /// POST /api/homeserver/user-action/enable
+#[allow(dead_code)]
 async fn api_hs_enable_user(
     State(state): State<Arc<DashboardState>>,
     Json(body): Json<serde_json::Value>,
@@ -1153,6 +1155,7 @@ async fn api_hs_enable_user(
     }
 }
 
+#[allow(dead_code)]
 fn extract_path_segment(path: &str, idx: i32) -> String {
     let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
     let i = if idx < 0 {

@@ -541,12 +541,14 @@ level = "info"
     // ─── Admin API Proxy ──────────────────────────────────────
 
     /// Get the admin base URL.
+    #[allow(dead_code)]
     fn admin_url(&self) -> String {
         let cfg = self.config.read().unwrap();
         format!("http://127.0.0.1:{}", cfg.admin_port)
     }
 
     /// Proxy a GET request to the admin API.
+    #[allow(dead_code)]
     pub async fn admin_get(&self, path: &str) -> Result<serde_json::Value, String> {
         let cfg = self.config.read().unwrap();
         let url = format!("http://127.0.0.1:{}{}", cfg.admin_port, path);
@@ -591,11 +593,13 @@ level = "info"
     }
 
     /// Get server info from admin API.
+    #[allow(dead_code)]
     pub async fn get_info(&self) -> Result<serde_json::Value, String> {
         self.admin_get("/info").await
     }
 
     /// Generate a signup token.
+    #[allow(dead_code)]
     pub async fn generate_signup_token(&self) -> Result<String, String> {
         let resp = self.admin_get("/generate_signup_token").await?;
         resp.get("token")

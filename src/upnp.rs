@@ -37,6 +37,7 @@ impl UpnpStatus {
         }
     }
 
+    #[allow(dead_code)]
     pub fn detail(&self) -> Option<&str> {
         match self {
             UpnpStatus::Failed(msg) => Some(msg.as_str()),

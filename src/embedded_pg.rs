@@ -4,8 +4,8 @@
 // time. On first run, extracts to data_dir/pg/ and initializes. On subsequent
 // runs, just starts the existing cluster.
 
-use std::path::{Path, PathBuf};
-use tracing;
+use std::path::Path;
+use std::str::FromStr;
 
 /// Dedicated port for embedded PostgreSQL (avoids conflicts with system PG).
 const EMBEDDED_PG_PORT: u16 = 5433;
@@ -14,10 +14,11 @@ const EMBEDDED_PG_PORT: u16 = 5433;
 const DB_NAME: &str = "pubky_homeserver";
 
 /// Manages an embedded PostgreSQL instance.
+/// Holding this struct keeps the PostgreSQL server running.
+/// Dropping it stops the server (via the crate's Drop implementation).
+#[allow(dead_code)]
 pub struct EmbeddedPg {
     pg: postgresql_embedded::PostgreSQL,
-    port: u16,
-    installation_dir: PathBuf,
 }
 
 impl EmbeddedPg {
@@ -35,7 +36,7 @@ impl EmbeddedPg {
                 .unwrap_or(postgresql_embedded::VersionReq::STAR),
             port: EMBEDDED_PG_PORT,
             temporary: false,
-            installation_dir: pg_dir.clone(),
+            installation_dir: pg_dir,
             ..Default::default()
         };
 
@@ -66,30 +67,16 @@ impl EmbeddedPg {
             }
         }
 
-        Ok(EmbeddedPg {
-            pg,
-            port: EMBEDDED_PG_PORT,
-            installation_dir: pg_dir,
-        })
+        Ok(EmbeddedPg { pg })
     }
 
     /// Get the PostgreSQL connection URL.
     pub fn connection_url(&self) -> String {
-        format!("postgres://127.0.0.1:{}/{}", self.port, DB_NAME)
-    }
-
-    /// Get the port.
-    pub fn port(&self) -> u16 {
-        self.port
-    }
-
-    /// Check if the server is running.
-    pub fn is_running(&self) -> bool {
-        // The postgresql_embedded crate tracks state internally
-        true // If we hold a reference, it's running (stopped in Drop)
+        format!("postgres://127.0.0.1:{}/{}", EMBEDDED_PG_PORT, DB_NAME)
     }
 
     /// Stop the embedded PostgreSQL server.
+    #[allow(dead_code)]
     pub async fn stop(&mut self) -> Result<(), String> {
         tracing::info!("Stopping embedded PostgreSQL...");
         self.pg.stop().await.map_err(|e| format!("PostgreSQL stop failed: {}", e))?;
@@ -97,6 +84,3 @@ impl EmbeddedPg {
         Ok(())
     }
 }
-
-// Use VersionReq::from_str
-use std::str::FromStr;

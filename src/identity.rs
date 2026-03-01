@@ -54,7 +54,7 @@ impl IdentityManager {
         signup_token: Option<&str>,
         icann_port: u16,
     ) -> Result<IdentityInfo, String> {
-        use pkarr::Keypair;
+
 
         let keypair = decode_keypair(secret_hex)?;
         let pubkey = keypair.public_key().to_z32();
@@ -120,7 +120,7 @@ impl IdentityManager {
         secret_hex: &str,
         icann_port: u16,
     ) -> Result<IdentityInfo, String> {
-        use pkarr::Keypair;
+        
 
         let keypair = decode_keypair(secret_hex)?;
         let pubkey = keypair.public_key().to_z32();
