@@ -223,6 +223,10 @@ pub fn start_dashboard(
         .route("/api/homeserver/generate-config", post(api_hs_generate_config))
         .route("/api/homeserver/logs", get(api_hs_logs))
         .route("/api/homeserver/fix", post(api_hs_fix))
+        .route("/api/homeserver/proxy-url", get(api_hs_proxy_url))
+        .route("/hs", get(api_hs_icann_proxy))
+        .route("/hs/", get(api_hs_icann_proxy))
+        .route("/hs/{*path}", get(api_hs_icann_proxy).post(api_hs_icann_proxy).put(api_hs_icann_proxy).delete(api_hs_icann_proxy))
         .route("/api/status", get(api_status))
         .route("/api/resolve/{public_key}", get(api_resolve))
         .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
@@ -280,6 +284,8 @@ async fn auth_check(
         || path.starts_with("/api/auth/")
         || path == "/dashboard.js"
         || path == "/dashboard.css"
+        || path == "/qrcode.min.js"
+        || path.starts_with("/hs") // homeserver ICANN proxy — accessible without auth
     {
         return next.run(request).await;
     }
@@ -723,9 +729,130 @@ async fn api_hs_start(
     State(state): State<Arc<DashboardState>>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     match state.homeserver.start() {
-        Ok(msg) => (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": msg }))),
+        Ok(msg) => {
+            // Spawn background task: wait for homeserver to boot, then auto-publish its PKARR record
+            let state_clone = state.clone();
+            tokio::spawn(async move {
+                // Give the homeserver time to initialize
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+                // Fetch homeserver info (admin API)
+                let cfg = state_clone.homeserver.get_config();
+                let info_url = format!("http://127.0.0.1:{}/info", cfg.admin_port);
+                let password = cfg.admin_password.clone();
+                let icann_domain = cfg.icann_domain.clone();
+                drop(cfg);
+
+                // Build admin auth credentials
+                use base64::Engine;
+                let creds = base64::engine::general_purpose::STANDARD
+                    .encode(format!("admin:{}", password));
+
+                let http_client = match reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()
+                {
+                    Ok(c) => c,
+                    Err(e) => {
+                        tracing::warn!("Homeserver auto-PKARR: failed to build HTTP client: {}", e);
+                        return;
+                    }
+                };
+
+                let info_resp = match http_client
+                    .get(&info_url)
+                    .header("Authorization", format!("Basic {}", creds))
+                    .send()
+                    .await
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        tracing::warn!("Homeserver auto-PKARR: /info request failed: {}", e);
+                        return;
+                    }
+                };
+
+                let info: serde_json::Value = match info_resp.json().await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!("Homeserver auto-PKARR: failed to parse /info: {}", e);
+                        return;
+                    }
+                };
+
+                // Get the homeserver's public key (z-base-32 Ed25519 pubkey)
+                let pubkey_str = match info.get("public_key").and_then(|v| v.as_str()) {
+                    Some(pk) => pk.to_string(),
+                    None => {
+                        tracing::warn!("Homeserver auto-PKARR: no public_key in /info response");
+                        return;
+                    }
+                };
+
+                // Store the public key in the homeserver manager
+                *state_clone.homeserver.server_pubkey.write().unwrap() = Some(pubkey_str.clone());
+                tracing::info!("Homeserver public key: {}", pubkey_str);
+
+                // Now we need the homeserver's secret key to sign the PKARR record.
+                // The homeserver manages its own key — we can only publish if we have it.
+                // Check if it's stored in our key vault.
+                if let Ok(secret_hex) = state_clone.vault.export_key(&pubkey_str) {
+                    match publish_homeserver_pkarr(&secret_hex, &icann_domain, &state_clone).await {
+                        Ok(()) => tracing::info!("Homeserver auto-PKARR: published HTTPS record for {}", icann_domain),
+                        Err(e) => tracing::warn!("Homeserver auto-PKARR: publish failed: {}", e),
+                    }
+                } else {
+                    tracing::info!(
+                        "Homeserver auto-PKARR: key {} not in vault — skipping auto-publish. \
+                         Import the homeserver key to enable auto-publish on start.",
+                        &pubkey_str[..8.min(pubkey_str.len())]
+                    );
+                }
+            });
+
+            (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": msg })))
+        }
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
     }
+}
+
+/// Publish an HTTPS `_pubky` PKARR record pointing to the homeserver's ICANN domain.
+async fn publish_homeserver_pkarr(
+    secret_hex: &str,
+    icann_domain: &str,
+    state: &DashboardState,
+) -> Result<(), String> {
+    use pkarr::Keypair;
+    use crate::publisher::{build_signed_packet, RecordConfig};
+
+    // Decode 32-byte secret key from hex
+    let secret_bytes = hex::decode(secret_hex)
+        .map_err(|e| format!("Invalid secret hex: {}", e))?;
+    if secret_bytes.len() != 32 {
+        return Err(format!("Secret key must be 32 bytes, got {}", secret_bytes.len()));
+    }
+    let mut key_arr = [0u8; 32];
+    key_arr.copy_from_slice(&secret_bytes);
+    let keypair = Keypair::from_secret_key(&key_arr);
+
+    // Build HTTPS record: `_pubky` → icann_domain (e.g. "myserver.com" or "localhost")
+    let records = vec![RecordConfig {
+        record_type: "HTTPS".to_string(),
+        name: "_pubky".to_string(),
+        value: format!("{}.", icann_domain.trim_end_matches('.')), // must end with dot
+        ttl: Some(3600),
+    }];
+
+    let signed = build_signed_packet(&keypair, &records)
+        .map_err(|e| format!("Failed to build PKARR packet: {}", e))?;
+
+    // Publish using the dashboard's pkarr client
+    let client = state.client.as_ref().ok_or("No pkarr client available")?;
+    client.publish(&signed, None)
+        .await
+        .map_err(|e| format!("Publish failed: {}", e))?;
+
+    Ok(())
 }
 
 /// POST /api/homeserver/stop
@@ -851,6 +978,108 @@ async fn api_hs_logs(
 ) -> Json<serde_json::Value> {
     let logs = state.homeserver.get_logs(100);
     Json(serde_json::json!({ "lines": logs }))
+}
+
+/// GET /api/homeserver/proxy-url — returns the base URL of the homeserver's ICANN endpoint.
+async fn api_hs_proxy_url(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    let cfg = state.homeserver.get_config();
+    let running = state.homeserver.state() == crate::homeserver::HomeserverState::Running;
+    Json(serde_json::json!({
+        "url": format!("http://127.0.0.1:{}", cfg.drive_icann_port),
+        "port": cfg.drive_icann_port,
+        "running": running,
+    }))
+}
+
+/// ANY /hs/{*path} — transparent proxy to the homeserver's ICANN HTTP endpoint.
+/// 
+/// Use this to access homeserver endpoints from the dashboard without CORS issues.
+/// Example: GET /hs/pub/pubky.app/profile.json  →  GET http://127.0.0.1:6286/pub/pubky.app/profile.json
+async fn api_hs_icann_proxy(
+    State(state): State<Arc<DashboardState>>,
+    request: axum::extract::Request,
+) -> Response {
+    use axum::http::StatusCode;
+
+    let cfg = state.homeserver.get_config();
+    let icann_port = cfg.drive_icann_port;
+    drop(cfg);
+
+    // Extract path/query from the incoming request, stripping the /hs prefix
+    let original_uri = request.uri();
+    let path_and_query = original_uri
+        .path()
+        .strip_prefix("/hs")
+        .unwrap_or("/");
+    let path_and_query = if let Some(q) = original_uri.query() {
+        format!("{}?{}", path_and_query, q)
+    } else {
+        path_and_query.to_string()
+    };
+    let path_and_query = if path_and_query.is_empty() { "/".to_string() } else { path_and_query };
+
+    let target_url = format!("http://127.0.0.1:{}{}", icann_port, path_and_query);
+
+    let method = request.method().clone();
+    let body_bytes = match axum::body::to_bytes(request.into_body(), 10 * 1024 * 1024).await {
+        Ok(b) => b,
+        Err(e) => {
+            return (StatusCode::BAD_REQUEST, format!("Failed to read body: {}", e)).into_response();
+        }
+    };
+
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("HTTP client error: {}", e)).into_response();
+        }
+    };
+
+    let req = client
+        .request(reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::GET), &target_url)
+        .body(body_bytes);
+
+    match req.send().await {
+        Ok(resp) => {
+            let status = resp.status();
+            let headers = resp.headers().clone();
+            let body = resp.bytes().await.unwrap_or_default();
+
+            let mut builder = axum::http::Response::builder()
+                .status(status.as_u16());
+
+            // Forward select response headers
+            for header_name in &["content-type", "content-length", "cache-control", "etag", "last-modified"] {
+                if let Some(val) = headers.get(*header_name) {
+                    if let Ok(v) = axum::http::HeaderValue::from_bytes(val.as_bytes()) {
+                        builder = builder.header(*header_name, v);
+                    }
+                }
+            }
+            // Allow CORS for browser access
+            builder = builder
+                .header("access-control-allow-origin", "*")
+                .header("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
+                .header("access-control-allow-headers", "content-type, authorization");
+
+            builder
+                .body(axum::body::Body::from(body))
+                .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Response build failed").into_response())
+        }
+        Err(e) => {
+            let msg = if e.is_connect() {
+                "Homeserver is not running or not reachable on the configured port.".to_string()
+            } else {
+                format!("Proxy error: {}", e)
+            };
+            (StatusCode::BAD_GATEWAY, msg).into_response()
+        }
+    }
 }
 
 /// Middleware that adds security headers to all responses.

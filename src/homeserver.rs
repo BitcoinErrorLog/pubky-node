@@ -87,7 +87,7 @@ pub struct HomeserverManager {
     config_path: PathBuf,
     binary_path: RwLock<Option<PathBuf>>,
     config: RwLock<HomeserverConfig>,
-    server_pubkey: RwLock<Option<String>>,
+    pub server_pubkey: RwLock<Option<String>>,
     stdout_lines: RwLock<Vec<String>>,
 }
 

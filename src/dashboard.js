@@ -1892,22 +1892,62 @@
             var display = document.getElementById('hs-token-display');
             this.textContent = '⏳';
             try {
-                var res = await authFetch('/api/homeserver/signup-token');
-                var data = await res.json();
+                // Fetch token + server pubkey in parallel
+                var [tokenRes, infoRes, statusRes] = await Promise.all([
+                    authFetch('/api/homeserver/signup-token'),
+                    authFetch('/api/homeserver/info').catch(function () { return null; }),
+                    authFetch('/api/status').catch(function () { return null; }),
+                ]);
+                var data = await tokenRes.json();
                 if (data.token) {
                     document.getElementById('hs-token-value').textContent = data.token;
                     display.style.display = 'block';
 
-                    // Generate signup QR
+                    // Build pubkyring://signup deeplink
+                    // Format: pubkyring://signup?hs={homeserver_pubkey}&st={token}&relay={relay_url}
                     var qrContainer = document.getElementById('hs-token-qr');
                     qrContainer.innerHTML = '';
                     try {
-                        var deeplink = 'pubkyring://signup?st=' + data.token;
+                        var params = new URLSearchParams();
+                        params.set('st', data.token);
+
+                        // Include homeserver public key if available
+                        if (infoRes && infoRes.ok) {
+                            var info = await infoRes.json();
+                            if (info.public_key) {
+                                params.set('hs', info.public_key);
+                            }
+                        }
+
+                        // Include relay URL if available
+                        if (statusRes && statusRes.ok) {
+                            var status = await statusRes.json();
+                            if (status.relay_port) {
+                                // Build relay URL from current window host + relay port
+                                var relayHost = window.location.hostname || '127.0.0.1';
+                                params.set('relay', 'http://' + relayHost + ':' + status.relay_port);
+                            }
+                        }
+
+                        var deeplink = 'pubkyring://signup?' + params.toString();
+
+                        // Show the full deeplink as a subtitle
+                        var existing = document.getElementById('hs-signup-deeplink');
+                        if (!existing) {
+                            existing = document.createElement('div');
+                            existing.id = 'hs-signup-deeplink';
+                            existing.style.cssText = 'font-size:10px;color:#6b7280;margin-top:6px;word-break:break-all;font-family:monospace;';
+                            qrContainer.parentNode.appendChild(existing);
+                        }
+                        existing.textContent = deeplink;
+
                         var qr = qrcode(0, 'M');
                         qr.addData(deeplink);
                         qr.make();
                         qrContainer.innerHTML = qr.createSvgTag(4, 0);
-                    } catch (e) { /* ignore */ }
+                    } catch (e) {
+                        qrContainer.innerHTML = '<p style="color:#888;font-size:12px;">QR generation failed</p>';
+                    }
 
                     document.getElementById('hs-invite-badge').textContent = 'Generated';
                     document.getElementById('hs-invite-badge').className = 'badge badge-success';
