@@ -1201,7 +1201,7 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             <span id="hs-stats-badge" style="display:none;"></span>
                         </div>
                         <div class="card-body">
-                            <div id="hs-server-info" style="display:none;">
+                            <div id="hs-server-info" style="display:none;" class="hs-info-grid">
                                 <div class="info-row"><span class="info-label">PID</span><span class="info-value"
                                         id="hs-pid">—</span></div>
                                 <div class="info-row"><span class="info-label">Uptime</span><span class="info-value"
@@ -1218,7 +1218,7 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                                         id="hs-users">—</span></div>
                                 <div class="info-row"><span class="info-label">Signup Mode</span><span
                                         class="info-value" id="hs-signup-mode">—</span></div>
-                                <div class="info-row"><span class="info-label">Server Key</span><span
+                                <div class="info-row hs-info-full"><span class="info-label">Server Key</span><span
                                         class="info-value mono" id="hs-server-key" style="font-size:10px;">—</span>
                                 </div>
                             </div>
@@ -1229,282 +1229,280 @@ pubky-node dns-setup --dry-run                # Preview changes</code></pre>
                             </div>
                             <div id="hs-control-msg" class="publisher-status" style="display:none;margin-top:10px;">
                             </div>
-                        </div>
-                    </section>
+                </div>
+                </section>
 
 
-                    <!-- Invite Tokens -->
-                    <section class="card" id="hs-invite-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-purple">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M2 12h5" />
-                                        <path d="M17 12h5" />
-                                        <rect x="7" y="4" width="10" height="16" rx="2" />
-                                        <path d="M12 8v8" />
-                                    </svg>
-                                </div>
-                                <h2>Invite Tokens</h2>
+                <!-- Invite Tokens -->
+                <section class="card" id="hs-invite-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-purple">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M2 12h5" />
+                                    <path d="M17 12h5" />
+                                    <rect x="7" y="4" width="10" height="16" rx="2" />
+                                    <path d="M12 8v8" />
+                                </svg>
                             </div>
-                            <span class="badge" id="hs-invite-badge">Ready</span>
+                            <h2>Invite Tokens</h2>
                         </div>
-                        <div class="card-body">
-                            <button class="btn-primary btn-sm" id="hs-gen-token-btn">Generate Token</button>
-                            <div id="hs-token-display" style="display:none;margin-top:14px;">
-                                <div class="export-hex-row">
-                                    <code class="export-hex" id="hs-token-value">—</code>
-                                    <button class="btn-sm" id="hs-token-copy">📋</button>
-                                </div>
-                                <div id="hs-token-qr" class="export-qr" style="margin-top:12px;"></div>
+                        <span class="badge" id="hs-invite-badge">Ready</span>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn-primary btn-sm" id="hs-gen-token-btn">Generate Token</button>
+                        <div id="hs-token-display" style="display:none;margin-top:14px;">
+                            <div class="export-hex-row">
+                                <code class="export-hex" id="hs-token-value">—</code>
+                                <button class="btn-sm" id="hs-token-copy">📋</button>
                             </div>
+                            <div id="hs-token-qr" class="export-qr" style="margin-top:12px;"></div>
                         </div>
-                    </section>
+                    </div>
+                </section>
 
-                    <!-- Configuration -->
-                    <section class="card" id="hs-config-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <circle cx="12" cy="12" r="3" />
-                                        <path
-                                            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                                    </svg>
-                                </div>
-                                <h2>Configuration</h2>
+                <!-- Configuration -->
+                <section class="card" id="hs-config-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path
+                                        d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                                </svg>
                             </div>
-                            <span class="badge" id="hs-config-badge">—</span>
+                            <h2>Configuration</h2>
                         </div>
-                        <div class="card-body">
-                            <div class="hs-config-form">
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Database URL</label>
-                                    <input type="text" id="hs-cfg-db-url" class="publisher-key-input"
-                                        placeholder="postgres://localhost:5432/pubky_homeserver">
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Signup Mode</label>
-                                    <select id="hs-cfg-signup-mode" class="publisher-key-input">
-                                        <option value="token_required">Token Required</option>
-                                        <option value="open">Open</option>
-                                        <option value="closed">Closed</option>
-                                    </select>
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Admin Password</label>
-                                    <input type="password" id="hs-cfg-admin-pw" class="publisher-key-input">
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Public IP</label>
-                                    <input type="text" id="hs-cfg-public-ip" class="publisher-key-input"
-                                        placeholder="auto-detected">
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">ICANN Domain</label>
-                                    <input type="text" id="hs-cfg-domain" class="publisher-key-input"
-                                        placeholder="localhost">
-                                </div>
-                                <div class="publisher-field">
-                                    <label class="publisher-label">Storage Quota (MB, 0 = unlimited)</label>
-                                    <input type="number" id="hs-cfg-quota" class="publisher-key-input" value="0"
-                                        min="0">
-                                </div>
-                                <div class="hs-form-actions">
-                                    <button class="btn-primary btn-sm" id="hs-save-config-btn">Save Config</button>
-                                    <span id="hs-config-msg" class="hs-action-msg"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- PKARR Publishing -->
-                    <section class="card" id="hs-pkarr-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-purple">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <polyline points="12 8 12 12 14 14" />
-                                    </svg>
-                                </div>
-                                <h2>PKARR Publishing</h2>
-                            </div>
-                            <span class="badge" id="hs-pkarr-badge">—</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="hs-desc">Publishes a PKARR DNS record pointing your homeserver's public key to its
-                                ICANN domain. Requires the homeserver secret key to be in the vault.</p>
-                            <div class="hs-form-actions" style="margin-top:0;">
-                                <button class="btn-primary btn-sm" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
-                                <span id="hs-publish-pkarr-msg" class="hs-action-msg"></span>
-                            </div>
-                            <p class="hs-desc" style="margin-top:10px;margin-bottom:0;">Auto-republishes every 4 hours
-                                after manual trigger.</p>
-                        </div>
-                    </section>
-
-                    <!-- Log Stream -->
-                    <section class="card" id="hs-logs-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-blue">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                        <line x1="16" y1="13" x2="8" y2="13" />
-                                        <line x1="16" y1="17" x2="8" y2="17" />
-                                    </svg>
-                                </div>
-                                <h2>Log Stream</h2>
-                            </div>
-                            <div style="display:flex;gap:6px;align-items:center;">
-                                <input type="text" id="hs-log-filter" class="hs-filter-input" placeholder="Filter…">
-                                <button class="btn-sm btn-secondary" id="hs-log-clear-btn">Clear</button>
-                                <span class="badge" id="hs-log-badge">Idle</span>
-                            </div>
-                        </div>
-                        <div class="card-body" style="padding:0;">
-                            <div id="hs-log-output" class="hs-log-output">
-                                <span style="color:var(--text-tertiary);">Start the homeserver to see logs…</span>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Users & Quotas -->
-                    <section class="card" id="hs-users-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-green">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                                        <circle cx="9" cy="7" r="4" />
-                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                                    </svg>
-                                </div>
-                                <h2>Users</h2>
-                            </div>
-                            <div style="display:flex;gap:6px;align-items:center;">
-                                <input type="text" id="hs-user-search" class="hs-filter-input"
-                                    placeholder="Filter pubkey…">
-                                <button class="btn-sm btn-secondary" id="hs-users-refresh-btn">Refresh</button>
-                                <span class="badge" id="hs-users-badge">—</span>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="hs-users-table" style="font-size:12px;">
-                                <span style="color:var(--text-tertiary);">Homeserver must be running to list
-                                    users.</span>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Cloudflare Tunnel -->
-                    <section class="card" id="hs-tunnel-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-orange">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-                                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                                        <line x1="12" y1="20" x2="12.01" y2="20" />
-                                    </svg>
-                                </div>
-                                <h2>Cloudflare Tunnel</h2>
-                            </div>
-                            <span class="badge" id="hs-tunnel-badge">Stopped</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="hs-desc">Expose your homeserver publicly via a free Cloudflare quick-tunnel.
-                                Automatically updates ICANN domain and republishes PKARR after connecting.</p>
-                            <div id="hs-tunnel-url" class="hs-url-display"></div>
-                            <div id="hs-tunnel-no-binary" class="hs-warn">
-                                ⚠ <code>cloudflared</code> not found. <a
-                                    href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
-                                    rel="noopener" style="color:var(--accent);">Download here</a> and place in PATH.
-                            </div>
-                            <div class="hs-form-actions" style="margin-top:0;">
-                                <button class="btn-primary btn-sm" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
-                                <button class="btn-secondary btn-sm" id="hs-tunnel-stop-btn">■ Stop</button>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Identity Signup -->
-                    <section class="card" id="hs-identity-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-purple">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                </div>
-                                <h2>Identity Signup</h2>
-                            </div>
-                            <span class="badge" id="hs-identity-badge">—</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="hs-desc">Register a vault key as a user on this homeserver.</p>
+                        <span class="badge" id="hs-config-badge">—</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="hs-config-form">
                             <div class="publisher-field">
-                                <label class="publisher-label">Key (from vault)</label>
-                                <select id="hs-identity-key-select" class="publisher-key-input">
-                                    <option value="">— select a key —</option>
+                                <label class="publisher-label">Database URL</label>
+                                <input type="text" id="hs-cfg-db-url" class="publisher-key-input"
+                                    placeholder="postgres://localhost:5432/pubky_homeserver">
+                            </div>
+                            <div class="publisher-field">
+                                <label class="publisher-label">Signup Mode</label>
+                                <select id="hs-cfg-signup-mode" class="publisher-key-input">
+                                    <option value="token_required">Token Required</option>
+                                    <option value="open">Open</option>
+                                    <option value="closed">Closed</option>
                                 </select>
                             </div>
                             <div class="publisher-field">
-                                <label class="publisher-label">Signup Token (optional)</label>
-                                <input type="text" id="hs-identity-token" class="publisher-key-input"
-                                    placeholder="Leave blank if homeserver is open">
+                                <label class="publisher-label">Admin Password</label>
+                                <input type="password" id="hs-cfg-admin-pw" class="publisher-key-input">
+                            </div>
+                            <div class="publisher-field">
+                                <label class="publisher-label">Public IP</label>
+                                <input type="text" id="hs-cfg-public-ip" class="publisher-key-input"
+                                    placeholder="auto-detected">
+                            </div>
+                            <div class="publisher-field">
+                                <label class="publisher-label">ICANN Domain</label>
+                                <input type="text" id="hs-cfg-domain" class="publisher-key-input"
+                                    placeholder="localhost">
+                            </div>
+                            <div class="publisher-field">
+                                <label class="publisher-label">Storage Quota (MB, 0 = unlimited)</label>
+                                <input type="number" id="hs-cfg-quota" class="publisher-key-input" value="0" min="0">
                             </div>
                             <div class="hs-form-actions">
-                                <button class="btn-primary btn-sm" id="hs-identity-signup-btn">✅ Sign Up</button>
-                                <span id="hs-identity-msg" class="hs-action-msg"></span>
+                                <button class="btn-primary btn-sm" id="hs-save-config-btn">Save Config</button>
+                                <span id="hs-config-msg" class="hs-action-msg"></span>
                             </div>
-                            <div id="hs-identity-list" style="margin-top:16px;font-size:12px;"></div>
                         </div>
-                    </section>
+                    </div>
+                </section>
 
-                    <!-- File Browser -->
-                    <section class="card" id="hs-files-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-blue">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path
-                                            d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                                    </svg>
-                                </div>
-                                <h2>File Browser</h2>
+                <!-- PKARR Publishing -->
+                <section class="card" id="hs-pkarr-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-purple">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 8 12 12 14 14" />
+                                </svg>
                             </div>
-                            <div style="display:flex;gap:6px;align-items:center;">
-                                <select id="hs-files-user-select" class="hs-filter-input" style="width:140px;">
-                                    <option value="">— select user —</option>
-                                </select>
-                                <button class="btn-sm btn-secondary" id="hs-files-refresh-btn">Browse</button>
-                            </div>
+                            <h2>PKARR Publishing</h2>
                         </div>
-                        <div class="card-body">
-                            <div id="hs-files-tree" class="hs-files-tree">
-                                <span style="color:var(--text-tertiary);">Select a user and click Browse to explore
-                                    their /pub directory.</span>
-                            </div>
-                            <div id="hs-files-preview" class="hs-files-preview"></div>
+                        <span class="badge" id="hs-pkarr-badge">—</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="hs-desc">Publishes a PKARR DNS record pointing your homeserver's public key to its
+                            ICANN domain. Requires the homeserver secret key to be in the vault.</p>
+                        <div class="hs-form-actions" style="margin-top:0;">
+                            <button class="btn-primary btn-sm" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
+                            <span id="hs-publish-pkarr-msg" class="hs-action-msg"></span>
                         </div>
-                    </section>
+                        <p class="hs-desc" style="margin-top:10px;margin-bottom:0;">Auto-republishes every 4 hours
+                            after manual trigger.</p>
+                    </div>
+                </section>
 
-                </div>
+                <!-- Log Stream -->
+                <section class="card" id="hs-logs-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-blue">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                </svg>
+                            </div>
+                            <h2>Log Stream</h2>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="text" id="hs-log-filter" class="hs-filter-input" placeholder="Filter…">
+                            <button class="btn-sm btn-secondary" id="hs-log-clear-btn">Clear</button>
+                            <span class="badge" id="hs-log-badge">Idle</span>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div id="hs-log-output" class="hs-log-output">
+                            <span style="color:var(--text-tertiary);">Start the homeserver to see logs…</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Users & Quotas -->
+                <section class="card" id="hs-users-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-green">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </svg>
+                            </div>
+                            <h2>Users</h2>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="text" id="hs-user-search" class="hs-filter-input" placeholder="Filter pubkey…">
+                            <button class="btn-sm btn-secondary" id="hs-users-refresh-btn">Refresh</button>
+                            <span class="badge" id="hs-users-badge">—</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="hs-users-table" style="font-size:12px;">
+                            <span style="color:var(--text-tertiary);">Homeserver must be running to list
+                                users.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Cloudflare Tunnel -->
+                <section class="card" id="hs-tunnel-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-orange">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                    <line x1="12" y1="20" x2="12.01" y2="20" />
+                                </svg>
+                            </div>
+                            <h2>Cloudflare Tunnel</h2>
+                        </div>
+                        <span class="badge" id="hs-tunnel-badge">Stopped</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="hs-desc">Expose your homeserver publicly via a free Cloudflare quick-tunnel.
+                            Automatically updates ICANN domain and republishes PKARR after connecting.</p>
+                        <div id="hs-tunnel-url" class="hs-url-display"></div>
+                        <div id="hs-tunnel-no-binary" class="hs-warn">
+                            ⚠ <code>cloudflared</code> not found. <a
+                                href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
+                                rel="noopener" style="color:var(--accent);">Download here</a> and place in PATH.
+                        </div>
+                        <div class="hs-form-actions" style="margin-top:0;">
+                            <button class="btn-primary btn-sm" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
+                            <button class="btn-secondary btn-sm" id="hs-tunnel-stop-btn">■ Stop</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Identity Signup -->
+                <section class="card" id="hs-identity-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-purple">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg>
+                            </div>
+                            <h2>Identity Signup</h2>
+                        </div>
+                        <span class="badge" id="hs-identity-badge">—</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="hs-desc">Register a vault key as a user on this homeserver.</p>
+                        <div class="publisher-field">
+                            <label class="publisher-label">Key (from vault)</label>
+                            <select id="hs-identity-key-select" class="publisher-key-input">
+                                <option value="">— select a key —</option>
+                            </select>
+                        </div>
+                        <div class="publisher-field">
+                            <label class="publisher-label">Signup Token (optional)</label>
+                            <input type="text" id="hs-identity-token" class="publisher-key-input"
+                                placeholder="Leave blank if homeserver is open">
+                        </div>
+                        <div class="hs-form-actions">
+                            <button class="btn-primary btn-sm" id="hs-identity-signup-btn">✅ Sign Up</button>
+                            <span id="hs-identity-msg" class="hs-action-msg"></span>
+                        </div>
+                        <div id="hs-identity-list" style="margin-top:16px;font-size:12px;"></div>
+                    </div>
+                </section>
+
+                <!-- File Browser -->
+                <section class="card" id="hs-files-panel">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <div class="card-icon card-icon-blue">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path
+                                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                                </svg>
+                            </div>
+                            <h2>File Browser</h2>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <select id="hs-files-user-select" class="hs-filter-input" style="width:140px;">
+                                <option value="">— select user —</option>
+                            </select>
+                            <button class="btn-sm btn-secondary" id="hs-files-refresh-btn">Browse</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="hs-files-tree" class="hs-files-tree">
+                            <span style="color:var(--text-tertiary);">Select a user and click Browse to explore
+                                their /pub directory.</span>
+                        </div>
+                        <div id="hs-files-preview" class="hs-files-preview"></div>
+                    </div>
+                </section>
+
             </div>
+    </div>
 
     </div>
     </div>
