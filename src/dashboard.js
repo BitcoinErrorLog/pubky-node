@@ -1936,28 +1936,6 @@
             } catch (e) { /* ignore */ }
         });
 
-        // Fix All — auto-install/configure prerequisites
-        document.getElementById('hs-fix-btn').addEventListener('click', async function () {
-            var logEl = document.getElementById('hs-fix-log');
-            this.disabled = true;
-            this.textContent = '⏳ Fixing...';
-            logEl.style.display = 'block';
-            logEl.innerHTML = '<div style="color:#a5b4fc;">Running auto-fix...</div>';
-            try {
-                var res = await authFetch('/api/homeserver/fix', { method: 'POST' });
-                var data = await res.json();
-                logEl.innerHTML = (data.log || []).map(function (l) {
-                    return '<div>' + l + '</div>';
-                }).join('');
-                // Refresh prerequisites after fix
-                document.getElementById('hs-check-btn').click();
-            } catch (e) {
-                logEl.innerHTML = '<div style="color:#f87171;">❌ Fix failed: ' + e.message + '</div>';
-            }
-            this.disabled = false;
-            this.textContent = '🔧 Fix All';
-        });
-
         // Start server
         document.getElementById('hs-start-btn').addEventListener('click', async function () {
             var msg = document.getElementById('hs-control-msg');

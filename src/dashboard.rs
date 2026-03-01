@@ -758,7 +758,7 @@ async fn api_hs_status(
 async fn api_hs_start(
     State(state): State<Arc<DashboardState>>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    match state.homeserver.start() {
+    match state.homeserver.start().await {
         Ok(msg) => {
             // Spawn background task: wait for homeserver to boot, then auto-publish its PKARR record
             let state_clone = state.clone();
@@ -998,7 +998,7 @@ async fn api_hs_generate_config(
 async fn api_hs_fix(
     State(state): State<Arc<DashboardState>>,
 ) -> Json<serde_json::Value> {
-    let log = state.homeserver.auto_fix();
+    let log = state.homeserver.auto_fix().await;
     Json(serde_json::json!({ "log": log }))
 }
 

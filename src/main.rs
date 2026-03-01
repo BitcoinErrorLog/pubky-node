@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod dashboard;
 mod dns;
+mod embedded_pg;
 mod identity;
 mod keyvault;
 mod homeserver;

@@ -1,12 +1,14 @@
 // Homeserver Manager — lifecycle management for pubky-homeserver
 //
 // Responsibilities:
-//   1. Auto-detect binary (PATH, data dir, sibling pubky-core build)
-//   2. Auto-detect PostgreSQL (pg_isready)
+//   1. Auto-detect binary (bundled sidecar, PATH, data dir)
+//   2. Manage embedded PostgreSQL (start, stop, create DB)
 //   3. Generate config.toml with smart defaults
 //   4. Start/stop homeserver as child process
 //   5. Health check polling on admin port
 //   6. Proxy admin API endpoints
+
+use crate::embedded_pg::EmbeddedPg;
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -53,7 +55,7 @@ pub struct HomeserverConfig {
 impl Default for HomeserverConfig {
     fn default() -> Self {
         HomeserverConfig {
-            database_url: "postgres://localhost:5432/pubky_homeserver".into(),
+            database_url: "postgres://127.0.0.1:5433/pubky_homeserver".into(),
             drive_icann_port: 6286,
             drive_pubky_port: 6287,
             admin_port: 6288,
@@ -93,18 +95,13 @@ pub struct HomeserverManager {
     stdout_lines: Arc<RwLock<Vec<String>>>,
     /// Optional broadcast sender — if set, all stdout/stderr lines are forwarded to SSE stream.
     pub log_tx: RwLock<Option<broadcast::Sender<String>>>,
+    /// Embedded PostgreSQL instance (managed lifecycle).
+    embedded_pg: tokio::sync::RwLock<Option<EmbeddedPg>>,
 }
 
 impl HomeserverManager {
     /// Create a new HomeserverManager.
     pub fn new(data_dir: &Path) -> Self {
-        // Ensure Homebrew Postgres is in PATH for all subprocess calls
-        let pg_bin = "/opt/homebrew/opt/postgresql@17/bin";
-        let current_path = std::env::var("PATH").unwrap_or_default();
-        if !current_path.contains(pg_bin) && std::path::Path::new(pg_bin).exists() {
-            std::env::set_var("PATH", format!("{}:{}", pg_bin, current_path));
-        }
-
         let config_path = data_dir.join("config.toml");
         let config = if config_path.exists() {
             parse_config_file(&config_path).unwrap_or_default()
@@ -123,6 +120,7 @@ impl HomeserverManager {
             server_pubkey: RwLock::new(None),
             stdout_lines: Arc::new(RwLock::new(Vec::new())),
             log_tx: RwLock::new(None),
+            embedded_pg: tokio::sync::RwLock::new(None),
         }
     }
 
@@ -169,9 +167,20 @@ impl HomeserverManager {
             *self.binary_path.write().unwrap() = binary;
         }
 
-        let (postgres_ok, postgres_msg) = check_postgres();
+        // Check embedded PostgreSQL state
+        let pg_running = self.embedded_pg.blocking_read().is_some();
+        let (postgres_ok, postgres_msg) = if pg_running {
+            (true, "Embedded PostgreSQL running".into())
+        } else {
+            (true, "Embedded PostgreSQL (auto-starts with homeserver)".into())
+        };
+
         let config_ok = self.config_path.exists();
-        let (db_ok, db_msg) = check_database(&self.config.read().unwrap().database_url);
+        let db_msg = if pg_running {
+            "Database ready".into()
+        } else {
+            "Auto-created when homeserver starts".into()
+        };
 
         SetupCheck {
             postgres_ok,
@@ -180,7 +189,7 @@ impl HomeserverManager {
             binary_path,
             config_ok,
             config_path: self.config_path.display().to_string(),
-            db_ok,
+            db_ok: true, // Always true — embedded PG handles DB creation
             db_msg,
         }
     }
@@ -236,100 +245,48 @@ impl HomeserverManager {
     // ─── Auto-Fix All Prerequisites ───────────────────────────
 
     /// Automatically fix all prerequisites:
-    /// 1. Install PostgreSQL via Homebrew if missing
-    /// 2. Start PostgreSQL service
-    /// 3. Create database if missing
-    /// 4. Generate config if missing
+    /// 1. Start embedded PostgreSQL (extracts on first run)
+    /// 2. Generate config if missing
     /// Returns a step-by-step log of what was done.
-    pub fn auto_fix(&self) -> Vec<String> {
+    pub async fn auto_fix(&self) -> Vec<String> {
         let mut log = Vec::new();
-        let pg_bin = "/opt/homebrew/opt/postgresql@17/bin";
 
-        // Extend PATH for this process to include Homebrew Postgres
-        let current_path = std::env::var("PATH").unwrap_or_default();
-        if !current_path.contains(pg_bin) {
-            std::env::set_var("PATH", format!("{}:{}", pg_bin, current_path));
-        }
-
-        // Step 1: Check/install PostgreSQL
-        let (pg_ok, _) = check_postgres();
-        if !pg_ok {
-            log.push("Installing PostgreSQL via Homebrew...".into());
-            match Command::new("brew").args(&["install", "postgresql@17"]).output() {
-                Ok(out) => {
-                    if out.status.success() {
-                        log.push("✅ PostgreSQL 17 installed.".into());
-                    } else {
-                        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
-                        log.push(format!("❌ brew install failed: {}", err));
-                        return log;
-                    }
+        // Step 1: Start embedded PostgreSQL
+        let pg_running = self.embedded_pg.read().await.is_some();
+        if !pg_running {
+            log.push("Starting embedded PostgreSQL...".into());
+            match EmbeddedPg::start(&self.data_dir).await {
+                Ok(pg) => {
+                    let url = pg.connection_url();
+                    log.push(format!("✅ PostgreSQL started ({})", url));
+                    // Update config to use embedded PG URL
+                    self.config.write().unwrap().database_url = url;
+                    *self.embedded_pg.write().await = Some(pg);
                 }
                 Err(e) => {
-                    log.push(format!("❌ Homebrew not found: {}", e));
+                    log.push(format!("❌ PostgreSQL failed: {}", e));
                     return log;
                 }
             }
-
-            // Start the service
-            log.push("Starting PostgreSQL service...".into());
-            let _ = Command::new("brew").args(&["services", "start", "postgresql@17"]).output();
-            // Wait a moment for Postgres to start
-            std::thread::sleep(std::time::Duration::from_secs(2));
-
-            // Re-check
-            let (pg_ok2, _) = check_postgres();
-            if pg_ok2 {
-                log.push("✅ PostgreSQL started.".into());
-            } else {
-                log.push("⚠️ PostgreSQL installed but may need manual start.".into());
-            }
         } else {
-            log.push("✅ PostgreSQL already running.".into());
+            log.push("✅ Embedded PostgreSQL already running.".into());
         }
 
-        // Step 2: Create database
-        let db_url = self.config.read().unwrap().database_url.clone();
-        let (db_ok, _) = check_database(&db_url);
-        if !db_ok {
-            let db_name = db_url.rsplit('/').next().unwrap_or("pubky_homeserver");
-            log.push(format!("Creating database '{}'...", db_name));
-            match Command::new("createdb").arg(db_name).output() {
-                Ok(out) => {
-                    if out.status.success() {
-                        log.push(format!("✅ Database '{}' created.", db_name));
-                    } else {
-                        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
-                        if err.contains("already exists") {
-                            log.push(format!("✅ Database '{}' already exists.", db_name));
-                        } else {
-                            log.push(format!("❌ createdb failed: {}", err));
-                        }
-                    }
-                }
-                Err(e) => log.push(format!("❌ createdb not found: {}", e)),
-            }
-        } else {
-            log.push("✅ Database already exists.".into());
-        }
-
-        // Step 3: Find binary (re-check with updated PATH)
+        // Step 2: Find binary
         match self.find_binary() {
             Some(path) => {
-                log.push(format!("✅ Binary found: {}", path.display()));
+                log.push("✅ Homeserver binary found.".into());
                 *self.binary_path.write().unwrap() = Some(path);
             }
             None => {
                 log.push("❌ pubky-homeserver binary not found.".into());
-                log.push("   Install with: cargo install pubky-homeserver".into());
-                log.push("   Or build from: https://github.com/pubky/pubky-core".into());
             }
         }
 
-        // Step 4: Generate config if needed
+        // Step 3: Generate config if needed
         if !self.config_path.exists() {
             match self.generate_config() {
-                Ok(()) => log.push(format!("✅ Config generated: {}", self.config_path.display())),
+                Ok(()) => log.push("✅ Config generated.".into()),
                 Err(e) => log.push(format!("❌ Config generation failed: {}", e)),
             }
         } else {
@@ -414,10 +371,30 @@ level = "info"
     // ─── Process Lifecycle ────────────────────────────────────
 
     /// Start the homeserver process.
-    pub fn start(&self) -> Result<String, String> {
+    /// Automatically starts embedded PostgreSQL if not already running.
+    pub async fn start(&self) -> Result<String, String> {
         let state = self.state();
         if state == HomeserverState::Running || state == HomeserverState::Starting {
             return Err("Homeserver is already running.".into());
+        }
+
+        // Ensure embedded PostgreSQL is running
+        let pg_running = self.embedded_pg.read().await.is_some();
+        if !pg_running {
+            tracing::info!("Auto-starting embedded PostgreSQL before homeserver...");
+            match EmbeddedPg::start(&self.data_dir).await {
+                Ok(pg) => {
+                    let url = pg.connection_url();
+                    tracing::info!("Embedded PostgreSQL started: {}", url);
+                    self.config.write().unwrap().database_url = url;
+                    // Regenerate config to use embedded PG URL
+                    let _ = self.generate_config();
+                    *self.embedded_pg.write().await = Some(pg);
+                }
+                Err(e) => {
+                    return Err(format!("Failed to start embedded PostgreSQL: {}", e));
+                }
+            }
         }
 
         let binary = self.binary_path.read().unwrap().clone()
@@ -642,56 +619,6 @@ level = "info"
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
-
-/// Check if PostgreSQL is running.
-fn check_postgres() -> (bool, String) {
-    // Try Homebrew path first, then PATH
-    let pg_isready = if std::path::Path::new("/opt/homebrew/opt/postgresql@17/bin/pg_isready").exists() {
-        "/opt/homebrew/opt/postgresql@17/bin/pg_isready"
-    } else {
-        "pg_isready"
-    };
-    match Command::new(pg_isready).arg("-h").arg("localhost").arg("-p").arg("5432").output() {
-        Ok(output) => {
-            if output.status.success() {
-                (true, "PostgreSQL is running (localhost:5432)".into())
-            } else {
-                let msg = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                (false, format!("PostgreSQL not ready: {}", msg))
-            }
-        }
-        Err(_) => (false, "pg_isready not found. Click Fix All to install.".into()),
-    }
-}
-
-/// Check if the database exists.
-fn check_database(database_url: &str) -> (bool, String) {
-    let db_name = database_url.rsplit('/').next().unwrap_or("pubky_homeserver");
-    let psql = if std::path::Path::new("/opt/homebrew/opt/postgresql@17/bin/psql").exists() {
-        "/opt/homebrew/opt/postgresql@17/bin/psql"
-    } else {
-        "psql"
-    };
-
-    match Command::new(psql)
-        .args(&["-lqt"])
-        .output()
-    {
-        Ok(output) => {
-            let list = String::from_utf8_lossy(&output.stdout);
-            if list.lines().any(|line| {
-                line.split('|').next()
-                    .map(|s| s.trim() == db_name)
-                    .unwrap_or(false)
-            }) {
-                (true, format!("Database '{}' exists", db_name))
-            } else {
-                (false, format!("Database '{}' not found", db_name))
-            }
-        }
-        Err(_) => (false, "psql not found. Click Fix All to install.".into()),
-    }
-}
 
 
 /// Parse a simple config.toml to extract key settings.

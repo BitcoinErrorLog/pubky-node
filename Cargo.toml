@@ -63,6 +63,9 @@ rand = "0.8"
 # UPnP auto-port-forwarding
 igd-next = { version = "0.15", features = ["aio_tokio"] }
 
+# Embedded PostgreSQL for zero-dependency homeserver setup
+postgresql_embedded = { version = "0.20", features = ["bundled", "tokio"] }
+
 # Unix signals for subprocess management
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
