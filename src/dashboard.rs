@@ -3023,3 +3023,542 @@ function toggleRecords(){{
 
     Html(page).into_response()
 }
+
+// ─── Test helpers & integration tests ───────────────────────────
+
+/// Build a fully-wired router + state from a temp data directory.
+/// Identical to start_dashboard but doesn't bind a port — used for testing.
+#[cfg(test)]
+fn build_test_router(data_dir: &std::path::Path) -> Router {
+    use crate::config::WatchlistConfig;
+    use crate::upnp::UpnpStatus;
+
+    let auth_hash: Arc<RwLock<Option<String>>> = Arc::new(RwLock::new(None));
+    let shared_keys: SharedWatchlistKeys = Arc::new(RwLock::new(Vec::new()));
+    let vault = KeyVault::new(data_dir);
+    let homeserver = HomeserverManager::new(data_dir);
+    let tunnel = TunnelManager::new(homeserver.get_config().drive_icann_port);
+    let identity = IdentityManager::new(data_dir);
+    let (log_tx, _) = broadcast::channel::<String>(100);
+
+    let state = Arc::new(DashboardState {
+        client: None,
+        watchlist_config: WatchlistConfig::default(),
+        shared_keys,
+        data_dir: data_dir.to_path_buf(),
+        start_time: std::time::Instant::now(),
+        relay_port: 8080,
+        upnp_status: UpnpStatus::Disabled,
+        dns_status: "Disabled".to_string(),
+        dns_socket: "127.0.0.1:5300".to_string(),
+        dns_forward: "1.1.1.1:53".to_string(),
+        resolve_last_request: AtomicU64::new(0),
+        vanity: Mutex::new(VanityState::default()),
+        proxy_running: AtomicBool::new(false),
+        proxy_port: 9091,
+        proxy_requests: AtomicU64::new(0),
+        auth_hash: auth_hash.clone(),
+        vault,
+        homeserver,
+        tunnel,
+        identity,
+        log_tx,
+    });
+
+    *state.homeserver.log_tx.write().unwrap() = Some(state.log_tx.clone());
+    let shared_auth = auth_hash;
+
+    Router::new()
+        .route("/health", get(health_check))
+        .route("/api/auth/check", get(api_auth_check))
+        .route("/api/auth/setup", post(api_auth_setup))
+        .route("/api/auth/login", post(api_auth_login))
+        .route("/api/auth/change-password", post(api_auth_change_password))
+        .route("/api/settings", get(api_settings))
+        .route("/api/vault/status", get(api_vault_status))
+        .route("/api/vault/create", post(api_vault_create))
+        .route("/api/vault/unlock", post(api_vault_unlock))
+        .route("/api/vault/lock", post(api_vault_lock))
+        .route("/api/vault/keys", get(api_vault_keys))
+        .route("/api/vault/add", post(api_vault_add))
+        .route("/api/vault/export", post(api_vault_export))
+        .route("/api/vault/export-all", get(api_vault_export_all))
+        .route("/api/vault/import", post(api_vault_import))
+        .route("/api/vault/rename", post(api_vault_rename))
+        .route("/api/vault/delete/{pubkey}", delete(api_vault_delete))
+        .route("/api/homeserver/status", get(api_hs_status))
+        .route("/api/homeserver/setup-check", get(api_hs_setup_check))
+        .route("/api/homeserver/config", get(api_hs_config))
+        .route("/api/homeserver/logs", get(api_hs_logs))
+        .route("/api/tunnel/status", get(api_tunnel_status))
+        .route("/api/tunnel/check", get(api_tunnel_check))
+        .route("/api/status", get(api_status))
+        .route("/api/watchlist", post(api_watchlist_add).get(api_watchlist_list))
+        .route("/api/watchlist/{key}", delete(api_watchlist_remove))
+        .route("/api/identity/list", get(api_identity_list))
+        .layer(middleware::from_fn(security_headers))
+        .layer(middleware::from_fn(auth_check))
+        .layer(Extension(shared_auth))
+        .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode, Method, header},
+    };
+    use http_body_util::BodyExt;
+    use tower::ServiceExt; // for `.oneshot()`
+
+    // ─── Helpers ──────────────────────────────────────────────────
+
+    async fn response_json(resp: axum::response::Response) -> serde_json::Value {
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null)
+    }
+
+    fn get(path: &str) -> Request<Body> {
+        Request::builder()
+            .method(Method::GET)
+            .uri(path)
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn post_json(path: &str, body: serde_json::Value) -> Request<Body> {
+        Request::builder()
+            .method(Method::POST)
+            .uri(path)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap()
+    }
+
+    fn delete_req(path: &str) -> Request<Body> {
+        Request::builder()
+            .method(Method::DELETE)
+            .uri(path)
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    // Produce a valid 52-char z-base-32 pkarr public key string for testing.
+    fn valid_pkarr_key() -> String {
+        // Generate a real random keypair and return its public key as z32 string
+        pkarr::Keypair::random().public_key().to_string()
+    }
+
+    // ─── Health ───────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_health_check_returns_ok() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/health")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(&bytes[..], b"ok");
+    }
+
+    // ─── Auth ─────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_auth_check_no_password_set() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/auth/check")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["has_password"], false);
+    }
+
+    #[tokio::test]
+    async fn test_auth_setup_too_short_password() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(post_json("/api/auth/setup", serde_json::json!({"password": "abc"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_auth_setup_success_then_login() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+
+        // Setup
+        let resp = app.clone().oneshot(post_json("/api/auth/setup", serde_json::json!({"password": "hunter2"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["success"], true);
+
+        // auth/check should now report has_password=true
+        let resp2 = app.clone().oneshot(get("/api/auth/check")).await.unwrap();
+        let j2 = response_json(resp2).await;
+        assert_eq!(j2["has_password"], true);
+
+        // Valid login
+        let resp3 = app.clone().oneshot(post_json("/api/auth/login", serde_json::json!({"password": "hunter2"}))).await.unwrap();
+        assert_eq!(resp3.status(), StatusCode::OK);
+
+        // Wrong password login
+        let resp4 = app.oneshot(post_json("/api/auth/login", serde_json::json!({"password": "wrong"}))).await.unwrap();
+        assert_eq!(resp4.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_auth_setup_twice_rejected() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/auth/setup", serde_json::json!({"password": "first1"}))).await.unwrap();
+        let resp = app.oneshot(post_json("/api/auth/setup", serde_json::json!({"password": "second1"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+    }
+
+    // ─── Watchlist ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_watchlist_empty_initially() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/watchlist")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["count"], 0);
+        assert!(j["keys"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_watchlist_add_valid_key() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let key = valid_pkarr_key();
+        let resp = app.oneshot(post_json("/api/watchlist", serde_json::json!({"key": key}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["count"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_watchlist_add_invalid_key_rejected() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(post_json("/api/watchlist", serde_json::json!({"key": "not-a-valid-key"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_watchlist_add_then_list_then_remove() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let key = valid_pkarr_key();
+
+        // Add
+        app.clone().oneshot(post_json("/api/watchlist", serde_json::json!({"key": key.clone()}))).await.unwrap();
+
+        // List — should have 1
+        let list_resp = app.clone().oneshot(get("/api/watchlist")).await.unwrap();
+        let j = response_json(list_resp).await;
+        assert_eq!(j["count"], 1);
+
+        // Remove
+        let rm_resp = app.clone().oneshot(delete_req(&format!("/api/watchlist/{}", key))).await.unwrap();
+        assert_eq!(rm_resp.status(), StatusCode::OK);
+        let j2 = response_json(rm_resp).await;
+        assert_eq!(j2["count"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_watchlist_add_duplicate_ignored() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let key = valid_pkarr_key();
+
+        app.clone().oneshot(post_json("/api/watchlist", serde_json::json!({"key": key.clone()}))).await.unwrap();
+        let resp2 = app.oneshot(post_json("/api/watchlist", serde_json::json!({"key": key}))).await.unwrap();
+        assert_eq!(resp2.status(), StatusCode::OK);
+        let j = response_json(resp2).await;
+        // Duplicate not added — still 1
+        assert_eq!(j["count"], 1);
+    }
+
+    #[tokio::test]
+    async fn test_watchlist_accepts_pubky_uri_prefix() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let key = valid_pkarr_key();
+        let uri = format!("pubky://{}", key);
+        let resp = app.oneshot(post_json("/api/watchlist", serde_json::json!({"key": uri}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["count"], 1);
+    }
+
+    // ─── Vault ────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_vault_status_no_vault() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/vault/status")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["exists"], false);
+        assert_eq!(j["unlocked"], false);
+    }
+
+    #[tokio::test]
+    async fn test_vault_create_success() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(post_json("/api/vault/create", serde_json::json!({"password": "vault_pw"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["success"], true);
+    }
+
+    #[tokio::test]
+    async fn test_vault_create_short_password_rejected() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(post_json("/api/vault/create", serde_json::json!({"password": "pw"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_vault_create_then_status_shows_unlocked() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "testpass"}))).await.unwrap();
+        let resp = app.oneshot(get("/api/vault/status")).await.unwrap();
+        let j = response_json(resp).await;
+        assert_eq!(j["exists"], true);
+        assert_eq!(j["unlocked"], true);
+    }
+
+    #[tokio::test]
+    async fn test_vault_lock_then_status_shows_locked() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "testpass"}))).await.unwrap();
+        app.clone().oneshot(post_json("/api/vault/lock", serde_json::json!({}))).await.unwrap();
+        let resp = app.oneshot(get("/api/vault/status")).await.unwrap();
+        let j = response_json(resp).await;
+        assert_eq!(j["exists"], true);
+        assert_eq!(j["unlocked"], false);
+    }
+
+    #[tokio::test]
+    async fn test_vault_unlock_wrong_password() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "correct_pw"}))).await.unwrap();
+        app.clone().oneshot(post_json("/api/vault/lock", serde_json::json!({}))).await.unwrap();
+        let resp = app.oneshot(post_json("/api/vault/unlock", serde_json::json!({"password": "wrong_pw"}))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_vault_keys_locked_returns_423() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        // No vault — locked by default
+        let resp = app.oneshot(get("/api/vault/keys")).await.unwrap();
+        // Vault locked returns 423 Locked
+        assert_eq!(resp.status(), StatusCode::LOCKED);
+    }
+
+    #[tokio::test]
+    async fn test_vault_add_list_delete_rename_flow() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+
+        // Need a real 64-hex-char secret
+        let kp = pkarr::Keypair::random();
+        let secret_hex = hex::encode(&kp.secret_key()[..32]);
+        let pubkey = kp.public_key().to_string();
+
+        // Create vault
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "pw1234"}))).await.unwrap();
+
+        // Add key
+        let add_resp = app.clone().oneshot(post_json("/api/vault/add", serde_json::json!({
+            "name": "Test Key",
+            "secret_hex": secret_hex,
+            "key_type": "pkarr",
+            "pubkey": pubkey,
+        }))).await.unwrap();
+        assert_eq!(add_resp.status(), StatusCode::OK);
+        let j = response_json(add_resp).await;
+        assert_eq!(j["success"], true);
+        assert_eq!(j["key"]["pubkey"], pubkey);
+
+        // List keys — should have 1
+        let list_resp = app.clone().oneshot(get("/api/vault/keys")).await.unwrap();
+        let lj = response_json(list_resp).await;
+        assert_eq!(lj["keys"].as_array().unwrap().len(), 1);
+        assert!(lj["keys"][0].get("secret_hex").is_none(), "secret must not appear in list");
+
+        // Rename
+        let rename_resp = app.clone().oneshot(post_json("/api/vault/rename", serde_json::json!({
+            "pubkey": pubkey,
+            "name": "Renamed Key",
+        }))).await.unwrap();
+        assert_eq!(rename_resp.status(), StatusCode::OK);
+
+        // Verify rename
+        let list2 = app.clone().oneshot(get("/api/vault/keys")).await.unwrap();
+        let lj2 = response_json(list2).await;
+        assert_eq!(lj2["keys"][0]["name"], "Renamed Key");
+
+        // Delete
+        let del_resp = app.clone().oneshot(delete_req(&format!("/api/vault/delete/{}", pubkey))).await.unwrap();
+        assert_eq!(del_resp.status(), StatusCode::OK);
+
+        // List again — empty
+        let list3 = app.oneshot(get("/api/vault/keys")).await.unwrap();
+        let lj3 = response_json(list3).await;
+        assert!(lj3["keys"].as_array().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_vault_add_short_secret_rejected() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "pw1234"}))).await.unwrap();
+        let resp = app.oneshot(post_json("/api/vault/add", serde_json::json!({
+            "name": "Bad",
+            "secret_hex": "tooshort",
+            "key_type": "manual",
+            "pubkey": "anypubkey",
+        }))).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_vault_export_all_format() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        app.clone().oneshot(post_json("/api/vault/create", serde_json::json!({"password": "pw1234"}))).await.unwrap();
+        let resp = app.oneshot(get("/api/vault/export-all")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert_eq!(j["format"], "pubky-vault-backup-v1");
+        assert!(j["keys"].is_array());
+    }
+
+    // ─── Homeserver ───────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_homeserver_status_returns_valid_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/homeserver/status")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        // Must have a "state" field
+        assert!(j.get("state").is_some(), "homeserver status must have 'state' field");
+        // Must have ports
+        assert!(j.get("ports").is_some(), "homeserver status must have 'ports' field");
+    }
+
+    #[tokio::test]
+    async fn test_homeserver_setup_check_returns_valid_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/homeserver/setup-check")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        // Should return JSON — exact shape depends on what's installed but must be valid
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert!(v.is_object(), "setup-check must return a JSON object");
+    }
+
+    #[tokio::test]
+    async fn test_homeserver_config_returns_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/homeserver/config")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("signup_mode").is_some());
+        assert!(j.get("drive_icann_port").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_homeserver_logs_returns_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/homeserver/logs")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("lines").is_some());
+        assert!(j["lines"].is_array());
+    }
+
+    // ─── Tunnel ───────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_tunnel_status_returns_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/tunnel/status")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("running").is_some() || j.get("state").is_some() || j.get("status").is_some(),
+            "tunnel status must have a running/state/status field, got: {}", j);
+    }
+
+    #[tokio::test]
+    async fn test_tunnel_check_returns_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/tunnel/check")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("available").is_some(), "tunnel/check must have 'available' field");
+    }
+
+    // ─── Node Status ──────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_api_status_returns_valid_shape() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/status")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("version").is_some(), "status must include version");
+        assert!(j.get("uptime_secs").is_some(), "status must include uptime_secs");
+        assert!(j.get("watchlist").is_some(), "status must include watchlist");
+        assert!(j.get("relay_port").is_some(), "status must include relay_port");
+    }
+
+    // ─── Settings ─────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_settings_returns_data_dir() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/settings")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("data_dir").is_some());
+        assert!(j.get("platform").is_some());
+    }
+
+    // ─── Identity ─────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_identity_list_empty_initially() {
+        let td = tempfile::tempdir().unwrap();
+        let app = build_test_router(td.path());
+        let resp = app.oneshot(get("/api/identity/list")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let j = response_json(resp).await;
+        assert!(j.get("identities").is_some());
+        assert!(j["identities"].as_array().unwrap().is_empty());
+    }
+}
+
