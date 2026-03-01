@@ -49,3 +49,43 @@ enabled = false
 
 # Seconds between republish cycles.
 republish_interval_secs = 3600
+
+# === DNS Record Publisher ===
+[publisher]
+# Enable automatic DNS record publishing.
+enabled = false
+
+# Seconds between republish cycles.
+interval_secs = 3600
+
+# Max retry attempts per publish before giving up.
+max_retries = 3
+
+# Base delay for exponential backoff on failures.
+retry_delay_secs = 5
+
+# Add one [[publisher.keys]] block per keypair you want to publish with.
+# [[publisher.keys]]
+# # Ed25519 secret key as 64-char hex string.
+# secret_key = "your_64_hex_char_ed25519_secret_key_here"
+# # Or load from file (Docker secrets / environment compatible):
+# # secret_key_file = "/run/secrets/my_key"
+#
+# # DNS records to publish for this key.
+# [[publisher.keys.records]]
+# type = "CNAME"
+# name = "@"
+# value = "mysite.example.com"
+# ttl = 3600
+#
+# [[publisher.keys.records]]
+# type = "TXT"
+# name = "_pubky"
+# value = "v=1"
+# ttl = 3600
+#
+# [[publisher.keys.records]]
+# type = "A"
+# name = "api"
+# value = "1.2.3.4"
+# ttl = 300

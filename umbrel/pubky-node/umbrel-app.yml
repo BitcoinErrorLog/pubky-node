@@ -2,7 +2,7 @@ manifestVersion: 1
 id: pubky-node
 category: networking
 name: Pubky Node
-version: "0.1.0"
+version: "0.2.0"
 tagline: Sovereign identity infrastructure for the Pubky network
 description: >-
   Run a full Pubky network node on your Umbrel. Pubky Node participates in the
@@ -15,14 +15,16 @@ description: >-
   node runs in client mode which still supports all features.
 
 
-  Features include a web dashboard for monitoring, a Key Explorer to look up any
-  public key's DNS records, an Identity Watchlist to keep friends' records alive,
-  and an optional DNS publisher for signing records with Ed25519 keys.
+  Features include a web dashboard with four tabs: Networks (real-time monitoring),
+  Keys (Ed25519 key vault with QR import/export, identity watchlist, vanity key
+  grinder), Homeserver (built-in Pubky homeserver with PostgreSQL backend, user
+  management, Cloudflare tunnel, and admin API), and Explorer (look up any public
+  key's DNS records from the DHT).
 developer: Pubky
 website: https://pubky.org
 dependencies: []
-repo: https://github.com/pubky/pubky-node
-support: https://github.com/pubky/pubky-node/issues
+repo: https://github.com/BitcoinErrorLog/pubky-node
+support: https://github.com/BitcoinErrorLog/pubky-node/issues
 port: 9090
 gallery:
   - 1.jpg
@@ -32,7 +34,9 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  Initial release with DHT node, Pkarr relay, Key Explorer, Identity Watchlist,
-  DNS publisher, UPnP auto-port-forwarding, and web dashboard with User Guide.
+  v0.2.0: Added built-in Homeserver with PostgreSQL backend, user management,
+  Cloudflare quick-tunnel support, and admin API. Added Keys Vault with Ed25519
+  keypair management, QR code import/export, and ring signatures. Dashboard
+  redesigned with Networks/Keys/Homeserver/Explorer tab layout.
 submitter: Pubky
 submission: ""

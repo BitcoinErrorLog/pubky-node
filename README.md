@@ -4,12 +4,12 @@
 
 > A unified sovereign network participant for the Pubky ecosystem.
 
-Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a **Pkarr relay**, a **DNS record publisher**, and a **Pkdns local DNS resolver** — into a single binary with a web dashboard, shared configuration, and graceful lifecycle management.
+Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a **Pkarr relay**, a **DNS record publisher**, a **Pkdns local DNS resolver**, and a built-in **Homeserver** — into a single binary with a web dashboard, shared configuration, and graceful lifecycle management.
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-status.png" width="100%" alt="Status Dashboard — real-time monitoring of DHT, relay, UPnP, and watchlist">
+  <img src="docs/screenshots/dashboard-status.png" width="100%" alt="Networks Dashboard — real-time monitoring of DHT, relay, UPnP, and watchlist">
 </p>
 
 <p align="center">
@@ -29,6 +29,8 @@ Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a 
 | **Identity Watchlist** | Monitors and republishes Pkarr records to keep identities alive |
 | **Vanity Key Generator** | Multi-threaded brute-force z-base-32 prefix/suffix key grinder |
 | **Key Explorer** | Look up any public key and inspect its DNS records |
+| **Keys Vault** | Manage Ed25519 keypairs, import/export with QR codes, and ring signatures |
+| **Homeserver** | Built-in Pubky homeserver with PostgreSQL backend, user management, Cloudflare tunnel support, and admin API |
 | **Web Dashboard** | Live monitoring UI at `http://localhost:9090/` |
 | **UPnP Auto-Config** | Automatically opens router ports for full DHT participation |
 | **Desktop App** | Native macOS, Windows, and Linux app with system tray |
@@ -195,17 +197,14 @@ ttl = 3600
 
 ## Web Dashboard
 
-The dashboard provides a live monitoring UI and tools:
+The dashboard provides a live monitoring UI and tools across four tabs:
 
-- **Status Overview** — Uptime, DHT network size, watched keys count
-- **Mainline DHT** — Node ID, listen address, server/client mode, firewall status, routing table size
-- **Pkarr Relay** — HTTP port, endpoint URL, protocol info
-- **Network / UPnP** — Port mapping status, external IP, mapped port (collapsible guide)
-- **HTTP Proxy** — Status, port, requests served, one‑click /etc/hosts setup
-- **PKDNS Resolver** — Status, listen address, upstream DNS (collapsible status)
-- **Keys Tab** — Identity watchlist + vanity key generator
-- **Key Explorer** — Paste any 52-character z-base-32 public key to inspect its DNS records from the DHT
-- **User Guide** — Built-in documentation for all features, DNS setup, and config reference
+- **Networks** — DHT node stats, Pkarr relay info, UPnP status, HTTP proxy, and DNS resolver
+- **Keys** — Identity watchlist, vanity key generator, and key vault (create/import/export Ed25519 keypairs with QR codes)
+- **Homeserver** — Built-in Pubky homeserver management: prerequisites check, server control, configuration, user management, PKARR publishing, Cloudflare tunnel, and log stream
+- **Explorer** — Paste any 52-character z-base-32 public key to look up its DHT DNS records
+
+The **Guide** (📖) and **Settings** (⚙) buttons are in the top-right corner of the header.
 
 ### API Endpoints
 
@@ -230,7 +229,7 @@ On startup, Pubky Node automatically attempts to configure your router via UPnP 
 - If UPnP succeeds → **Server mode** (full network participation)
 - If UPnP fails → **Client mode** (all features work, just won't store data for others)
 - Disable with `--no-upnp`
-- Status visible in the dashboard's Network / UPnP card
+- Status visible in the dashboard's Networks tab
 
 ## Security
 
@@ -258,6 +257,8 @@ pubky-node (supervisor)
 │   └── DNS resolver → Pkarr → DHT
 ├── watchlist (async task)
 │   └── periodic resolve + republish via pkarr::Client
+├── homeserver (subprocess / managed process)
+│   └── Pubky homeserver with PostgreSQL, admin API, user mgmt
 ├── http-proxy (axum, port 9091)
 │   └── .pkarr/.key/.pubky profile rendering
 └── dashboard (axum HTTP server, port 9090)
@@ -304,7 +305,7 @@ pubky-node proxy-hosts <KEY1> [KEY2 ...] [--reset]            # configure /etc/h
 ## Development
 
 ```bash
-# Run tests (46 unit tests)
+# Run tests
 cargo test
 
 # Run clippy

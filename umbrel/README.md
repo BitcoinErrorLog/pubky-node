@@ -12,6 +12,8 @@ One-click deployment of Pubky Node on [Umbrel](https://umbrel.com).
 | **Identity Watchlist** | Keeps friends' records alive by periodically republishing them |
 | **UPnP Auto-Config** | Automatically opens ports on your router for full DHT participation |
 | **DNS Publisher** | Sign and publish DNS records with Ed25519 keys |
+| **Keys Vault** | Manage Ed25519 keypairs with QR import/export |
+| **Homeserver** | Built-in Pubky homeserver with user management and admin API |
 
 ## Quick Start
 
@@ -29,9 +31,11 @@ Find "Pubky Node" in the Networking category and click **Install**. That's it �
 ### 3. Open the Dashboard
 
 Click the app icon to access the dashboard. You'll see:
-- **Status tab** — DHT connectivity, relay info, UPnP status, watchlist
+- **Networks tab** — DHT connectivity, relay info, UPnP status, watchlist
+- **Keys tab** — Key vault, watchlist management, vanity key generator
+- **Homeserver tab** — Built-in homeserver control, user management, configuration
 - **Explorer tab** — Look up any public key's DNS records on the DHT
-- **Guide tab** — Comprehensive documentation
+- **Guide** — Comprehensive documentation (top-right icon)
 
 ## Network & Port Forwarding
 
@@ -48,7 +52,7 @@ The node falls back to **Client mode**, which is fully functional:
 To manually enable Server mode, forward **UDP port 6881** on your router.
 
 ### Checking Your Status
-Open the dashboard and look at the **Network / UPnP** card:
+Open the dashboard and look at the **Networks** tab → **Network / UPnP** card:
 - **Active** — Port mapped successfully, full participation
 - **No Gateway** — UPnP not available, running in client mode
 - **Failed** — UPnP found but couldn't map the port
@@ -69,7 +73,7 @@ Set these in `docker-compose.yml` under `environment:` to customize without a co
 
 ### Config File
 
-For advanced users, create `/data/config.toml` inside the container (mapped to `${APP_DATA_DIR}/data/config.toml` on the host). See the [main README](https://github.com/pubky/pubky-node#configuration) for all options.
+For advanced users, create `/data/config.toml` inside the container (mapped to `${APP_DATA_DIR}/data/config.toml` on the host). See the [main README](https://github.com/BitcoinErrorLog/pubky-node#configuration) for all options.
 
 ### Example: Adding Watchlist Keys
 
@@ -108,7 +112,7 @@ The Docker image bundles both `pubky-node` and `pkdns`. To build:
 # From the parent directory containing pubky-node, pkarr, and pkdns repos
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/pubky/pubky-node:v0.1.0 \
+  -t ghcr.io/pubky/pubky-node:latest \
   -f pubky-node/Dockerfile \
   --push .
 ```
@@ -133,9 +137,10 @@ umbrel/
 | DHT shows 0 nodes | Wait 30 seconds for bootstrap, check internet connectivity |
 | UPnP shows "No Gateway" | Router may not support UPnP, or it's disabled in router settings |
 | DNS resolver not starting | `pkdns` needs port 53 which conflicts with some systems. Set `PUBKY_DNS_ENABLED=false` |
+| Homeserver not starting | Requires PostgreSQL — use the Prerequisites checker in the Homeserver tab |
 
 ## Links
 
-- [Pubky Node GitHub](https://github.com/pubky/pubky-node)
+- [Pubky Node GitHub](https://github.com/BitcoinErrorLog/pubky-node)
 - [Pkarr Protocol](https://github.com/pubky/pkarr)
 - [Umbrel Documentation](https://umbrel.com/umbrelos)

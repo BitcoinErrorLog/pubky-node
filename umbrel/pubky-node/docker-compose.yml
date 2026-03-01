@@ -5,7 +5,7 @@ services:
       APP_PORT: 9090
 
   server:
-    image: ghcr.io/pubky/pubky-node:v0.1.0
+    image: ghcr.io/pubky/pubky-node:v0.2.0
     restart: on-failure
     stop_grace_period: 30s
     ports:
