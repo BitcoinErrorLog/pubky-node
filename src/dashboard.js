@@ -2009,6 +2009,17 @@
                     authFetch('/api/status').catch(function () { return null; }),
                 ]);
                 var data = await tokenRes.json();
+
+                if (!tokenRes.ok) {
+                    var errMsg = data.error || 'Homeserver returned ' + tokenRes.status;
+                    document.getElementById('hs-token-value').textContent = '❌ ' + errMsg;
+                    display.style.display = 'block';
+                    document.getElementById('hs-invite-badge').textContent = 'Error';
+                    document.getElementById('hs-invite-badge').className = 'badge badge-error';
+                    this.textContent = 'Generate Token';
+                    return;
+                }
+
                 if (data.token) {
                     document.getElementById('hs-token-value').textContent = data.token;
                     display.style.display = 'block';
@@ -2061,8 +2072,15 @@
 
                     document.getElementById('hs-invite-badge').textContent = 'Generated';
                     document.getElementById('hs-invite-badge').className = 'badge badge-success';
+                } else {
+                    document.getElementById('hs-token-value').textContent = '❌ No token returned. Is signup mode set to "Token Required"?';
+                    display.style.display = 'block';
+                    document.getElementById('hs-invite-badge').textContent = 'Error';
+                    document.getElementById('hs-invite-badge').className = 'badge badge-error';
                 }
             } catch (e) {
+                document.getElementById('hs-token-value').textContent = '❌ ' + (e.message || 'Failed to connect to homeserver');
+                display.style.display = 'block';
                 document.getElementById('hs-invite-badge').textContent = 'Error';
                 document.getElementById('hs-invite-badge').className = 'badge badge-error';
             }

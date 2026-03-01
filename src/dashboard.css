@@ -1957,15 +1957,52 @@ body {
     margin-bottom: 12px;
 }
 
-.vanity-input-row input[type="text"] {
-    flex: 1;
+.vanity-input-row input[type="text"].vanity-word-input {
+    width: 14ch;
+    flex: 0 0 auto;
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 8px 12px;
     color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 13px;
+}
+
+/* Time estimates expandable label */
+.vanity-estimates-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+}
+
+.vanity-info-toggle {
+    padding: 8px 10px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    cursor: pointer;
+}
+
+.vanity-info-toggle:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+.vanity-info-toggle:hover .vanity-estimates-label {
+    color: var(--accent);
+}
+
+.vanity-chevron {
+    transition: transform 0.2s, color 0.2s;
+    color: var(--text-muted);
+}
+
+.vanity-info-toggle:hover .vanity-chevron {
+    color: var(--accent);
+}
+
+.vanity-info.open .vanity-chevron {
+    transform: rotate(180deg);
 }
 
 .vanity-toggle {
