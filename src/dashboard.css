@@ -2802,3 +2802,10 @@ input[type="email"].publisher-key-input {
 .hs-config-form>.publisher-field:last-of-type {
     margin-bottom: 0;
 }
+
+/* Side-by-side field pairs inside config card */
+.hs-config-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
