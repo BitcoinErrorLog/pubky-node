@@ -3843,3 +3843,72 @@ select option {
 .card textarea::placeholder {
     color: var(--text-muted);
 }
+
+/* ============================================
+   Node Health Row (Dashboard overview)
+   ============================================ */
+
+.node-health-row {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    padding: 14px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.health-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.health-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 4px;
+}
+
+.health-dot-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-right: 6px;
+}
+
+.tunnel-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tunnel-url {
+    font-size: 11px;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.badge-sm {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.badge-sm.badge-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--green);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-sm.badge-stopped {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}

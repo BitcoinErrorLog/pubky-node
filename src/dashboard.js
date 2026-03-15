@@ -3381,6 +3381,7 @@
                 var res = await authFetch('/api/reachability-check');
                 var data = await res.json();
 
+                // Network Status tab dots
                 var dht = document.getElementById('tl-dht');
                 var relay = document.getElementById('tl-relay');
                 var tunnel = document.getElementById('tl-tunnel');
@@ -3399,6 +3400,73 @@
                     suggestion.textContent = data.suggestion;
                     suggestion.style.display = '';
                 }
+
+                // Dashboard overview dots (mirror)
+                var dashDht = document.getElementById('dash-tl-dht');
+                var dashRelay = document.getElementById('dash-tl-relay');
+                var dashTunnel = document.getElementById('dash-tl-tunnel');
+                if (dashDht) dashDht.className = 'traffic-dot ' + (data.dht_healthy ? 'green' : 'red');
+                if (dashRelay) dashRelay.className = 'traffic-dot ' + (data.relay_reachable ? 'green' : 'red');
+                if (dashTunnel) dashTunnel.className = 'traffic-dot ' + (data.tunnel_active ? 'green' : 'amber');
+            } catch (e) { /* ignore */ }
+        }
+
+        async function updateDashboardTunnels() {
+            try {
+                // HS Tunnel
+                var hsRes = await authFetch('/api/tunnel/status');
+                var hsData = await hsRes.json();
+                var hsBadge = document.getElementById('dash-hs-tunnel-badge');
+                var hsUrl = document.getElementById('dash-hs-tunnel-url');
+                if (hsBadge) {
+                    if (hsData.state === 'running') {
+                        hsBadge.textContent = 'Running';
+                        hsBadge.className = 'badge badge-sm badge-success';
+                    } else if (hsData.state === 'starting') {
+                        hsBadge.textContent = 'Starting…';
+                        hsBadge.className = 'badge badge-sm';
+                    } else {
+                        hsBadge.textContent = 'Stopped';
+                        hsBadge.className = 'badge badge-sm badge-stopped';
+                    }
+                }
+                if (hsUrl) {
+                    if (hsData.public_url) {
+                        hsUrl.href = hsData.public_url;
+                        hsUrl.textContent = hsData.public_url.replace('https://', '');
+                        hsUrl.style.display = '';
+                    } else {
+                        hsUrl.style.display = 'none';
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                // Relay Tunnel
+                var rlRes = await authFetch('/api/tunnel/relay/status');
+                var rlData = await rlRes.json();
+                var rlBadge = document.getElementById('dash-relay-tunnel-badge');
+                var rlUrl = document.getElementById('dash-relay-tunnel-url');
+                if (rlBadge) {
+                    if (rlData.state === 'running') {
+                        rlBadge.textContent = 'Running';
+                        rlBadge.className = 'badge badge-sm badge-success';
+                    } else if (rlData.state === 'starting') {
+                        rlBadge.textContent = 'Starting…';
+                        rlBadge.className = 'badge badge-sm';
+                    } else {
+                        rlBadge.textContent = 'Stopped';
+                        rlBadge.className = 'badge badge-sm badge-stopped';
+                    }
+                }
+                if (rlUrl) {
+                    if (rlData.public_url) {
+                        rlUrl.href = rlData.public_url;
+                        rlUrl.textContent = rlData.public_url.replace('https://', '');
+                        rlUrl.style.display = '';
+                    } else {
+                        rlUrl.style.display = 'none';
+                    }
+                }
             } catch (e) { /* ignore */ }
         }
 
@@ -3407,6 +3475,11 @@
             t.addEventListener('click', function () {
                 if (t.dataset.tab === 'networks') {
                     checkReachability();
+                }
+                // Also update dashboard tunnels when visiting Dashboard tab
+                if (t.dataset.tab === 'dashboard') {
+                    checkReachability();
+                    updateDashboardTunnels();
                 }
             });
         });
@@ -3421,7 +3494,10 @@
         }
 
         // Auto-check on initial load
-        setTimeout(checkReachability, 1500);
+        setTimeout(function() {
+            checkReachability();
+            updateDashboardTunnels();
+        }, 1500);
 
         // ========== Stage 3: Recovery Tab ==========
 
