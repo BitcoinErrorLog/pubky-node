@@ -18,6 +18,7 @@ pub mod reachability;
 pub mod backup;
 pub mod migration;
 pub mod profile;
+pub mod layout;
 use state::DashboardState;
 use std::sync::{Arc, RwLock};
 use axum::{
@@ -147,6 +148,9 @@ pub fn build_router(
         .route("/api/keys/vanity/start", post(keys::api_vanity_start))
         .route("/api/keys/vanity/status", get(keys::api_vanity_status))
         .route("/api/keys/vanity/stop", post(keys::api_vanity_stop))
+        // Layout
+        .route("/api/layout", get(layout::api_layout_get).put(layout::api_layout_put))
+        .route("/api/layout/reset", post(layout::api_layout_reset))
         // Middleware
         .layer(middleware::from_fn(security_headers))
         .layer(middleware::from_fn(auth_check))

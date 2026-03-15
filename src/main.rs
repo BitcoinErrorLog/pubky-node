@@ -9,6 +9,7 @@ mod embedded_pg;
 mod identity;
 mod keyvault;
 mod homeserver;
+mod layout;
 mod publisher;
 mod relay;
 mod tunnel;

@@ -4158,3 +4158,259 @@
 
     } // end initEventListeners
 })();
+
+// ═══════ Layout Editor ═══════
+(function() {
+    'use strict';
+    var currentLayout = null;
+
+    // Open/close editor
+    document.getElementById('layout-edit-btn').addEventListener('click', openLayoutEditor);
+    document.getElementById('layout-editor-close').addEventListener('click', closeLayoutEditor);
+    document.getElementById('layout-editor-overlay').addEventListener('click', function(e) {
+        if (e.target === this) closeLayoutEditor();
+    });
+    document.getElementById('layout-save-btn').addEventListener('click', saveLayout);
+    document.getElementById('layout-reset-btn').addEventListener('click', resetLayout);
+
+    function openLayoutEditor() {
+        fetch('/api/layout').then(r => r.json()).then(layout => {
+            currentLayout = layout;
+            renderPageList();
+            document.getElementById('layout-editor-overlay').style.display = 'flex';
+        }).catch(err => console.error('Failed to load layout:', err));
+    }
+
+    function closeLayoutEditor() {
+        document.getElementById('layout-editor-overlay').style.display = 'none';
+    }
+
+    function renderPageList() {
+        var container = document.getElementById('layout-page-list');
+        container.innerHTML = '';
+        currentLayout.pages.forEach(function(page, pageIdx) {
+            var item = document.createElement('div');
+            item.className = 'layout-page-item';
+            item.draggable = true;
+            item.dataset.pageIdx = pageIdx;
+
+            // Header row
+            var header = document.createElement('div');
+            header.className = 'layout-page-header';
+
+            var handle = document.createElement('span');
+            handle.className = 'layout-drag-handle';
+            handle.textContent = '⠿';
+
+            var icon = document.createElement('span');
+            icon.className = 'layout-page-icon';
+            icon.textContent = page.icon;
+
+            var label = document.createElement('input');
+            label.className = 'layout-page-label';
+            label.type = 'text';
+            label.value = page.label;
+            label.addEventListener('change', function() {
+                currentLayout.pages[pageIdx].label = this.value;
+            });
+            label.addEventListener('click', function(e) { e.stopPropagation(); });
+
+            var vis = document.createElement('button');
+            vis.className = 'layout-vis-toggle' + (page.visible ? '' : ' hidden');
+            vis.textContent = page.visible ? '👁' : '👁‍🗨';
+            vis.title = page.visible ? 'Visible — click to hide' : 'Hidden — click to show';
+            vis.addEventListener('click', function(e) {
+                e.stopPropagation();
+                currentLayout.pages[pageIdx].visible = !currentLayout.pages[pageIdx].visible;
+                renderPageList();
+            });
+
+            var expand = document.createElement('button');
+            expand.className = 'layout-page-expand';
+            expand.textContent = '▶';
+            expand.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var panel = item.querySelector('.layout-cards-panel');
+                panel.classList.toggle('open');
+                expand.classList.toggle('open');
+            });
+
+            header.appendChild(handle);
+            header.appendChild(icon);
+            header.appendChild(label);
+            header.appendChild(vis);
+            header.appendChild(expand);
+
+            // Cards panel
+            var cardsPanel = document.createElement('div');
+            cardsPanel.className = 'layout-cards-panel';
+            page.cards.forEach(function(card, cardIdx) {
+                var cardItem = document.createElement('div');
+                cardItem.className = 'layout-card-item';
+                cardItem.draggable = true;
+                cardItem.dataset.cardIdx = cardIdx;
+
+                var cardHandle = document.createElement('span');
+                cardHandle.className = 'layout-card-handle';
+                cardHandle.textContent = '⠿';
+
+                var check = document.createElement('input');
+                check.type = 'checkbox';
+                check.className = 'layout-card-check';
+                check.checked = card.visible;
+                check.addEventListener('change', function() {
+                    currentLayout.pages[pageIdx].cards[cardIdx].visible = this.checked;
+                });
+
+                var name = document.createElement('span');
+                name.className = 'layout-card-name';
+                name.textContent = card.id.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+
+                cardItem.appendChild(cardHandle);
+                cardItem.appendChild(check);
+                cardItem.appendChild(name);
+                cardsPanel.appendChild(cardItem);
+
+                // Card drag-and-drop (reorder within page)
+                cardItem.addEventListener('dragstart', function(e) {
+                    e.stopPropagation();
+                    e.dataTransfer.setData('text/plain', 'card:' + pageIdx + ':' + cardIdx);
+                    e.dataTransfer.effectAllowed = 'move';
+                    cardItem.classList.add('dragging');
+                });
+                cardItem.addEventListener('dragend', function() {
+                    cardItem.classList.remove('dragging');
+                    document.querySelectorAll('.layout-card-item.drag-over').forEach(function(el) { el.classList.remove('drag-over'); });
+                });
+                cardItem.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = 'move';
+                    cardItem.classList.add('drag-over');
+                });
+                cardItem.addEventListener('dragleave', function() {
+                    cardItem.classList.remove('drag-over');
+                });
+                cardItem.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    cardItem.classList.remove('drag-over');
+                    var data = e.dataTransfer.getData('text/plain');
+                    if (!data.startsWith('card:')) return;
+                    var parts = data.split(':');
+                    var srcPage = parseInt(parts[1], 10);
+                    var srcCard = parseInt(parts[2], 10);
+                    if (srcPage !== pageIdx) return; // only within same page
+                    var cards = currentLayout.pages[pageIdx].cards;
+                    var moved = cards.splice(srcCard, 1)[0];
+                    var targetIdx = parseInt(cardItem.dataset.cardIdx, 10);
+                    if (srcCard < targetIdx) targetIdx--;
+                    cards.splice(targetIdx, 0, moved);
+                    renderPageList();
+                });
+            });
+
+            item.appendChild(header);
+            item.appendChild(cardsPanel);
+            container.appendChild(item);
+
+            // Page drag-and-drop (reorder pages)
+            item.addEventListener('dragstart', function(e) {
+                if (e.target !== item && !handle.contains(e.target)) return;
+                e.dataTransfer.setData('text/plain', 'page:' + pageIdx);
+                e.dataTransfer.effectAllowed = 'move';
+                item.classList.add('dragging');
+            });
+            item.addEventListener('dragend', function() {
+                item.classList.remove('dragging');
+                document.querySelectorAll('.layout-page-item.drag-over').forEach(function(el) { el.classList.remove('drag-over'); });
+            });
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                var data = e.dataTransfer.types.indexOf('text/plain') >= 0;
+                if (data) {
+                    e.dataTransfer.dropEffect = 'move';
+                    item.classList.add('drag-over');
+                }
+            });
+            item.addEventListener('dragleave', function() {
+                item.classList.remove('drag-over');
+            });
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                var data = e.dataTransfer.getData('text/plain');
+                if (!data.startsWith('page:')) return;
+                var srcIdx = parseInt(data.split(':')[1], 10);
+                var targetIdx = parseInt(item.dataset.pageIdx, 10);
+                if (srcIdx === targetIdx) return;
+                var pages = currentLayout.pages;
+                var moved = pages.splice(srcIdx, 1)[0];
+                if (srcIdx < targetIdx) targetIdx--;
+                pages.splice(targetIdx, 0, moved);
+                renderPageList();
+            });
+        });
+    }
+
+    function saveLayout() {
+        fetch('/api/layout', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentLayout)
+        }).then(r => r.json()).then(function(result) {
+            if (result.status === 'ok') {
+                rebuildSidebar();
+                closeLayoutEditor();
+            } else {
+                alert('Save failed: ' + (result.error || 'unknown'));
+            }
+        }).catch(err => alert('Save failed: ' + err));
+    }
+
+    function resetLayout() {
+        if (!confirm('Reset layout to defaults? This will undo all customizations.')) return;
+        fetch('/api/layout/reset', { method: 'POST' }).then(r => r.json()).then(function(layout) {
+            currentLayout = layout;
+            renderPageList();
+            rebuildSidebar();
+        }).catch(err => alert('Reset failed: ' + err));
+    }
+
+    function rebuildSidebar() {
+        if (!currentLayout) return;
+        var nav = document.getElementById('nav-tabs');
+        // Update nav item labels and visibility based on layout
+        currentLayout.pages.forEach(function(page) {
+            var btn = nav.querySelector('[data-tab="' + page.id + '"]');
+            if (!btn) {
+                // Try alternate tab names (network -> network, etc.)
+                var altId = page.id === 'networks' ? 'network' : page.id;
+                btn = nav.querySelector('[data-tab="' + altId + '"]');
+            }
+            if (btn) {
+                // Update label text (preserve inner SVG icon)
+                var svg = btn.querySelector('svg');
+                btn.textContent = '';
+                if (svg) btn.appendChild(svg);
+                btn.appendChild(document.createTextNode('\n                        ' + page.label + '\n                    '));
+                // Update visibility
+                var section = btn.closest('.nav-section');
+                if (section) {
+                    if (page.visible) {
+                        btn.style.display = '';
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+
+    // Apply layout on page load
+    fetch('/api/layout').then(r => r.json()).then(function(layout) {
+        currentLayout = layout;
+        rebuildSidebar();
+    }).catch(function() { /* layout API not available, use default HTML */ });
+
+})();

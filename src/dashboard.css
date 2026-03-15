@@ -3912,3 +3912,165 @@ select option {
     color: var(--text-muted);
     border: 1px solid var(--border);
 }
+
+/* ═══════ Layout Editor ═══════ */
+
+.layout-edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 3px 5px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s;
+}
+.layout-edit-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.layout-page-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layout-page-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.layout-page-item.dragging {
+    opacity: 0.5;
+    border-color: var(--primary);
+}
+.layout-page-item.drag-over {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.layout-page-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+}
+.layout-page-header:hover {
+    background: var(--bg-card-hover);
+}
+
+.layout-drag-handle {
+    cursor: grab;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+}
+.layout-drag-handle:active {
+    cursor: grabbing;
+}
+
+.layout-page-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.layout-page-label {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    font-family: inherit;
+}
+.layout-page-label:hover {
+    border-color: var(--border);
+}
+.layout-page-label:focus {
+    border-color: var(--primary);
+    background: var(--bg-input);
+}
+
+.layout-vis-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.layout-vis-toggle:hover {
+    border-color: var(--primary);
+}
+.layout-vis-toggle.hidden {
+    opacity: 0.4;
+}
+
+.layout-page-expand {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 4px;
+    transition: transform 0.2s;
+}
+.layout-page-expand.open {
+    transform: rotate(90deg);
+}
+
+.layout-cards-panel {
+    display: none;
+    padding: 4px 12px 10px 38px;
+    border-top: 1px solid var(--border-subtle);
+}
+.layout-cards-panel.open {
+    display: block;
+}
+
+.layout-card-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: grab;
+    transition: background 0.15s;
+}
+.layout-card-item:hover {
+    background: var(--bg-card-hover);
+}
+.layout-card-item.dragging {
+    opacity: 0.5;
+}
+.layout-card-item.drag-over {
+    border-bottom: 2px solid var(--primary);
+}
+
+.layout-card-handle {
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: grab;
+}
+
+.layout-card-check {
+    accent-color: var(--primary);
+}
+
+.layout-card-name {
+    flex: 1;
+}
