@@ -1461,18 +1461,59 @@
                         <section class="guide-section">
                             <div class="guide-section-icon">☁️</div>
                             <h2>Cloudflare Tunnels</h2>
-                            <p>Expose your homeserver and Pkarr relay to the public internet via
+                            <p>Expose services to the public internet via
                                 <strong>cloudflared</strong> quick-tunnels — zero-config, no Cloudflare account needed.
                             </p>
                             <ul>
                                 <li><strong>Homeserver Tunnel</strong> — exposes the ICANN HTTP endpoint via
                                     trycloudflare.com</li>
-                                <li><strong>Relay Tunnel</strong> — exposes the Pkarr relay HTTP API via separate tunnel
-                                </li>
+                                <li><strong>Relay Tunnel</strong> — exposes the Pkarr relay HTTP API</li>
+                                <li><strong>DNS Tunnel (DoH)</strong> — exposes pkdns as a public DNS-over-HTTPS
+                                    endpoint at <code>/dns-query</code></li>
                                 <li>Auto-detects <code>cloudflared</code> binary (bundled sidecar → PATH)</li>
-                                <li>Tunnel URL auto-updates homeserver config and PKARR record</li>
-                                <li>Start/stop from <strong>Networks</strong> tab or CLI:
-                                    <code>pubky-node tunnel start|stop</code></li>
+                                <li>Tunnel URLs auto-update homeserver config and PKARR record</li>
+                                <li>Start/stop from <strong>Networks</strong> tab or CLI</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">💾</div>
+                            <h2>Backup &amp; Recovery</h2>
+                            <p>Back up identity data from your homeserver. Syncs files locally with point-in-time
+                                snapshots for rollback protection.</p>
+                            <ul>
+                                <li>Add identities to backup from the <strong>Recovery</strong> tab</li>
+                                <li>Automatic periodic sync with manual force-sync option</li>
+                                <li>Create snapshots for point-in-time recovery</li>
+                                <li>Restore from any snapshot to revert compromised data</li>
+                                <li>Export backups to portable archives</li>
+                                <li>CLI: <code>pubky-node backup status|sync-all|snapshot|snapshots</code></li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🚚</div>
+                            <h2>Homeserver Migration</h2>
+                            <p>Migrate your data to a different homeserver. Creates a pre-migration snapshot,
+                                uploads all data to the new server, and updates your PKARR record.</p>
+                            <ul>
+                                <li>Preflight check validates target server connectivity and signup</li>
+                                <li>Uses backup data or specific snapshot as migration source</li>
+                                <li>Automatically updates PKARR record to point to new server</li>
+                                <li>CLI: <code>pubky-node migration preflight|execute|status</code></li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">👤</div>
+                            <h2>Profile Management</h2>
+                            <p>Edit your public profile (name, bio, image) stored on your homeserver.
+                                Profiles are visible on pubky.app and indexed by Nexus.</p>
+                            <ul>
+                                <li>Select an identity key to edit from the <strong>Profile</strong> tab</li>
+                                <li>Check Nexus indexing status for discoverability</li>
+                                <li>Verify PKARR record is correctly published</li>
+                                <li>CLI: <code>pubky-node profile get|set|nexus|verify</code></li>
                             </ul>
                         </section>
                     </div>
@@ -1578,6 +1619,12 @@ dig @127.0.0.1 yg4gxe7z1r7mr6orids9fh95y7gxhdsxjqi6nngsxxtakqaxr5no.pkarr</code>
                                         <td>ICANN fallback DNS</td>
                                     </tr>
                                     <tr>
+                                        <td><code>[dns]</code></td>
+                                        <td>doh_port</td>
+                                        <td>8553</td>
+                                        <td>DNS-over-HTTPS local port</td>
+                                    </tr>
+                                    <tr>
                                         <td><code>[watchlist]</code></td>
                                         <td>enabled</td>
                                         <td>false</td>
@@ -1674,15 +1721,69 @@ pubky-node homeserver users                   # List registered users
 pubky-node homeserver publish-pkarr           # Publish PKARR record for homeserver key
 pubky-node homeserver logs -n 100             # Tail homeserver logs
 
-## Tunnel (requires running node)
+## Homeserver Tunnel (requires running node)
 pubky-node tunnel status                      # Tunnel state + URL
 pubky-node tunnel start                       # Start Cloudflare quick-tunnel
 pubky-node tunnel stop                        # Stop quick-tunnel
 pubky-node tunnel check                       # Check cloudflared binary
 
+## Relay Tunnel (requires running node)
+pubky-node relay-tunnel status                # Relay tunnel state + URL
+pubky-node relay-tunnel start                 # Start relay tunnel
+pubky-node relay-tunnel stop                  # Stop relay tunnel
+
+## DNS Tunnel / DoH (requires running node)
+pubky-node dns-tunnel status                  # DNS tunnel state + DoH URL
+pubky-node dns-tunnel start                   # Start DNS-over-HTTPS tunnel
+pubky-node dns-tunnel stop                    # Stop DNS tunnel
+
+## Key Vault (requires running node)
+pubky-node vault status                       # Vault lock state
+pubky-node vault create --vault-password PWD  # Create new vault
+pubky-node vault unlock --vault-password PWD  # Unlock vault
+pubky-node vault lock                         # Lock vault
+pubky-node vault keys                         # List all keys
+pubky-node vault generate --label "My Key"    # Generate random keypair
+pubky-node vault add --secret HEX             # Add existing secret
+pubky-node vault export PUBKEY                # Export key secret
+pubky-node vault export-all                   # Export all keys as JSON
+pubky-node vault import keys.json             # Import keys from file
+pubky-node vault rename PUBKEY "New Label"    # Rename key
+pubky-node vault delete PUBKEY                # Delete key
+
+## Identity (requires running node)
+pubky-node identity list                      # List registered identities
+pubky-node identity signup --pubkey KEY       # Sign up on homeserver
+pubky-node identity signin --pubkey KEY       # Sign in (refresh session)
+
+## Profile (requires running node)
+pubky-node profile get PUBKEY                 # View profile
+pubky-node profile set PUBKEY --name "Name"   # Update profile
+pubky-node profile nexus PUBKEY               # Check Nexus indexing
+pubky-node profile verify PUBKEY              # Verify PKARR record
+
+## Backup &amp; Recovery (requires running node)
+pubky-node backup status                      # Backup status summary
+pubky-node backup start --pubkey KEY          # Start backing up an identity
+pubky-node backup stop --pubkey KEY           # Stop backing up an identity
+pubky-node backup sync-all                    # Force sync all backups now
+pubky-node backup snapshot                    # Create point-in-time snapshot
+pubky-node backup snapshots                   # List available snapshots
+pubky-node backup restore SNAPSHOT            # Restore from snapshot
+pubky-node backup delete-snapshot SNAPSHOT    # Delete a snapshot
+
+## Migration (requires running node)
+pubky-node migration preflight \              # Preflight check
+  --pubkey KEY --target URL
+pubky-node migration execute \                # Execute migration
+  --pubkey KEY --target URL
+pubky-node migration status                   # Check migration progress
+
 ## Node Control (requires running node)
 pubky-node node restart                       # Restart the node
-pubky-node node shutdown                      # Graceful shutdown</code></pre>
+pubky-node node shutdown                      # Graceful shutdown
+
+## Auth: All commands support --password or PUBKY_NODE_PASSWORD env var</code></pre>
                     </section>
                 </div>
             </div>
