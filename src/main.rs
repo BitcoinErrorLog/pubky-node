@@ -79,8 +79,31 @@ enum Commands {
     /// Manage the built-in homeserver on a running node
     Homeserver(cli::homeserver::HomeserverArgs),
 
-    /// Manage the Cloudflare quick-tunnel on a running node
+    /// Manage the Cloudflare quick-tunnel (homeserver) on a running node
     Tunnel(cli::tunnel::TunnelArgs),
+
+    /// Manage the encrypted key vault
+    Vault(cli::vault::VaultArgs),
+
+    /// Manage identities (signup, signin)
+    Identity(cli::identity::IdentityArgs),
+
+    /// Manage public profiles
+    Profile(cli::profile::ProfileArgs),
+
+    /// Manage data backup and snapshots
+    Backup(cli::backup::BackupArgs),
+
+    /// Manage homeserver migration
+    Migration(cli::migration::MigrationArgs),
+
+    /// Manage the relay Cloudflare tunnel
+    #[command(name = "relay-tunnel")]
+    RelayTunnel(cli::relay_tunnel::RelayTunnelArgs),
+
+    /// Manage the DNS (DoH) Cloudflare tunnel
+    #[command(name = "dns-tunnel")]
+    DnsTunnel(cli::dns_tunnel::DnsTunnelArgs),
 }
 
 #[derive(Parser, Debug)]
@@ -154,6 +177,13 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::Node(args)) => cli::node::execute(args).await,
         Some(Commands::Homeserver(args)) => cli::homeserver::execute(args).await,
         Some(Commands::Tunnel(args)) => cli::tunnel::execute(args).await,
+        Some(Commands::Vault(args)) => cli::vault::execute(args).await,
+        Some(Commands::Identity(args)) => cli::identity::execute(args).await,
+        Some(Commands::Profile(args)) => cli::profile::execute(args).await,
+        Some(Commands::Backup(args)) => cli::backup::execute(args).await,
+        Some(Commands::Migration(args)) => cli::migration::execute(args).await,
+        Some(Commands::RelayTunnel(args)) => cli::relay_tunnel::execute(args).await,
+        Some(Commands::DnsTunnel(args)) => cli::dns_tunnel::execute(args).await,
     }
 }
 

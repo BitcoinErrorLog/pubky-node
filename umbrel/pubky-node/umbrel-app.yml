@@ -2,23 +2,20 @@ manifestVersion: 1
 id: pubky-node
 category: networking
 name: Pubky Node
-version: "0.3.0"
+version: "0.3.1"
 tagline: Control your identity on the sovereign web
 description: >-
-  Take control of your identity, resolution, and reachability on the Pubky
-  network. Pubky Node joins the Mainline DHT — the largest P2P network on
-  Earth — and gives you encrypted key storage, PKARR DNS publishing,
-  sovereign domain resolution, and Cloudflare tunnel support.
+  Run your own sovereign node on the Pubky network. Pubky Node joins the
+  Mainline DHT — the largest P2P network on Earth — and bundles a full
+  homeserver, encrypted key vault, PKARR DNS publishing, sovereign domain
+  resolution, backup/recovery, and Cloudflare tunnel support.
 
 
-  No hosting required. Self-hosting capabilities coming soon.
-
-
-  Features include a web dashboard with Networks (real-time DHT monitoring,
-  UPnP status, Cloudflare tunnels), Keys (Ed25519 key vault with QR
-  import/export, identity watchlist, vanity key grinder), Explorer (look up
-  any public key's DNS records from the DHT), and a guided first-run
-  onboarding wizard.
+  Features: Homeserver with embedded PostgreSQL, DNS-over-HTTPS (DoH) via
+  PKDNS, identity signup, profile management, data backup with snapshots
+  and migration, three independent Cloudflare tunnels (homeserver, relay,
+  DNS), network explorer, PKARR publisher, vanity key generator, and a
+  guided first-run onboarding wizard.
 developer: Pubky
 website: https://pubky.org
 dependencies: []
@@ -33,10 +30,9 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v0.3.0: Architectural refactor — modular API handlers, unified router,
-  improved error handling. Added first-run onboarding wizard (vault + key
-  generation + DHT publish). Homeserver tab now shows "Coming Soon" overlay
-  with dev mode unlock (Ctrl+Shift+D). Updated UPnP guidance with
-  Cloudflare Tunnel fallback suggestion.
+  v0.3.1: DNS-over-HTTPS tunnel for PKDNS, auto-Nexus indexing check,
+  button consistency fixes, dashboard health row with 3 tunnel indicators
+  (HS, Relay, DNS). Fixed relay tunnel API URL mismatch. All sidecars
+  bundled (pubky-node, pkdns, homeserver, cloudflared).
 submitter: Pubky
 submission: ""
