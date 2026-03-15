@@ -57,6 +57,8 @@ pub struct DnsConfig {
     pub forward: String,
     /// Path to pkdns data directory.
     pub pkdns_dir: Option<PathBuf>,
+    /// Port for DNS-over-HTTPS HTTP server. Default: 8553.
+    pub doh_port: Option<u16>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -148,6 +150,7 @@ impl Default for DnsConfig {
             socket: "127.0.0.1:53".to_string(),
             forward: "8.8.8.8:53".to_string(),
             pkdns_dir: None,
+            doh_port: None,
         }
     }
 }

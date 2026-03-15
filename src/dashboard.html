@@ -186,6 +186,13 @@
                             <a href="#" id="dash-relay-tunnel-url" class="tunnel-url link" target="_blank" style="display:none"></a>
                         </span>
                     </div>
+                    <div class="health-group">
+                        <span class="health-label">DNS Tunnel</span>
+                        <span class="tunnel-status" id="dash-dns-tunnel">
+                            <span class="badge badge-sm" id="dash-dns-tunnel-badge">Stopped</span>
+                            <a href="#" id="dash-dns-tunnel-url" class="tunnel-url link" target="_blank" style="display:none"></a>
+                        </span>
+                    </div>
                 </div>
 
                 <div class="grid">
@@ -395,6 +402,35 @@
                                 <button class="btn-primary btn-sm" id="relay-tunnel-start-btn">▶ Start Relay
                                     Tunnel</button>
                                 <button class="btn-secondary btn-sm" id="relay-tunnel-stop-btn">■ Stop</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- DNS Tunnel (PKDNS DoH) -->
+                    <section class="card" id="dns-tunnel-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-blue">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="2" y="3" width="20" height="18" rx="2" />
+                                        <path d="M8 7h.01M12 7h.01M16 7h.01" />
+                                        <path d="M2 11h20" />
+                                        <path d="M7 15l2 2 4-4" />
+                                    </svg>
+                                </div>
+                                <h2>DNS Tunnel (DoH)</h2>
+                            </div>
+                            <span class="badge" id="dns-tunnel-badge">Stopped</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="hs-desc">Expose your PKDNS resolver publicly via DNS-over-HTTPS.
+                                Others can add your public URL as a DoH resolver to resolve <code>.pkarr</code> / <code>.key</code> domains.</p>
+                            <div id="dns-tunnel-url" class="hs-url-display"></div>
+                            <div class="hs-form-actions" style="margin-top:0;">
+                                <button class="btn-primary btn-sm" id="dns-tunnel-start-btn">▶ Start DNS
+                                    Tunnel</button>
+                                <button class="btn-secondary btn-sm" id="dns-tunnel-stop-btn">■ Stop</button>
                             </div>
                         </div>
                     </section>
@@ -1076,7 +1112,7 @@
                                 <span class="kv-key">Backup Dir</span>
                                 <span class="kv-val mono" id="backup-dir-display" style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;max-width:180px;color:#8b5cf6;text-decoration:underline;cursor:pointer;" title="Click to open in Finder">—</span>
                             </div>
-                            <button class="btn-sm btn-primary" id="backup-sync-all-btn" style="margin-top:12px;width:100%;">⟳ Sync All Now</button>
+                            <button class="btn-sm btn-primary" id="backup-sync-all-btn" style="margin-top:12px;">⟳ Sync All Now</button>
                         </div>
                     </section>
 
@@ -1123,7 +1159,7 @@
                         </div>
                         <div class="card-body">
                             <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:12px;">Create point-in-time snapshots of your backup data. Use snapshots to protect against account compromise — you can restore to any previous state.</p>
-                            <button class="btn-sm btn-primary" id="snapshot-create-btn" style="width:100%;margin-bottom:12px;">📸 Create Snapshot</button>
+                            <button class="btn-sm btn-primary" id="snapshot-create-btn" style="margin-bottom:12px;">📸 Create Snapshot</button>
                             <div id="snapshot-list" style="display:flex;flex-direction:column;gap:8px;"></div>
                             <p class="backup-empty" id="snapshot-empty" style="display:none;">No snapshots yet. Create one to protect your data.</p>
                         </div>
@@ -1176,7 +1212,7 @@
                             </label>
                             <!-- Buttons -->
                             <div style="display:flex;gap:8px;margin-top:4px;">
-                                <button class="btn-sm btn-primary" id="migration-preflight-btn" style="flex:1;">🔍 Preflight Check</button>
+                                <button class="btn-sm btn-primary" id="migration-preflight-btn">🔍 Preflight Check</button>
                                 <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>🚀 Execute Migration</button>
                             </div>
                             <!-- Preflight results -->
@@ -1677,7 +1713,7 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                                     <input type="password" id="settings-confirm-pw" placeholder="Confirm new password"
                                         autocomplete="new-password">
                                 </div>
-                                <button class="btn-primary" id="settings-change-pw-btn">🔄 Change Password</button>
+                                <button class="btn-primary btn-sm" id="settings-change-pw-btn">🔄 Change Password</button>
                                 <div id="settings-pw-feedback" class="settings-feedback"></div>
                             </div>
                         </div>

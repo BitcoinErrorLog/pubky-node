@@ -103,6 +103,9 @@ pub fn build_router(
         .route("/api/relay-tunnel/status", get(tunnel::api_relay_tunnel_status))
         .route("/api/relay-tunnel/start", post(tunnel::api_relay_tunnel_start))
         .route("/api/relay-tunnel/stop", post(tunnel::api_relay_tunnel_stop))
+        .route("/api/dns-tunnel/status", get(tunnel::api_dns_tunnel_status))
+        .route("/api/dns-tunnel/start", post(tunnel::api_dns_tunnel_start))
+        .route("/api/dns-tunnel/stop", post(tunnel::api_dns_tunnel_stop))
         .route("/api/logs/stream", get(tunnel::api_logs_stream))
         // Network / Status / DNS
         .route("/api/status", get(network::api_status))

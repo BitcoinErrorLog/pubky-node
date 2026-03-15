@@ -44,6 +44,10 @@ pub struct DashboardState {
     pub tunnel: TunnelManager,
     /// Cloudflare tunnel manager (relay HTTP API).
     pub relay_tunnel: TunnelManager,
+    /// Cloudflare tunnel manager (PKDNS DoH HTTP API).
+    pub dns_tunnel: TunnelManager,
+    /// Port for DNS-over-HTTPS HTTP server.
+    pub doh_port: u16,
     /// Identity manager (signup/signin tracking).
     pub identity: IdentityManager,
     /// Backup manager for pubky data backup.
@@ -86,6 +90,8 @@ impl DashboardState {
         let homeserver = HomeserverManager::new(&data_dir);
         let tunnel = TunnelManager::new(homeserver.get_config().drive_icann_port);
         let relay_tunnel = TunnelManager::new(relay_port);
+        let doh_port = 8553u16;
+        let dns_tunnel = TunnelManager::new(doh_port);
         let identity = IdentityManager::new(&data_dir);
         let mut backup = crate::backup::BackupManager::new(&data_dir);
         if let Some(ref c) = client {
@@ -113,6 +119,8 @@ impl DashboardState {
             homeserver,
             tunnel,
             relay_tunnel,
+            dns_tunnel,
+            doh_port,
             identity,
             backup,
             migration_state: crate::migration::new_shared_state(),

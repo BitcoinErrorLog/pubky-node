@@ -2030,6 +2030,7 @@
                     }
                     loadHsStats();
                     loadHsTunnelStatus();
+                    loadHsNexusStatus();
                 } else {
                     info.style.display = 'none';
                     startBtn.style.display = 'inline-flex';
@@ -2059,6 +2060,24 @@
                 }
             } catch (e) {
                 tunnelEl.textContent = '—';
+            }
+        }
+
+        // Auto-check Nexus indexing status for the HS pubkey
+        async function loadHsNexusStatus() {
+            var nexusEl = document.getElementById('hs-nexus-status');
+            if (!nexusEl || !_hsServerPubkey) return;
+            try {
+                var res = await authFetch('/api/profile/' + encodeURIComponent(_hsServerPubkey) + '/nexus');
+                var data = await res.json();
+                var prod = data.production || {};
+                if (prod.indexed) {
+                    nexusEl.innerHTML = '<span style="color:#4ade80;">✅ Indexed</span>';
+                } else {
+                    nexusEl.innerHTML = '<span style="color:#f59e0b;">⚠️ Not indexed</span>';
+                }
+            } catch (e) {
+                nexusEl.textContent = '—';
             }
         }
 
@@ -3040,6 +3059,63 @@
             });
         }
 
+        // ─── DNS Tunnel (DoH) ────────────────────────────
+        var dnsTunnelBadge = document.getElementById('dns-tunnel-badge');
+        var dnsTunnelUrl = document.getElementById('dns-tunnel-url');
+        var dnsTunnelStartBtn = document.getElementById('dns-tunnel-start-btn');
+        var dnsTunnelStopBtn = document.getElementById('dns-tunnel-stop-btn');
+
+        async function dnsTunnelRefresh() {
+            try {
+                var res = await authFetch('/api/dns-tunnel/status');
+                var data = await res.json();
+                var st = data.state || 'stopped';
+                if (dnsTunnelBadge) {
+                    dnsTunnelBadge.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+                    dnsTunnelBadge.className = 'badge' + (st === 'running' ? ' badge-active' : st === 'starting' ? ' badge-warning' : '');
+                }
+                if (dnsTunnelUrl) {
+                    if (data.public_url) {
+                        dnsTunnelUrl.style.display = '';
+                        dnsTunnelUrl.innerHTML = '🌐 <a href="' + data.public_url + '/dns-query" target="_blank" rel="noopener" style="color:var(--primary);">' + data.public_url + '/dns-query</a>';
+                    } else {
+                        dnsTunnelUrl.style.display = 'none';
+                    }
+                }
+                if (dnsTunnelStartBtn) {
+                    if (!data.binary_available) {
+                        dnsTunnelStartBtn.disabled = true;
+                        dnsTunnelStartBtn.title = 'cloudflared binary not found';
+                    } else {
+                        dnsTunnelStartBtn.disabled = (st === 'running' || st === 'starting');
+                        dnsTunnelStartBtn.title = '';
+                    }
+                }
+                if (dnsTunnelStopBtn) dnsTunnelStopBtn.disabled = (st === 'stopped');
+            } catch (e) { console.error('dns tunnel status:', e); }
+        }
+
+        if (dnsTunnelStartBtn) {
+            dnsTunnelStartBtn.addEventListener('click', async function () {
+                dnsTunnelStartBtn.disabled = true;
+                if (dnsTunnelBadge) dnsTunnelBadge.textContent = 'Starting…';
+                try {
+                    await authFetch('/api/dns-tunnel/start', { method: 'POST' });
+                    setTimeout(dnsTunnelRefresh, 3000);
+                    setTimeout(dnsTunnelRefresh, 8000);
+                } catch (e) { console.error(e); dnsTunnelRefresh(); }
+            });
+        }
+        if (dnsTunnelStopBtn) {
+            dnsTunnelStopBtn.addEventListener('click', async function () {
+                dnsTunnelStopBtn.disabled = true;
+                try {
+                    await authFetch('/api/dns-tunnel/stop', { method: 'POST' });
+                    setTimeout(dnsTunnelRefresh, 1000);
+                } catch (e) { console.error(e); dnsTunnelRefresh(); }
+            });
+        }
+
         // ─── Identity Signup ─────────────────────────────
         var identityKeySelect = document.getElementById('hs-identity-key-select');
         var identityToken = document.getElementById('hs-identity-token');
@@ -3442,7 +3518,7 @@
             } catch (e) { /* ignore */ }
             try {
                 // Relay Tunnel
-                var rlRes = await authFetch('/api/tunnel/relay/status');
+                var rlRes = await authFetch('/api/relay-tunnel/status');
                 var rlData = await rlRes.json();
                 var rlBadge = document.getElementById('dash-relay-tunnel-badge');
                 var rlUrl = document.getElementById('dash-relay-tunnel-url');
@@ -3468,6 +3544,34 @@
                     }
                 }
             } catch (e) { /* ignore */ }
+            try {
+                // DNS Tunnel (DoH)
+                var dnsRes = await authFetch('/api/dns-tunnel/status');
+                var dnsData = await dnsRes.json();
+                var dnsBadge = document.getElementById('dash-dns-tunnel-badge');
+                var dnsUrl = document.getElementById('dash-dns-tunnel-url');
+                if (dnsBadge) {
+                    if (dnsData.state === 'running') {
+                        dnsBadge.textContent = 'Running';
+                        dnsBadge.className = 'badge badge-sm badge-success';
+                    } else if (dnsData.state === 'starting') {
+                        dnsBadge.textContent = 'Starting…';
+                        dnsBadge.className = 'badge badge-sm';
+                    } else {
+                        dnsBadge.textContent = 'Stopped';
+                        dnsBadge.className = 'badge badge-sm badge-stopped';
+                    }
+                }
+                if (dnsUrl) {
+                    if (dnsData.public_url) {
+                        dnsUrl.href = dnsData.public_url + '/dns-query';
+                        dnsUrl.textContent = dnsData.public_url.replace('https://', '') + '/dns-query';
+                        dnsUrl.style.display = '';
+                    } else {
+                        dnsUrl.style.display = 'none';
+                    }
+                }
+            } catch (e) { /* ignore */ }
         }
 
         // Check on Networks tab visit
@@ -3475,6 +3579,7 @@
             t.addEventListener('click', function () {
                 if (t.dataset.tab === 'networks') {
                     checkReachability();
+                    dnsTunnelRefresh();
                 }
                 // Also update dashboard tunnels when visiting Dashboard tab
                 if (t.dataset.tab === 'dashboard') {

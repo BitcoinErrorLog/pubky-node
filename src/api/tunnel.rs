@@ -117,6 +117,42 @@ pub async fn api_relay_tunnel_stop(
     Json(serde_json::json!({ "success": true }))
 }
 
+// ─── DNS Tunnel (PKDNS DoH) ──────────────────────────────────
+
+/// GET /api/dns-tunnel/status
+pub async fn api_dns_tunnel_status(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.dns_tunnel.check_process();
+    let tunnel_state = state.dns_tunnel.state();
+    Json(serde_json::json!({
+        "state": tunnel_state.as_str(),
+        "error": if let crate::tunnel::TunnelState::Error(ref e) = tunnel_state { Some(e.as_str()) } else { None::<&str> },
+        "public_url": state.dns_tunnel.public_url(),
+        "doh_port": state.doh_port,
+    }))
+}
+
+/// POST /api/dns-tunnel/start
+pub async fn api_dns_tunnel_start(
+    State(state): State<Arc<DashboardState>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match state.dns_tunnel.start() {
+        Ok(()) => {
+            (StatusCode::OK, Json(serde_json::json!({ "success": true, "message": "DNS tunnel starting..." })))
+        }
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))),
+    }
+}
+
+/// POST /api/dns-tunnel/stop
+pub async fn api_dns_tunnel_stop(
+    State(state): State<Arc<DashboardState>>,
+) -> Json<serde_json::Value> {
+    state.dns_tunnel.stop();
+    Json(serde_json::json!({ "success": true }))
+}
+
 /// GET /api/logs/stream — Server-Sent Events stream of homeserver stdout.
 pub async fn api_logs_stream(
     State(state): State<Arc<DashboardState>>,
