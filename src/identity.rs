@@ -215,19 +215,13 @@ fn decode_keypair(secret_hex: &str) -> Result<pkarr::Keypair, String> {
 /// 
 /// This is a minimal implementation matching the SDK's root AuthToken.
 fn build_auth_token(keypair: &pkarr::Keypair) -> Result<Vec<u8>, String> {
-    let version: u8 = 0;
-    let caps_bytes: &[u8] = &[];
-
-    let mut to_sign = Vec::new();
-    to_sign.push(version);
-    to_sign.extend_from_slice(caps_bytes);
-
-    let signature = keypair.sign(&to_sign);
-    let sig_bytes = signature.to_bytes();
-
-    let mut token = to_sign;
-    token.extend_from_slice(&sig_bytes);
-    Ok(token)
+    // Convert our pkarr::Keypair to pubky_common::crypto::Keypair (may be different pkarr version)
+    let secret_bytes = keypair.secret_key();
+    let common_kp = pubky_common::crypto::Keypair::from_secret_key(&secret_bytes);
+    // Use the proper pubky_common AuthToken format with root capabilities for full access
+    let caps = vec![pubky_common::capabilities::Capability::root()];
+    let token = pubky_common::auth::AuthToken::sign(&common_kp, caps);
+    Ok(token.serialize())
 }
 
 /// Simple percent-encoding for signup token in URL query.

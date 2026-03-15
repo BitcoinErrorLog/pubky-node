@@ -2,24 +2,23 @@ manifestVersion: 1
 id: pubky-node
 category: networking
 name: Pubky Node
-version: "0.2.0"
-tagline: Sovereign identity infrastructure for the Pubky network
+version: "0.3.0"
+tagline: Control your identity on the sovereign web
 description: >-
-  Run a full Pubky network node on your Umbrel. Pubky Node participates in the
-  Mainline DHT — the largest P2P network on Earth with millions of nodes — and
-  runs a Pkarr relay for publishing and resolving decentralized DNS records.
+  Take control of your identity, resolution, and reachability on the Pubky
+  network. Pubky Node joins the Mainline DHT — the largest P2P network on
+  Earth — and gives you encrypted key storage, PKARR DNS publishing,
+  sovereign domain resolution, and Cloudflare tunnel support.
 
 
-  Your node automatically attempts UPnP port forwarding for full DHT participation.
-  If your router supports UPnP, no manual configuration is needed. Otherwise, the
-  node runs in client mode which still supports all features.
+  No hosting required. Self-hosting capabilities coming soon.
 
 
-  Features include a web dashboard with four tabs: Networks (real-time monitoring),
-  Keys (Ed25519 key vault with QR import/export, identity watchlist, vanity key
-  grinder), Homeserver (built-in Pubky homeserver with PostgreSQL backend, user
-  management, Cloudflare tunnel, and admin API), and Explorer (look up any public
-  key's DNS records from the DHT).
+  Features include a web dashboard with Networks (real-time DHT monitoring,
+  UPnP status, Cloudflare tunnels), Keys (Ed25519 key vault with QR
+  import/export, identity watchlist, vanity key grinder), Explorer (look up
+  any public key's DNS records from the DHT), and a guided first-run
+  onboarding wizard.
 developer: Pubky
 website: https://pubky.org
 dependencies: []
@@ -34,9 +33,10 @@ path: ""
 defaultUsername: ""
 defaultPassword: ""
 releaseNotes: >-
-  v0.2.0: Added built-in Homeserver with PostgreSQL backend, user management,
-  Cloudflare quick-tunnel support, and admin API. Added Keys Vault with Ed25519
-  keypair management, QR code import/export, and ring signatures. Dashboard
-  redesigned with Networks/Keys/Homeserver/Explorer tab layout.
+  v0.3.0: Architectural refactor — modular API handlers, unified router,
+  improved error handling. Added first-run onboarding wizard (vault + key
+  generation + DHT publish). Homeserver tab now shows "Coming Soon" overlay
+  with dev mode unlock (Ctrl+Shift+D). Updated UPnP guidance with
+  Cloudflare Tunnel fallback suggestion.
 submitter: Pubky
 submission: ""

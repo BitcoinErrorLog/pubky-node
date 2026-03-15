@@ -116,3 +116,29 @@ fi
 echo ""
 echo "Sidecar binaries ready in $BINARIES_DIR/"
 ls -lh "$BINARIES_DIR/"
+
+# ─── Release build verification ────────────────────────────────
+if [[ "$PROFILE" == "release" ]]; then
+    echo ""
+    echo "Verifying release build completeness..."
+    MISSING=0
+    for NAME in pubky-node pkdns pubky-homeserver cloudflared; do
+        BIN="$BINARIES_DIR/${NAME}-${TARGET}${EXT}"
+        if [ -f "$BIN" ]; then
+            echo "  ✅ $NAME"
+        else
+            echo "  ❌ $NAME — MISSING at $BIN"
+            MISSING=$((MISSING + 1))
+        fi
+    done
+
+    if [ $MISSING -gt 0 ]; then
+        echo ""
+        echo "ERROR: $MISSING sidecar(s) missing for release build."
+        echo "All 4 binaries are required for a complete release."
+        echo "Ensure sibling repos (pubky-core, pkdns) are available."
+        exit 1
+    fi
+    echo ""
+    echo "✅ All 4 sidecars bundled — release ready."
+fi

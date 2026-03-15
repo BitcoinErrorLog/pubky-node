@@ -29,7 +29,25 @@ impl EmbeddedPg {
     pub async fn start(data_dir: &Path) -> Result<Self, String> {
         let pg_dir = data_dir.join("pg");
 
-        tracing::info!("Starting embedded PostgreSQL (data: {})", pg_dir.display());
+        let pg_data_dir = pg_dir.join("data");
+        let pg_password_file = pg_dir.join(".pgpass");
+
+        // If password file exists, read the saved password; otherwise generate a new one
+        // and save it. This ensures the same password is used across restarts.
+        let password = if pg_password_file.exists() {
+            std::fs::read_to_string(&pg_password_file)
+                .unwrap_or_else(|_| Self::generate_password())
+        } else {
+            let pwd = Self::generate_password();
+            // Ensure parent directory exists
+            if let Some(parent) = pg_password_file.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&pg_password_file, &pwd);
+            pwd
+        };
+
+        tracing::info!("Starting embedded PostgreSQL (data: {})", pg_data_dir.display());
 
         let settings = postgresql_embedded::Settings {
             version: postgresql_embedded::VersionReq::from_str("=17.4.0")
@@ -37,6 +55,10 @@ impl EmbeddedPg {
             port: EMBEDDED_PG_PORT,
             temporary: false,
             installation_dir: pg_dir,
+            data_dir: pg_data_dir,
+            password_file: pg_password_file,
+            password,
+            host: "127.0.0.1".to_string(),
             ..Default::default()
         };
 
@@ -70,9 +92,21 @@ impl EmbeddedPg {
         Ok(EmbeddedPg { pg })
     }
 
+    /// Generate a random 16-character alphanumeric password.
+    fn generate_password() -> String {
+        use rand::Rng;
+        use rand::distributions::Alphanumeric;
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(16)
+            .map(char::from)
+            .collect()
+    }
+
     /// Get the PostgreSQL connection URL.
+    /// Uses the crate's built-in url() which includes the correct username and password.
     pub fn connection_url(&self) -> String {
-        format!("postgres://127.0.0.1:{}/{}", EMBEDDED_PG_PORT, DB_NAME)
+        self.pg.settings().url(DB_NAME)
     }
 
     /// Stop the embedded PostgreSQL server.

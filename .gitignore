@@ -26,3 +26,4 @@
 secret_key*
 src-tauri/target
 src-tauri/binaries/
+.dev-secrets

@@ -13,7 +13,9 @@ One-click deployment of Pubky Node on [Umbrel](https://umbrel.com).
 | **UPnP Auto-Config** | Automatically opens ports on your router for full DHT participation |
 | **DNS Publisher** | Sign and publish DNS records with Ed25519 keys |
 | **Keys Vault** | Manage Ed25519 keypairs with QR import/export |
-| **Homeserver** | Built-in Pubky homeserver with user management and admin API |
+| **Homeserver** | Built-in Pubky homeserver with embedded PostgreSQL, user management, and admin API |
+| **Cloudflare Tunnels** | Zero-config internet exposure for homeserver and relay via quick-tunnels |
+| **Identity Manager** | Sign up vault keys on local homeserver using EdDSA AuthToken |
 
 ## Quick Start
 
@@ -101,7 +103,10 @@ All data is stored in `${APP_DATA_DIR}/data/`:
 | Path | Contents |
 |------|----------|
 | `config.toml` | User configuration (created on demand) |
+| `keyvault.enc` | Encrypted key vault (argon2id + ChaCha20-Poly1305) |
 | `pkarr-cache/` | LMDB cache for signed packets |
+| `pg/` | Embedded PostgreSQL data directory |
+| `homeserver/` | Homeserver configuration and data |
 | `pkdns/` | DNS resolver cache (if enabled) |
 
 ## Building from Source

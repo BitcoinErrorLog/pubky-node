@@ -9,12 +9,17 @@ Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-status.png" width="100%" alt="Networks Dashboard — real-time monitoring of DHT, relay, UPnP, and watchlist">
+  <img src="docs/screenshots/dashboard-status.png" width="100%" alt="Networks tab — DHT, relay, UPnP, tunnels, proxy, and DNS status">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-explorer.png" width="49%" alt="Key Explorer — look up any public key's DNS records from the DHT">
-  <img src="docs/screenshots/dashboard-guide.png" width="49%" alt="User Guide — built-in docs, DNS setup, and configuration reference">
+  <img src="docs/screenshots/dashboard-keys.png" width="49%" alt="Keys tab — vault, watchlist, PKARR publisher, and vanity key generator">
+  <img src="docs/screenshots/dashboard-homeserver.png" width="49%" alt="Homeserver tab — embedded PostgreSQL, server control, users, and config">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-explorer.png" width="49%" alt="Explorer tab — look up any public key's DNS records from the DHT">
+  <img src="docs/screenshots/dashboard-guide.png" width="49%" alt="Guide tab — built-in docs, DNS setup, and configuration reference">
 </p>
 
 ## Features
@@ -29,9 +34,12 @@ Pubky Node bundles the core Pubky infrastructure — a **Mainline DHT node**, a 
 | **Identity Watchlist** | Monitors and republishes Pkarr records to keep identities alive |
 | **Vanity Key Generator** | Multi-threaded brute-force z-base-32 prefix/suffix key grinder |
 | **Key Explorer** | Look up any public key and inspect its DNS records |
-| **Keys Vault** | Manage Ed25519 keypairs, import/export with QR codes, and ring signatures |
-| **Homeserver** | Built-in Pubky homeserver with PostgreSQL backend, user management, Cloudflare tunnel support, and admin API |
-| **Web Dashboard** | Live monitoring UI at `http://localhost:9090/` |
+| **Key Vault** | Encrypted key storage (argon2id + ChaCha20-Poly1305) with import/export and Pubky Ring QR codes |
+| **Homeserver** | Built-in Pubky homeserver with embedded PostgreSQL, user management, and admin API |
+| **Embedded PostgreSQL** | Zero-dependency database bundled at compile time — auto-extracts on first run |
+| **Identity Manager** | Sign up vault keys on local homeserver using EdDSA AuthToken protocol |
+| **Cloudflare Tunnels** | Zero-config internet exposure via `cloudflared` quick-tunnels (homeserver + relay) |
+| **Web Dashboard** | Live monitoring UI at `http://localhost:9090/` with 5 tabs |
 | **UPnP Auto-Config** | Automatically opens router ports for full DHT participation |
 | **Desktop App** | Native macOS, Windows, and Linux app with system tray |
 
@@ -197,11 +205,11 @@ ttl = 3600
 
 ## Web Dashboard
 
-The dashboard provides a live monitoring UI and tools across four tabs:
+The dashboard provides a live monitoring UI and tools across five tabs:
 
-- **Networks** — DHT node stats, Pkarr relay info, UPnP status, HTTP proxy, and DNS resolver
-- **Keys** — Identity watchlist, vanity key generator, and key vault (create/import/export Ed25519 keypairs with QR codes)
-- **Homeserver** — Built-in Pubky homeserver management: prerequisites check, server control, configuration, user management, PKARR publishing, Cloudflare tunnel, and log stream
+- **Networks** — DHT node stats, Pkarr relay info, UPnP status, PKDNS resolver, HTTP proxy, and Cloudflare tunnels (homeserver + relay)
+- **Keys** — Key vault (encrypted storage with import/export/QR), PKARR publisher, identity watchlist, and vanity key generator
+- **Homeserver** — Prerequisites check, server control (start/stop with SSE logs), user management, invite tokens, config editor, identity signup, and PKARR publishing
 - **Explorer** — Paste any 52-character z-base-32 public key to look up its DHT DNS records
 
 The **Guide** (📖) and **Settings** (⚙) buttons are in the top-right corner of the header.
@@ -210,17 +218,61 @@ The **Guide** (📖) and **Settings** (⚙) buttons are in the top-right corner 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/status` | Node status JSON (uptime, DHT, watchlist, UPnP, proxy) |
+| `GET` | `/api/status` | Node status JSON (uptime, DHT, watchlist, UPnP, DNS, proxy) |
 | `GET` | `/api/resolve/{public_key}` | Resolve a pkarr key and return DNS records |
+| `POST` | `/api/publish` | Sign and publish DNS records to the DHT |
+| `GET` | `/health` | Health check (returns "ok") |
+| | | |
+| `POST` | `/api/vault/create` | Create a new encrypted vault |
+| `POST` | `/api/vault/unlock` | Unlock the vault with password |
+| `POST` | `/api/vault/lock` | Lock the vault |
+| `GET` | `/api/vault/keys` | List keys in the vault |
+| `POST` | `/api/vault/keys` | Add a key to the vault |
+| `DELETE` | `/api/vault/keys/{pubkey}` | Delete a key from the vault |
+| `POST` | `/api/vault/keys/{pubkey}/rename` | Rename a vault key |
+| `GET` | `/api/vault/keys/{pubkey}/export` | Export a key's secret |
+| `GET` | `/api/vault/export-all` | Export all keys (backup) |
+| `POST` | `/api/vault/import` | Import keys from backup |
+| | | |
+| `POST` | `/api/identity/signup` | Sign up a vault key on homeserver |
+| `POST` | `/api/identity/signin` | Sign in with existing keypair |
+| `GET` | `/api/identity/list` | List registered identities |
+| | | |
 | `POST` | `/api/watchlist` | Add a key to the identity watchlist |
 | `DELETE` | `/api/watchlist/{key}` | Remove a key from the watchlist |
+| `GET` | `/api/watchlist` | List watchlist keys |
+| | | |
+| `GET` | `/api/tunnel/status` | Homeserver tunnel state + URL |
+| `POST` | `/api/tunnel/start` | Start homeserver quick-tunnel |
+| `POST` | `/api/tunnel/stop` | Stop homeserver quick-tunnel |
+| `GET` | `/api/tunnel/check` | Check cloudflared binary |
+| `GET` | `/api/relay-tunnel/status` | Relay tunnel state + URL |
+| `POST` | `/api/relay-tunnel/start` | Start relay quick-tunnel |
+| `POST` | `/api/relay-tunnel/stop` | Stop relay quick-tunnel |
+| | | |
+| `GET` | `/api/homeserver/status` | Homeserver state, PID, ports |
+| `POST` | `/api/homeserver/start` | Start homeserver process |
+| `POST` | `/api/homeserver/stop` | Stop homeserver process |
+| `GET` | `/api/homeserver/check` | Prerequisites check |
+| `POST` | `/api/homeserver/fix` | Auto-fix prerequisites |
+| `GET` | `/api/homeserver/config` | Read homeserver config |
+| `POST` | `/api/homeserver/config` | Write homeserver config |
+| `GET` | `/api/homeserver/users` | List homeserver users |
+| `POST` | `/api/homeserver/token` | Generate signup invite token |
+| `POST` | `/api/homeserver/publish-pkarr` | Publish PKARR record |
+| `GET` | `/api/logs/stream` | SSE stream of homeserver stdout |
+| | | |
 | `POST` | `/api/keys/vanity/start` | Start vanity key generation |
 | `GET` | `/api/keys/vanity/status` | Poll vanity grinder status |
 | `POST` | `/api/keys/vanity/stop` | Stop vanity key generation |
+| `POST` | `/api/dns/toggle` | Toggle PKDNS enabled/disabled |
+| `POST` | `/api/dns/set-system` | Set macOS system DNS to local |
+| `POST` | `/api/dns/reset-system` | Reset macOS system DNS |
 | `POST` | `/api/proxy/setup-hosts` | Configure /etc/hosts for proxy |
 | `POST` | `/api/proxy/reset-hosts` | Remove proxy entries from /etc/hosts |
 | `GET` | `/api/proxy/hosts-status` | Check if /etc/hosts is configured |
-| `GET` | `/health` | Health check (returns "ok") |
+| `POST` | `/api/shutdown` | Shutdown the node process |
+| `POST` | `/api/restart` | Restart the node process |
 
 ## UPnP Auto-Port-Forwarding
 
@@ -258,13 +310,26 @@ pubky-node (supervisor)
 ├── watchlist (async task)
 │   └── periodic resolve + republish via pkarr::Client
 ├── homeserver (subprocess / managed process)
-│   └── Pubky homeserver with PostgreSQL, admin API, user mgmt
+│   ├── embedded PostgreSQL (port 5433, auto-managed)
+│   ├── admin API proxy (users, tokens, config)
+│   └── PKARR record auto-publisher
+├── key-vault (encrypted file: keyvault.enc)
+│   └── argon2id + ChaCha20-Poly1305 AEAD
+├── identity-manager
+│   └── EdDSA AuthToken signup/signin on homeserver
+├── tunnel-manager (cloudflared subprocesses)
+│   ├── homeserver tunnel (ICANN endpoint)
+│   └── relay tunnel (Pkarr HTTP API)
 ├── http-proxy (axum, port 9091)
 │   └── .pkarr/.key/.pubky profile rendering
 └── dashboard (axum HTTP server, port 9090)
     ├── /health — container healthcheck
     ├── /api/status — node monitoring JSON
-    ├── /api/resolve/:key — key explorer API
+    ├── /api/resolve/:key — key explorer
+    ├── /api/vault/* — encrypted key management
+    ├── /api/identity/* — signup/signin
+    ├── /api/homeserver/* — process control + admin
+    ├── /api/tunnel/* — cloudflare tunnels
     ├── /api/keys/vanity/* — vanity key grinder
     ├── /api/proxy/* — /etc/hosts management
     └── embedded HTML/CSS/JS UI

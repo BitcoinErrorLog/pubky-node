@@ -18,12 +18,11 @@
         <!-- Ambient glow -->
         <div class="ambient-glow"></div>
 
-        <header class="header">
-            <div class="header-left">
+        <aside class="sidebar">
+            <div class="sidebar-header">
                 <div class="logo">
-                    <svg class="logo-svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
-                        <path d="M16 2L28.66 10v12L16 30 3.34 22V10L16 2z" stroke="url(#logo-grad)" stroke-width="2"
-                            fill="none" />
+                    <svg class="logo-svg" width="28" height="28" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 2L28.66 10v12L16 30 3.34 22V10L16 2z" stroke="url(#logo-grad)" stroke-width="2" fill="none" />
                         <circle cx="16" cy="16" r="5" fill="url(#logo-grad)" opacity="0.6" />
                         <circle cx="16" cy="16" r="2" fill="url(#logo-grad)" />
                         <defs>
@@ -35,60 +34,133 @@
                     </svg>
                     <span class="logo-text">Pubky Node</span>
                 </div>
-                <span class="version-pill" id="version">v0.0.0</span>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <span class="version-pill" id="version">v0.0.0</span>
+                    <span class="dev-badge" id="dev-badge" style="display:none;">DEV</span>
+                </div>
             </div>
-            <div class="header-right">
-                <nav class="tabs" id="nav-tabs">
-                    <button class="tab active" data-tab="status">Networks</button>
-                    <button class="tab" data-tab="keys">Keys</button>
-                    <button class="tab" data-tab="homeserver">Homeserver</button>
-                    <button class="tab" data-tab="explorer">Explorer</button>
-                </nav>
+
+            <nav class="sidebar-nav" id="nav-tabs">
+                <!-- Overview -->
+                <div class="nav-section">
+                    <div class="nav-label">OVERVIEW</div>
+                    <button class="nav-item active" data-tab="dashboard">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Dashboard
+                    </button>
+                </div>
+
+                <!-- My Identity -->
+                <div class="nav-section">
+                    <div class="nav-label">MY IDENTITY</div>
+                    <button class="nav-item" data-tab="vault">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Key Vault
+                    </button>
+                    <button class="nav-item" data-tab="profile">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        Profile
+                    </button>
+                </div>
+
+                <!-- My Homeserver -->
+                <div class="nav-section">
+                    <div class="nav-label">MY HOMESERVER</div>
+                    <button class="nav-item" data-tab="homeserver">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                        Server Dashboard
+                    </button>
+                </div>
+
+                <!-- Node & Network -->
+                <div class="nav-section">
+                    <div class="nav-label">NODE & NETWORK</div>
+                    <button class="nav-item" data-tab="network">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                        Network Status
+                    </button>
+                </div>
+
+                <!-- Tools -->
+                <div class="nav-section">
+                    <div class="nav-label">TOOLS</div>
+                    <button class="nav-item" data-tab="explorer">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        Network Explorer
+                    </button>
+                    <button class="nav-item" data-tab="publisher">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        PKARR Publisher
+                    </button>
+                    <button class="nav-item" data-tab="vanity">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        Vanity Key Gen
+                    </button>
+                </div>
+
+                <!-- System -->
+                <div class="nav-section">
+                    <div class="nav-label">SYSTEM</div>
+                    <button class="nav-item" data-tab="recovery">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                        Recovery
+                    </button>
+                    <button class="nav-item" data-tab="guide" id="guide-icon-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        Guide
+                    </button>
+                    <button class="nav-item" data-tab="settings" id="settings-icon-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        Settings
+                    </button>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="vault-widget" id="sidebar-vault-widget" title="Vault Status">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sidebar-vault-icon">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span id="sidebar-vault-text">Checking Vault...</span>
+                </button>
+
                 <div class="status-indicator" id="connection-status">
                     <span class="status-dot"></span>
-                    <span class="status-label">Connecting...</span>
-                    <span class="header-uptime" id="header-uptime"></span>
-                </div>
-                <div class="node-controls">
-                    <!-- Guide icon -->
-                    <button class="btn-icon" data-tab="guide" title="Guide" id="guide-icon-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                            <line x1="12" y1="17" x2="12.01" y2="17" />
-                        </svg>
-                    </button>
-                    <!-- Settings icon -->
-                    <button class="btn-icon" data-tab="settings" title="Settings" id="settings-icon-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="3" />
-                            <path
-                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                        </svg>
-                    </button>
-                    <button id="node-restart-btn" class="btn-icon" title="Restart Node">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="23 4 23 10 17 10" />
-                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                        </svg>
-                    </button>
-                    <button id="node-shutdown-btn" class="btn-icon" title="Shutdown Node">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                            <line x1="12" y1="2" x2="12" y2="12" />
-                        </svg>
-                    </button>
+                    <span class="status-label">Connecting…</span>
                 </div>
             </div>
-        </header>
+        </aside>
 
+        <div class="main-wrapper">
         <main class="main">
-            <!-- ===== STATUS TAB ===== -->
-            <div class="tab-content active" id="tab-status">
+            <!-- ===== OVERVIEW / DASHBOARD TAB ===== -->
+            <div class="tab-content active" id="tab-dashboard">
+                <!-- Stats Row -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="header-uptime">--</span>
+                            <span class="stat-label">Uptime</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🌐</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="dash-dht-size">--</span>
+                            <span class="stat-label">DHT Network</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏠</div>
+                        <div class="stat-data">
+                            <span class="stat-value" id="dash-hs-status">--</span>
+                            <span class="stat-label">Homeserver</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid">
                     <!-- DHT Panel -->
                     <section class="card" id="dht-panel">
@@ -127,6 +199,14 @@
                             <div class="kv-row">
                                 <span class="kv-key">Network Size</span>
                                 <span class="kv-val" id="rt-detail">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Routing Table</span>
+                                <span class="kv-val" id="routing-table-size">--</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Uptime</span>
+                                <span class="kv-val" id="uptime">--</span>
                             </div>
                         </div>
                     </section>
@@ -169,7 +249,12 @@
                             </div>
                         </div>
                     </section>
+                </div>
+            </div>
 
+            <!-- ===== NODE & NETWORK TAB ===== -->
+            <div class="tab-content" id="tab-network">
+                <div class="grid">
                     <!-- UPnP / Network Panel -->
                     <section class="card" id="upnp-panel">
                         <div class="card-header">
@@ -202,26 +287,58 @@
                             </div>
                             <div id="upnp-guide" class="inline-guide collapsible" style="display:none;">
                                 <div class="inline-guide-title collapsible-toggle" id="upnp-guide-toggle">
-                                    <span>⚠ Port mapping required</span>
+                                    <span>ℹ Port mapping recommended</span>
                                     <svg class="collapse-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
                                         stroke="currentColor" stroke-width="2">
                                         <path d="M6 9l6 6 6-6" />
                                     </svg>
                                 </div>
                                 <div class="collapsible-body">
-                                    <p>Your router didn't automatically map ports. To enable full network participation:
+                                    <p>Your router didn't automatically map ports. You have two options:
                                     </p>
                                     <ol>
                                         <li>Log into your <strong>router admin panel</strong> (usually <a
                                                 href="http://192.168.1.1" target="_blank"
                                                 class="inline-link">192.168.1.1</a>)</li>
-                                        <li>Find <strong>UPnP</strong> or <strong>NAT-PMP</strong> settings and enable
-                                            them
-                                        </li>
+                                        <li>Find <strong>UPnP</strong> or <strong>NAT-PMP</strong> settings and enable them</li>
                                         <li>Or manually <strong>forward UDP port 6881</strong> to this machine</li>
                                         <li>Restart Pubky Node after making changes</li>
                                     </ol>
+                                    <p style="margin-top:10px;"><strong>Or:</strong> Use a <strong>Cloudflare Tunnel</strong> instead — no router changes needed. Go to the <strong>Relay Tunnel</strong> card below.</p>
                                 </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Cloudflare Tunnel -->
+                    <section class="card" id="hs-tunnel-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-orange">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                                    </svg>
+                                </div>
+                                <h2>Cloudflare Tunnel</h2>
+                            </div>
+                            <span class="badge" id="hs-tunnel-badge">Stopped</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="hs-desc">Expose your homeserver publicly via a free Cloudflare quick-tunnel.
+                                Automatically updates ICANN domain and republishes PKARR after connecting.</p>
+                            <div id="hs-tunnel-url" class="hs-url-display"></div>
+                            <div id="hs-tunnel-no-binary" class="hs-warn">
+                                ⚠ <code>cloudflared</code> not found. <a
+                                    href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
+                                    rel="noopener" style="color:var(--accent);">Download here</a> and place in PATH.
+                            </div>
+                            <div class="hs-form-actions" style="margin-top:0;">
+                                <button class="btn-primary btn-sm" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
+                                <button class="btn-secondary btn-sm" id="hs-tunnel-stop-btn">■ Stop</button>
                             </div>
                         </div>
                     </section>
@@ -291,6 +408,39 @@
                                 <button class="btn-secondary btn-sm" id="proxy-reset-btn">Reset Hosts</button>
                             </div>
                             <div id="proxy-setup-feedback" class="dns-system-feedback" style="display:none;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Reachability Card -->
+                    <section class="card" id="reachability-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(34,197,94,0.15);color:#22c55e;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                                <h2>Reachability</h2>
+                            </div>
+                            <button class="btn-sm btn-secondary" id="reachability-refresh-btn" title="Check now">Check</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="traffic-lights" id="reachability-lights">
+                                <div class="traffic-item">
+                                    <span class="traffic-dot" id="tl-dht"></span>
+                                    <span class="traffic-label">DHT Client</span>
+                                </div>
+                                <div class="traffic-item">
+                                    <span class="traffic-dot" id="tl-relay"></span>
+                                    <span class="traffic-label">Relay Port</span>
+                                </div>
+                                <div class="traffic-item">
+                                    <span class="traffic-dot" id="tl-tunnel"></span>
+                                    <span class="traffic-label">Tunnel</span>
+                                </div>
+                            </div>
+                            <div class="reachability-suggestion" id="reachability-suggestion" style="display:none;"></div>
                         </div>
                     </section>
 
@@ -382,8 +532,8 @@
                 </div>
             </div>
 
-            <!-- ===== KEYS TAB ===== -->
-            <div class="tab-content" id="tab-keys">
+            <!-- ===== MY IDENTITY: KEY VAULT TAB ===== -->
+            <div class="tab-content" id="tab-vault">
                 <div class="grid">
                     <!-- Key Vault -->
                     <section class="card" id="vault-panel">
@@ -493,7 +643,7 @@
                                         <circle cx="12" cy="12" r="3" />
                                     </svg>
                                 </div>
-                                <h2>Identity Watchlist</h2>
+                                <h2>Identity Watchlist <span id="watchlist-count" style="font-size:13px; font-weight:400; color:var(--text-muted);"></span></h2>
                             </div>
                             <span class="badge" id="watchlist-badge">--</span>
                         </div>
@@ -511,7 +661,80 @@
                             <div class="watchlist-keys" id="watchlist-keys"></div>
                         </div>
                     </section>
+                </div>
+            </div>
 
+            <!-- ===== MY IDENTITY: PROFILE TAB ===== -->
+            <div class="tab-content" id="tab-profile">
+                <div class="grid">
+                    <!-- Profile Editor -->
+                    <section class="card" id="hs-profile-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-green">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                </div>
+                                <h2>Profile</h2>
+                            </div>
+                            <span class="badge" id="hs-profile-badge">—</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="hs-desc">Edit the pubky.app profile for your identity. The profile is stored on your homeserver at <code>/pub/pubky.app/profile.json</code>.</p>
+
+                            <div class="publisher-field" style="margin-bottom:12px;">
+                                <label class="publisher-label">Identity Key</label>
+                                <select id="profile-key-select" class="publisher-key-input" style="width:100%;">
+                                    <option value="">— Select a key —</option>
+                                </select>
+                            </div>
+
+                            <div id="profile-empty-state" style="padding:32px 20px; text-align:center; color:var(--text-muted); font-size:13px; line-height:1.6;">
+                                <div style="font-size:36px; margin-bottom:12px; opacity:0.4;">👤</div>
+                                <p>Select an identity key above to edit your <strong style="color:var(--text-secondary);">pubky.app</strong> profile.</p>
+                                <p style="margin-top:6px; font-size:12px;">Your profile is stored on your homeserver and can be discovered by other Pubky users.</p>
+                            </div>
+
+                            <div id="profile-form-container" style="display:none;">
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Name *</label>
+                                    <input type="text" id="profile-name" class="publisher-key-input" placeholder="Your display name (3-50 chars)" maxlength="50">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Bio</label>
+                                    <textarea id="profile-bio" class="publisher-key-input" placeholder="Short biography (max 160 chars)" maxlength="160" rows="2" style="resize:vertical;"></textarea>
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Status</label>
+                                    <input type="text" id="profile-status" class="publisher-key-input" placeholder="Current status (max 50 chars)" maxlength="50">
+                                </div>
+                                <div class="publisher-field">
+                                    <label class="publisher-label">Links</label>
+                                    <div id="profile-links-list"></div>
+                                    <button class="btn-sm btn-secondary" id="profile-add-link-btn" style="margin-top:6px;">+ Add Link</button>
+                                </div>
+
+                                <div class="hs-form-actions" style="margin-top:12px;">
+                                    <button class="btn-primary btn-sm" id="profile-save-btn">💾 Save Profile</button>
+                                    <button class="btn-sm btn-secondary" id="profile-verify-btn" title="Check if profile is reachable via tunnel">🔍 Verify</button>
+                                    <button class="btn-sm btn-secondary" id="profile-nexus-btn" title="Check if Nexus has indexed this profile">🌐 Nexus</button>
+                                    <span id="profile-msg" class="hs-action-msg"></span>
+                                </div>
+
+                                <div id="profile-nexus-result" style="display:none; margin-top:10px; padding:10px 12px; border-radius:8px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2); font-size:12px;">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ===== TOOLS: PUBLISHER TAB ===== -->
+            <div class="tab-content" id="tab-publisher">
+                <div class="grid">
                     <!-- PKARR Publisher -->
                     <section class="card" id="publisher-panel">
                         <div class="card-header">
@@ -581,9 +804,26 @@
 
                             <!-- Status -->
                             <div id="publisher-status" class="publisher-status"></div>
+
+                            <!-- Post-publish feedback (hidden by default) -->
+                            <div id="publisher-success-feedback" class="publisher-success-feedback" style="display:none;">
+                                <div class="pubky-uri-display">
+                                    <span class="pubky-uri-label">Published as</span>
+                                    <code class="pubky-uri-value" id="publisher-pubky-uri">—</code>
+                                </div>
+                                <div class="publisher-feedback-actions">
+                                    <button class="btn-sm btn-primary" id="publisher-verify-btn">🔍 Verify on DHT</button>
+                                    <button class="btn-sm btn-secondary" id="publisher-copy-uri-btn">📋 Copy URI</button>
+                                </div>
+                            </div>
                         </div>
                     </section>
+                </div>
+            </div>
 
+            <!-- ===== TOOLS: VANITY TAB ===== -->
+            <div class="tab-content" id="tab-vanity">
+                <div class="grid">
                     <!-- Vanity Key Generator -->
                     <section class="card" id="vanity-panel">
                         <div class="card-header">
@@ -737,6 +977,10 @@
                 <!-- Results -->
                 <div id="explorer-results" class="explorer-results" style="display:none;">
                     <div class="explorer-meta" id="explorer-meta"></div>
+                    <div class="explorer-uri-bar" id="explorer-uri-bar" style="display:none;">
+                        <code class="pubky-uri-value" id="explorer-pubky-uri">—</code>
+                        <button class="btn-sm btn-secondary" id="explorer-copy-uri-btn" title="Copy pubky URI">📋 Copy</button>
+                    </div>
                     <div class="dns-table-wrap">
                         <div class="dns-table-header">
                             <span>NAME</span>
@@ -769,6 +1013,213 @@
                 <div class="explorer-history" id="explorer-history" style="display:none;">
                     <h3>Recent Lookups</h3>
                     <div id="history-list"></div>
+                </div>
+            </div>
+
+            <!-- ===== RECOVERY TAB ===== -->
+            <div class="tab-content" id="tab-recovery">
+                <div class="grid">
+                    <!-- Backup Status Card -->
+                    <section class="card" id="backup-status-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(99,102,241,0.15);color:#818cf8;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                                    </svg>
+                                </div>
+                                <h2>Backup Status</h2>
+                            </div>
+                            <span class="badge" id="backup-status-badge">No Backups</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="kv-row">
+                                <span class="kv-key">Active Backups</span>
+                                <span class="kv-val" id="backup-count">0</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Active Syncs</span>
+                                <span class="kv-val" id="backup-active-syncs">0</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Total Size</span>
+                                <span class="kv-val mono" id="backup-total-size">0 B</span>
+                            </div>
+                            <div class="kv-row">
+                                <span class="kv-key">Backup Dir</span>
+                                <span class="kv-val mono" id="backup-dir-display" style="font-size:0.75rem;overflow:hidden;text-overflow:ellipsis;max-width:180px;color:#8b5cf6;text-decoration:underline;cursor:pointer;" title="Click to open in Finder">—</span>
+                            </div>
+                            <button class="btn-sm btn-primary" id="backup-sync-all-btn" style="margin-top:12px;width:100%;">⟳ Sync All Now</button>
+                        </div>
+                    </section>
+
+                    <!-- Backed Up Identities -->
+                    <section class="card" id="backup-identities-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(34,197,94,0.15);color:#22c55e;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    </svg>
+                                </div>
+                                <h2>Backed Up Identities</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="backup-list" class="backup-list">
+                                <p class="backup-empty" id="backup-empty">No identities are being backed up yet.</p>
+                            </div>
+                            <div class="backup-add-form">
+                                <input type="text" id="backup-add-pubky" placeholder="Enter pubky to backup" class="backup-input" spellcheck="false">
+                                <button class="btn-primary btn-sm" id="backup-add-btn">+ Add</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Snapshots -->
+                    <section class="card" id="backup-snapshots-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(59,130,246,0.15);color:#3b82f6;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <path d="M3 9h18"/>
+                                        <path d="M9 21V9"/>
+                                    </svg>
+                                </div>
+                                <h2>Snapshots</h2>
+                            </div>
+                            <span class="badge" id="snapshot-count-badge">0</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:12px;">Create point-in-time snapshots of your backup data. Use snapshots to protect against account compromise — you can restore to any previous state.</p>
+                            <button class="btn-sm btn-primary" id="snapshot-create-btn" style="width:100%;margin-bottom:12px;">📸 Create Snapshot</button>
+                            <div id="snapshot-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                            <p class="backup-empty" id="snapshot-empty" style="display:none;">No snapshots yet. Create one to protect your data.</p>
+                        </div>
+                    </section>
+
+                    <!-- Homeserver Migration -->
+                    <section class="card" id="migration-panel" style="grid-column: 1 / -1;">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <h2>Homeserver Migration</h2>
+                            </div>
+                        </div>
+                        <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:12px;">
+                            Migrate your data to a different homeserver. This creates a pre-migration snapshot, uploads all data to the new server, and updates your PKARR record.
+                        </p>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <!-- Pubky selector -->
+                            <label style="font-size:0.78rem;color:#c4b5fd;">
+                                Pubky to migrate
+                                <select id="migration-pubky" class="input" style="width:100%;margin-top:4px;font-family:var(--mono);font-size:0.78rem;">
+                                    <option value="">— Select identity —</option>
+                                </select>
+                            </label>
+                            <!-- Source selector -->
+                            <label style="font-size:0.78rem;color:#c4b5fd;">
+                                Data source
+                                <select id="migration-source" class="input" style="width:100%;margin-top:4px;font-size:0.82rem;">
+                                    <option value="latest">Latest backup</option>
+                                </select>
+                            </label>
+                            <!-- Target homeserver -->
+                            <label style="font-size:0.78rem;color:#c4b5fd;">
+                                Target homeserver URL
+                                <input id="migration-target" class="input" type="text" placeholder="https://new-homeserver.example.com" style="width:100%;margin-top:4px;" />
+                            </label>
+                            <!-- Signup token (optional) -->
+                            <label style="font-size:0.78rem;color:#c4b5fd;">
+                                Signup token <span style="color:#6b7280;">(optional)</span>
+                                <input id="migration-signup-token" class="input" type="text" placeholder="Leave empty if not required" style="width:100%;margin-top:4px;" />
+                            </label>
+                            <!-- Dry-run toggle -->
+                            <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#c4b5fd;cursor:pointer;">
+                                <input id="migration-dryrun" type="checkbox" checked />
+                                Dry run (upload only, do NOT update PKARR/DNS record)
+                            </label>
+                            <!-- Buttons -->
+                            <div style="display:flex;gap:8px;margin-top:4px;">
+                                <button class="btn-sm btn-primary" id="migration-preflight-btn" style="flex:1;">🔍 Preflight Check</button>
+                                <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>🚀 Execute Migration</button>
+                            </div>
+                            <!-- Preflight results -->
+                            <div id="migration-preflight-results" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;font-size:0.82rem;"></div>
+                            <!-- Progress -->
+                            <div id="migration-progress" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                                    <span id="migration-phase" style="font-size:0.82rem;color:#c4b5fd;font-weight:600;">Idle</span>
+                                    <span id="migration-file-count" style="font-size:0.78rem;color:#9ca3af;">0 / 0 files</span>
+                                </div>
+                                <div style="width:100%;height:6px;background:rgba(139,92,246,0.15);border-radius:3px;overflow:hidden;">
+                                    <div id="migration-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#8b5cf6,#a855f7);border-radius:3px;transition:width 0.3s;"></div>
+                                </div>
+                                <div id="migration-status-detail" style="font-size:0.72rem;color:#9ca3af;margin-top:6px;"></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Export Recovery Bundle -->
+                    <section class="card" id="backup-export-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(245,158,11,0.15);color:#f59e0b;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                </div>
+                                <h2>Export Recovery Bundle</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="backup-export-form">
+                                <select id="backup-export-select" class="pub-vault-select">
+                                    <option value="">— Select identity to export —</option>
+                                </select>
+                                <label class="publisher-option" style="margin:8px 0;">
+                                    <input type="checkbox" id="backup-export-keys">
+                                    <span>Include secret keys</span>
+                                </label>
+                                <button class="btn-primary btn-sm" id="backup-export-btn">📦 Export Bundle</button>
+                            </div>
+                            <div id="backup-export-result" class="backup-export-result" style="display:none;"></div>
+                        </div>
+                    </section>
+
+                    <!-- Verify Backup -->
+                    <section class="card" id="backup-verify-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon" style="background:rgba(34,197,94,0.15);color:#22c55e;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                        <polyline points="22 4 12 14.01 9 11.01"/>
+                                    </svg>
+                                </div>
+                                <h2>Verify Backup</h2>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="backup-verify-form">
+                                <select id="backup-verify-select" class="pub-vault-select">
+                                    <option value="">— Select identity to verify —</option>
+                                </select>
+                                <button class="btn-primary btn-sm" id="backup-verify-btn">✅ Verify Integrity</button>
+                            </div>
+                            <div id="backup-verify-result" class="backup-verify-result" style="display:none;"></div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
@@ -814,8 +1265,8 @@
                             <p>Sign and publish DNS records to the DHT using Ed25519 secret keys. Records are
                                 automatically re-published at a configurable interval to stay alive on the network.</p>
                             <ul>
-                                <li>Supports <strong>A</strong>, <strong>AAAA</strong>, <strong>CNAME</strong>, and
-                                    <strong>TXT</strong> records
+                                <li>Supports <strong>A</strong>, <strong>AAAA</strong>, <strong>CNAME</strong>,
+                                    <strong>TXT</strong>, <strong>NS</strong>, and <strong>HTTPS</strong> records
                                 </li>
                                 <li>Secret keys can be inline or loaded from files (Docker secrets compatible)</li>
                                 <li>Automatic retry with exponential backoff on publish failures</li>
@@ -870,9 +1321,11 @@
                             <p>Monitor public keys and keep their records alive on the DHT by periodically re-publishing
                                 them. No secret key needed — this works with public keys only.</p>
                             <ul>
-                                <li>Manage watched keys from the <strong>Keys</strong> tab</li>
-                                <li>Configure defaults in <code>[watchlist] keys</code></li>
-                                <li>Adjustable republish interval (default: 1 hour)</li>
+                                <li>Add/remove keys from the <strong>Keys</strong> tab or CLI
+                                    (<code>pubky-node watchlist</code>)</li>
+                                <li>Keys are persisted to disk and survive restarts</li>
+                                <li>Freshness check skips republish if record is still recent</li>
+                                <li>Adjustable republish interval (default: 4 hours)</li>
                                 <li>Great for keeping friend / service identities available</li>
                             </ul>
                         </section>
@@ -891,6 +1344,72 @@
                                 <li>Requires <code>pkdns</code> binary in PATH or configured via
                                     <code>[dns] binary</code>
                                 </li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🔒</div>
+                            <h2>Key Vault</h2>
+                            <p>Encrypted key storage protected by a password. Keys are encrypted using
+                                <strong>argon2id</strong> key derivation and <strong>ChaCha20-Poly1305</strong> AEAD,
+                                stored in <code>keyvault.enc</code>.
+                            </p>
+                            <ul>
+                                <li>Create, unlock, and lock your vault from the <strong>Keys</strong> tab</li>
+                                <li>Store generated, vanity, imported, and homeserver keys</li>
+                                <li>Export individual keys or full vault backup</li>
+                                <li>Import keys from backup (duplicates are skipped)</li>
+                                <li>Export to <strong>Pubky Ring</strong> app via <code>pubkyring://</code> QR codes
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🏠</div>
+                            <h2>Homeserver</h2>
+                            <p>Built-in <strong>pubky-homeserver</strong> management with embedded PostgreSQL.
+                                No external database installation required — PostgreSQL is bundled and auto-managed.</p>
+                            <ul>
+                                <li>Embedded PostgreSQL: auto-extracts on first run, port 5433</li>
+                                <li>Auto-generates homeserver config with smart defaults</li>
+                                <li>Start/stop server with real-time log streaming (SSE)</li>
+                                <li>User management: list users, disable/enable, set storage quotas</li>
+                                <li>Generate signup invite tokens with QR codes</li>
+                                <li>Auto-publishes PKARR record when homeserver key is in vault</li>
+                                <li>CLI: <code>pubky-node homeserver status|start|stop|check|token|users|logs</code>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">🪪</div>
+                            <h2>Identity Manager</h2>
+                            <p>Sign up keys from your vault on the local homeserver using the <strong>EdDSA
+                                    AuthToken</strong>
+                                protocol. Manage multiple identities from the <strong>Homeserver</strong> tab.</p>
+                            <ul>
+                                <li>Sign up any vault key on your homeserver</li>
+                                <li>Optional signup token for invite-only servers</li>
+                                <li>Identity list persisted to disk</li>
+                                <li>Sign in to refresh/verify existing sessions</li>
+                            </ul>
+                        </section>
+
+                        <section class="guide-section">
+                            <div class="guide-section-icon">☁️</div>
+                            <h2>Cloudflare Tunnels</h2>
+                            <p>Expose your homeserver and Pkarr relay to the public internet via
+                                <strong>cloudflared</strong> quick-tunnels — zero-config, no Cloudflare account needed.
+                            </p>
+                            <ul>
+                                <li><strong>Homeserver Tunnel</strong> — exposes the ICANN HTTP endpoint via
+                                    trycloudflare.com</li>
+                                <li><strong>Relay Tunnel</strong> — exposes the Pkarr relay HTTP API via separate tunnel
+                                </li>
+                                <li>Auto-detects <code>cloudflared</code> binary (bundled sidecar → PATH)</li>
+                                <li>Tunnel URL auto-updates homeserver config and PKARR record</li>
+                                <li>Start/stop from <strong>Networks</strong> tab or CLI:
+                                    <code>pubky-node tunnel start|stop</code></li>
                             </ul>
                         </section>
                     </div>
@@ -1162,6 +1681,20 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                         </div>
                     </div>
 
+                    <!-- Node Controls -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">⚙️ Node Controls</div>
+                        </div>
+                        <div class="card-body">
+                            <p class="settings-desc">Restart or shut down the Pubky Node process.</p>
+                            <div style="display:flex; gap:12px; margin-top:12px;">
+                                <button class="btn-primary" id="node-restart-btn">🔄 Restart Node</button>
+                                <button class="btn-danger" id="node-shutdown-btn" style="background:var(--danger); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">⏻ Shutdown Node</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- About -->
                     <div class="card">
                         <div class="card-header">
@@ -1191,7 +1724,10 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
 
             <!-- ========== Homeserver Tab ========== -->
             <div class="tab-content" id="tab-homeserver">
-                <div class="grid">
+
+                <!-- Homeserver content goes here -->
+
+                <div class="grid" id="hs-grid">
 
                     <!-- Prerequisites Check -->
                     <section class="card" id="hs-prereq-panel">
@@ -1262,20 +1798,38 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                                         id="hs-port-pubky">—</span></div>
                                 <div class="info-row"><span class="info-label">Admin</span><span class="info-value"
                                         id="hs-port-admin">—</span></div>
-                                <div class="info-row"><span class="info-label">Version</span><span class="info-value"
-                                        id="hs-version">—</span></div>
                                 <div class="info-row"><span class="info-label">Users</span><span class="info-value"
                                         id="hs-users">—</span></div>
                                 <div class="info-row"><span class="info-label">Signup Mode</span><span
                                         class="info-value" id="hs-signup-mode">—</span></div>
-                                <div class="info-row hs-info-full"><span class="info-label">Server Key</span><span
-                                        class="info-value mono" id="hs-server-key" style="font-size:10px;">—</span>
+                                <div class="info-row"><span class="info-label">Tunnel</span><span
+                                        class="info-value" id="hs-tunnel-url" style="font-size:11px;">—</span></div>
+                                <div class="info-row"><span class="info-label">Nexus</span><span
+                                        class="info-value" id="hs-nexus-status">—</span></div>
+                            </div>
+
+                            <!-- Server Key + PKARR (always visible when key exists) -->
+                            <div id="hs-key-summary" style="display:none; margin-top:8px; padding:10px 12px; border-radius:8px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2);">
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-size:11px; color:#94a3b8;">🔑</span>
+                                    <code id="hs-key-display" style="font-size:12px; color:#818cf8; cursor:pointer;" title="Click to copy"></code>
+                                    <span id="hs-key-label" style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(99,102,241,0.2); color:#a5b4fc; display:none;"></span>
+                                    <button id="hs-key-copy-btn" class="btn-secondary btn-sm" style="padding:1px 6px; font-size:10px;" title="Copy full key">📋</button>
+                                    <a id="hs-key-explorer-link" href="#" target="_blank" style="font-size:10px; color:#6366f1; text-decoration:none;">🔍 Explorer</a>
+                                    <span id="hs-key-pkarr-status" style="font-size:10px; margin-left:auto;"></span>
                                 </div>
                             </div>
+
                             <div class="hs-control-btns">
                                 <button class="btn-primary btn-sm" id="hs-start-btn">▶ Start Server</button>
                                 <button class="btn-secondary btn-sm" id="hs-stop-btn" style="display:none;">■ Stop
                                     Server</button>
+                                <button class="btn-secondary btn-sm" id="hs-key-change-btn" style="display:none;">✏️ Change Key</button>
+                                <button class="btn-sm btn-primary" id="hs-quickstart-btn" style="display:none; background:linear-gradient(135deg,#6366f1,#8b5cf6);">⚡ Create My Identity</button>
+
+                            </div>
+                            <div id="hs-quickstart-result" style="display:none; margin-top:10px; padding:12px; border-radius:8px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3);">
+                                <div id="hs-quickstart-msg" style="font-size:13px; color:#e2e8f0;"></div>
                             </div>
                             <div id="hs-control-msg" class="publisher-status" style="display:none;margin-top:10px;">
                             </div>
@@ -1401,6 +1955,9 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                         </div>
                     </section>
 
+                    <!-- Profile Editor -->
+                    
+
                     <!-- Log Stream -->
                     <section class="card" id="hs-logs-panel">
                         <div class="card-header">
@@ -1460,37 +2017,7 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                     </section>
 
                     <!-- Cloudflare Tunnel -->
-                    <section class="card" id="hs-tunnel-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-orange">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-                                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                                        <line x1="12" y1="20" x2="12.01" y2="20" />
-                                    </svg>
-                                </div>
-                                <h2>Cloudflare Tunnel</h2>
-                            </div>
-                            <span class="badge" id="hs-tunnel-badge">Stopped</span>
-                        </div>
-                        <div class="card-body">
-                            <p class="hs-desc">Expose your homeserver publicly via a free Cloudflare quick-tunnel.
-                                Automatically updates ICANN domain and republishes PKARR after connecting.</p>
-                            <div id="hs-tunnel-url" class="hs-url-display"></div>
-                            <div id="hs-tunnel-no-binary" class="hs-warn">
-                                ⚠ <code>cloudflared</code> not found. <a
-                                    href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank"
-                                    rel="noopener" style="color:var(--accent);">Download here</a> and place in PATH.
-                            </div>
-                            <div class="hs-form-actions" style="margin-top:0;">
-                                <button class="btn-primary btn-sm" id="hs-tunnel-start-btn">▶ Start Tunnel</button>
-                                <button class="btn-secondary btn-sm" id="hs-tunnel-stop-btn">■ Stop</button>
-                            </div>
-                        </div>
-                    </section>
+                    
 
                     <!-- Identity Signup -->
                     <section class="card" id="hs-identity-panel">
@@ -1549,11 +2076,71 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
                             </div>
                         </div>
                         <div class="card-body">
+                            <div id="hs-files-breadcrumb" class="file-breadcrumb" style="display:none;"></div>
                             <div id="hs-files-tree" class="hs-files-tree">
                                 <span style="color:var(--text-tertiary);">Select a user and click Browse to explore
                                     their /pub directory.</span>
                             </div>
                             <div id="hs-files-preview" class="hs-files-preview"></div>
+                        </div>
+                    </section>
+
+                    <!-- API Explorer -->
+                    <section class="card" id="hs-api-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="16 18 22 12 16 6"/>
+                                        <polyline points="8 6 2 12 8 18"/>
+                                    </svg>
+                                </div>
+                                <h2>API Explorer</h2>
+                            </div>
+                            <span class="badge" id="hs-api-badge">Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="hs-desc">Try homeserver admin API endpoints directly.</p>
+                            <div id="hs-api-catalog" class="api-catalog">
+                                <div class="api-section">
+                                    <h4 class="api-section-title">Admin</h4>
+                                    <div class="api-endpoint" data-method="GET" data-path="/info">
+                                        <span class="api-method get">GET</span>
+                                        <span class="api-path">/info</span>
+                                        <span class="api-desc">Server info & public key</span>
+                                        <button class="btn-sm btn-secondary api-try-btn">Try</button>
+                                    </div>
+                                    <div class="api-endpoint" data-method="GET" data-path="/users">
+                                        <span class="api-method get">GET</span>
+                                        <span class="api-path">/users</span>
+                                        <span class="api-desc">List all users</span>
+                                        <button class="btn-sm btn-secondary api-try-btn">Try</button>
+                                    </div>
+                                    <div class="api-endpoint" data-method="GET" data-path="/generate_signup_token">
+                                        <span class="api-method get">GET</span>
+                                        <span class="api-path">/generate_signup_token</span>
+                                        <span class="api-desc">Generate signup token</span>
+                                        <button class="btn-sm btn-secondary api-try-btn">Try</button>
+                                    </div>
+                                </div>
+                                <div class="api-section">
+                                    <h4 class="api-section-title">Metrics</h4>
+                                    <div class="api-endpoint" data-method="GET" data-path="/metrics">
+                                        <span class="api-method get">GET</span>
+                                        <span class="api-path">/metrics</span>
+                                        <span class="api-desc">Prometheus metrics</span>
+                                        <button class="btn-sm btn-secondary api-try-btn">Try</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="hs-api-response" class="api-response" style="display:none;">
+                                <div class="api-response-header">
+                                    <span id="hs-api-resp-method" class="api-method get">GET</span>
+                                    <span id="hs-api-resp-path" class="api-path"></span>
+                                    <span id="hs-api-resp-status" class="badge"></span>
+                                </div>
+                                <pre id="hs-api-resp-body" class="api-response-body"></pre>
+                            </div>
                         </div>
                     </section>
 
@@ -1568,7 +2155,95 @@ pubky-node node shutdown                      # Graceful shutdown</code></pre>
         <span>Pubky Node • Sovereign Infrastructure</span>
         <span id="last-updated">Last updated: --</span>
     </footer>
+    </div> <!-- /main-wrapper -->
+
+    <!-- ===== UNIFIED ONBOARDING OVERLAY ===== -->
+    <div class="onboarding-overlay" id="unified-onboarding-overlay" style="display:none;">
+        <div class="onboarding-card">
+            <!-- Step 1: Secure Node -->
+            <div class="onboarding-step active" data-onboard-step="1">
+                <div class="onboarding-icon">🛡️</div>
+                <h2>Welcome to Sovereign Web</h2>
+                <p>Secure your Pubky Node from unauthorized access. This dashboard controls your root identity and homeserver.</p>
+                <div class="onboarding-form">
+                    <label class="onboarding-label">Dashboard Password</label>
+                    <input type="password" class="onboarding-input" id="onboard-dash-pw" placeholder="Choose a password (4+ characters)" autocomplete="new-password">
+                    <label class="onboarding-label">Confirm Password</label>
+                    <input type="password" class="onboarding-input" id="onboard-dash-pw2" placeholder="Confirm password" autocomplete="new-password">
+                    <div class="onboarding-error" id="onboard-dash-err"></div>
+                    <button class="btn btn-primary onboarding-btn" id="onboard-dash-btn">Save & Continue →</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Create Vault -->
+            <div class="onboarding-step" data-onboard-step="2">
+                <div class="onboarding-icon">🔐</div>
+                <h2 id="onboard-vault-title">Create Key Vault</h2>
+                <p id="onboard-vault-desc">Your Vault stores your sovereign identity keys directly on this device, completely under your control.</p>
+                <div class="onboarding-form">
+                    <label class="onboarding-label">Vault Password</label>
+                    <input type="password" class="onboarding-input" id="unified-vault-pwd" placeholder="Used to encrypt your keys" autocomplete="new-password">
+                    
+                    <div id="unified-vault-confirm-wrap">
+                        <label class="onboarding-label" style="margin-top:16px;">Confirm Vault Password</label>
+                        <input type="password" class="onboarding-input" id="unified-vault-pwd-conf" placeholder="Confirm password" autocomplete="new-password">
+                    </div>
+                    
+                    <div class="onboarding-error" id="unified-vault-err"></div>
+                    <button class="btn btn-primary onboarding-btn" id="unified-vault-btn">Secure Vault & Continue →</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Launch Homeserver -->
+            <div class="onboarding-step" data-onboard-step="3">
+                <div class="onboarding-icon">🚀</div>
+                <h2>Launch Homeserver</h2>
+                <p>Configure how your Homeserver connects to the global network. We'll automatically build your profile and publish your routes.</p>
+                <div class="onboarding-form">
+                    <label class="onboarding-label">Network Access</label>
+                    <label class="publisher-option" style="margin-top:8px;">
+                        <input type="radio" name="unified-hs-access" value="tunnel" checked>
+                        <span>Cloudflare Tunnel (Easy, Recommended)</span>
+                    </label>
+                    <label class="publisher-option">
+                        <input type="radio" name="unified-hs-access" value="direct">
+                        <span>Direct (Requires UPnP/Port Forwarding)</span>
+                    </label>
+                    
+                    <label class="onboarding-label" style="margin-top:16px;">Homeserver Signups</label>
+                    <select id="unified-hs-signup" class="onboarding-input" style="padding:10px; background:var(--surface);">
+                        <option value="open">Open (Anyone can join)</option>
+                        <option value="token_required" selected>Invite Only (Recommended)</option>
+                        <option value="closed">Closed (Private)</option>
+                    </select>
+
+                    <div class="onboarding-error" id="unified-hs-err"></div>
+                    <button class="btn btn-primary onboarding-btn" id="unified-launch-btn">Auto-Setup & Launch ⚡</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Loading & Magic -->
+            <div class="onboarding-step" data-onboard-step="4">
+                <div class="onboarding-icon" style="animation: pulse 1.5s infinite;">⚙️</div>
+                <h2>Initializing Node...</h2>
+                <p>Please wait while we orchestrate your sovereign infrastructure.</p>
+                <div class="onboarding-form">
+                    <div class="onboarding-list" id="unified-launch-log" style="text-align:left; font-size:13px; font-family:var(--font-mono); color:var(--text-muted); background:var(--surface); padding:16px; border-radius:8px; height:180px; overflow-y:auto; line-height:1.6; border:1px solid var(--border);">
+                        ⏳ Preparing...<br>
+                    </div>
+                    <button class="btn btn-primary onboarding-btn" id="unified-done-btn" style="display:none; margin-top:20px;">Enter Dashboard</button>
+                </div>
+            </div>
+
+            <!-- Progress dots -->
+            <div class="onboarding-dots">
+                <span class="onboarding-dot active" data-dot="1"></span>
+                <span class="onboarding-dot" data-dot="2"></span>
+                <span class="onboarding-dot" data-dot="3"></span>
+            </div>
+        </div>
     </div>
+    </div> <!-- /.app -->
 
     <script src="/qrcode.min.js"></script>
     <script src="/dashboard.js"></script>

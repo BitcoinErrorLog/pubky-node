@@ -63,7 +63,7 @@ impl TunnelManager {
     }
 
     /// Find cloudflared binary path.
-    /// Search order: bundled sidecar → data_dir/bin → PATH
+    /// Search order: bundled sidecar → src-tauri/binaries (dev) → data_dir/bin → PATH
     fn find_binary() -> Option<std::path::PathBuf> {
         // 1. Check bundled sidecar directory (same dir as current exe — Tauri convention)
         if let Ok(exe) = std::env::current_exe() {
@@ -80,14 +80,44 @@ impl TunnelManager {
             }
         }
 
-        // 2. Check data dir
+        // 2. Check src-tauri/binaries/ (dev mode: cargo run from project root)
+        let arch_suffix = if cfg!(target_arch = "aarch64") {
+            "aarch64"
+        } else {
+            "x86_64"
+        };
+        let os_suffix = if cfg!(target_os = "macos") {
+            "apple-darwin"
+        } else if cfg!(target_os = "linux") {
+            "unknown-linux-gnu"
+        } else {
+            "pc-windows-msvc"
+        };
+        let sidecar_name = format!("cloudflared-{}-{}", arch_suffix, os_suffix);
+        
+        // Try relative to CWD (project root)
+        let sidecar = std::path::PathBuf::from("src-tauri/binaries").join(&sidecar_name);
+        if sidecar.exists() {
+            return Some(sidecar);
+        }
+        // Also try relative to the exe's grandparent (target/release/../../)
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(target_dir) = exe.parent().and_then(|d| d.parent()).and_then(|d| d.parent()) {
+                let dev_sidecar = target_dir.join("src-tauri/binaries").join(&sidecar_name);
+                if dev_sidecar.exists() {
+                    return Some(dev_sidecar);
+                }
+            }
+        }
+
+        // 3. Check data dir
         let home = dirs_next::home_dir().unwrap_or_default();
         let local = home.join(".pubky-node/bin/cloudflared");
         if local.exists() {
             return Some(local);
         }
 
-        // 3. Check PATH
+        // 4. Check PATH
         if let Ok(out) = Command::new("which").arg("cloudflared").output() {
             if out.status.success() {
                 let path = String::from_utf8_lossy(&out.stdout).trim().to_string();

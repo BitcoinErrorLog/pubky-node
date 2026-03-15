@@ -39,6 +39,39 @@ impl DnsProcess {
                         }
                     }
                 }
+
+                // Check src-tauri/binaries/ (dev mode: cargo run from project root)
+                let arch_suffix = if cfg!(target_arch = "aarch64") {
+                    "aarch64"
+                } else {
+                    "x86_64"
+                };
+                let os_suffix = if cfg!(target_os = "macos") {
+                    "apple-darwin"
+                } else if cfg!(target_os = "linux") {
+                    "unknown-linux-gnu"
+                } else {
+                    "pc-windows-msvc"
+                };
+                let sidecar_name = format!("pkdns-{}-{}", arch_suffix, os_suffix);
+
+                // Try relative to CWD (project root)
+                let sidecar = std::path::PathBuf::from("src-tauri/binaries").join(&sidecar_name);
+                if sidecar.exists() {
+                    info!("Found pkdns in sidecar binaries: {}", sidecar.display());
+                    return sidecar.to_string_lossy().to_string();
+                }
+                // Also try relative to the exe's grandparent (target/release/../../)
+                if let Ok(exe) = std::env::current_exe() {
+                    if let Some(target_dir) = exe.parent().and_then(|d| d.parent()).and_then(|d| d.parent()) {
+                        let dev_sidecar = target_dir.join("src-tauri/binaries").join(&sidecar_name);
+                        if dev_sidecar.exists() {
+                            info!("Found pkdns in dev sidecar: {}", dev_sidecar.display());
+                            return dev_sidecar.to_string_lossy().to_string();
+                        }
+                    }
+                }
+
                 "pkdns".to_string()
             });
 

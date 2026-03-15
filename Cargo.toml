@@ -9,6 +9,7 @@ license = "MIT"
 # Core Pubky dependencies (local paths)
 pkarr-relay = { path = "../pkarr/relay" }
 pkarr = { path = "../pkarr/pkarr", default-features = false, features = ["dht", "lmdb-cache"] }
+pubky-common = { path = "../pubky-core/pubky-common" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }

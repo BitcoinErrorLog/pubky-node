@@ -1,3 +1,6 @@
+mod api;
+mod backup;
+mod migration;
 mod cli;
 mod config;
 mod dashboard;

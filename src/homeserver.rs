@@ -54,8 +54,10 @@ pub struct HomeserverConfig {
 
 impl Default for HomeserverConfig {
     fn default() -> Self {
+        // The database_url is always overwritten at runtime by EmbeddedPg::connection_url()
+        // which includes the correct username and auto-generated password.
         HomeserverConfig {
-            database_url: "postgres://127.0.0.1:5433/pubky_homeserver".into(),
+            database_url: "postgresql://postgres@127.0.0.1:5433/pubky_homeserver".into(),
             drive_icann_port: 6286,
             drive_pubky_port: 6287,
             admin_port: 6288,
@@ -153,6 +155,43 @@ impl HomeserverManager {
         self.config.read().unwrap().clone()
     }
 
+    /// Set the homeserver's server key by writing the secret to the data directory.
+    /// This must be called BEFORE starting the homeserver so it uses this key.
+    /// The secret_hex should be a 32-byte Ed25519 secret key in hex format.
+    pub fn set_server_key(&self, secret_hex: &str) -> Result<(), String> {
+        let secret_bytes = hex::decode(secret_hex)
+            .map_err(|e| format!("Invalid hex: {}", e))?;
+        if secret_bytes.len() != 32 {
+            return Err(format!("Expected 32-byte key, got {}", secret_bytes.len()));
+        }
+
+        // Compute the public key for caching
+        let mut key_bytes = [0u8; 32];
+        key_bytes.copy_from_slice(&secret_bytes);
+        let keypair = pkarr::Keypair::from_secret_key(&key_bytes);
+        let pubkey = keypair.public_key().to_z32();
+
+        // Write the secret hex to the data_dir/secret file
+        let secret_path = self.data_dir.join("secret");
+        if let Some(parent) = secret_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&secret_path, secret_hex.trim())
+            .map_err(|e| format!("Failed to write secret file: {}", e))?;
+
+        // Update cached pubkey
+        *self.server_pubkey.write().unwrap() = Some(pubkey.clone());
+
+        tracing::info!("Server key set: pubkey={}", pubkey);
+        Ok(())
+    }
+
+    /// Read the homeserver's secret key from the data directory (hex string).
+    pub fn read_server_secret(&self) -> Option<String> {
+        let secret_path = self.data_dir.join("secret");
+        std::fs::read_to_string(&secret_path).ok().map(|s| s.trim().to_string())
+    }
+
     // ─── Setup Checks ─────────────────────────────────────────
 
     /// Run all prerequisites checks.
@@ -167,20 +206,12 @@ impl HomeserverManager {
             *self.binary_path.write().unwrap() = binary;
         }
 
-        // Check embedded PostgreSQL state
-        let pg_running = self.embedded_pg.blocking_read().is_some();
-        let (postgres_ok, postgres_msg) = if pg_running {
-            (true, "Embedded PostgreSQL running".into())
-        } else {
-            (true, "Embedded PostgreSQL (auto-starts with homeserver)".into())
-        };
+        // Embedded PostgreSQL auto-starts with homeserver — no need to check here
+        let postgres_ok = true;
+        let postgres_msg = "Embedded PostgreSQL (auto-starts with homeserver)".into();
 
         let config_ok = self.config_path.exists();
-        let db_msg = if pg_running {
-            "Database ready".into()
-        } else {
-            "Auto-created when homeserver starts".into()
-        };
+        let db_msg = "Auto-created when homeserver starts".into();
 
         SetupCheck {
             postgres_ok,
@@ -189,7 +220,7 @@ impl HomeserverManager {
             binary_path,
             config_ok,
             config_path: self.config_path.display().to_string(),
-            db_ok: true, // Always true — embedded PG handles DB creation
+            db_ok: true,
             db_msg,
         }
     }
@@ -235,6 +266,33 @@ impl HomeserverManager {
                 let p = home.join(rel);
                 if p.exists() {
                     return Some(p);
+                }
+            }
+        }
+
+        // 5. Dev mode: check src-tauri/binaries sidecar directory
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                // Walk up from target/release or target/debug to find project root
+                let mut candidate = dir.to_path_buf();
+                for _ in 0..5 {
+                    let sidecar = candidate.join("src-tauri/binaries");
+                    if sidecar.exists() {
+                        // Look for any pubky-homeserver binary in the sidecar dir
+                        if let Ok(entries) = std::fs::read_dir(&sidecar) {
+                            for entry in entries.flatten() {
+                                let name = entry.file_name();
+                                let name_str = name.to_string_lossy();
+                                if name_str.starts_with("pubky-homeserver") && !name_str.ends_with(".d") {
+                                    let p = entry.path();
+                                    if p.is_file() {
+                                        return Some(p);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !candidate.pop() { break; }
                 }
             }
         }
@@ -507,23 +565,47 @@ level = "info"
                 }
             }
         }
-        drop(proc_guard);
-
-        // No child process — check if admin port is responding (externally managed server)
+        // No child process — check if admin port has a real homeserver (not just any TCP listener)
         let cfg = self.config.read().unwrap();
         let admin_port = cfg.admin_port;
+        let password = cfg.admin_password.clone();
         drop(cfg);
 
-        if std::net::TcpStream::connect_timeout(
+        // Quick TCP check first to avoid slow HTTP timeouts
+        let addr_ok = std::net::TcpStream::connect_timeout(
             &format!("127.0.0.1:{}", admin_port).parse().unwrap(),
             std::time::Duration::from_millis(200),
-        ).is_ok() {
-            // Admin port is alive — homeserver is running externally
-            *self.state.write().unwrap() = HomeserverState::Running;
-            if self.started_at.read().unwrap().is_none() {
-                *self.started_at.write().unwrap() = Some(Instant::now());
+        ).is_ok();
+
+        if addr_ok {
+            // Verify it's actually a homeserver by sending a minimal HTTP request to /info
+            use std::io::{Read, Write};
+            use base64::Engine;
+            let creds = base64::engine::general_purpose::STANDARD.encode(format!("admin:{}", password));
+            let is_hs = (|| -> Option<bool> {
+                let mut stream = std::net::TcpStream::connect_timeout(
+                    &format!("127.0.0.1:{}", admin_port).parse().ok()?,
+                    std::time::Duration::from_millis(300),
+                ).ok()?;
+                stream.set_read_timeout(Some(std::time::Duration::from_millis(500))).ok()?;
+                let req = format!(
+                    "GET /info HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nAuthorization: Basic {}\r\nConnection: close\r\n\r\n",
+                    admin_port, creds
+                );
+                stream.write_all(req.as_bytes()).ok()?;
+                let mut buf = [0u8; 128];
+                let n = stream.read(&mut buf).ok()?;
+                let resp = std::str::from_utf8(&buf[..n]).ok()?;
+                Some(resp.starts_with("HTTP/1.1 200") || resp.starts_with("HTTP/1.0 200"))
+            })().unwrap_or(false);
+
+            if is_hs {
+                *self.state.write().unwrap() = HomeserverState::Running;
+                if self.started_at.read().unwrap().is_none() {
+                    *self.started_at.write().unwrap() = Some(Instant::now());
+                }
+                return true;
             }
-            return true;
         }
 
         // Nothing running

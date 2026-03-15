@@ -36,31 +36,16 @@
     }
 
     function showSetupOverlay() {
-        var overlay = document.createElement('div');
-        overlay.id = 'auth-setup-overlay';
-        overlay.innerHTML = [
-            '<div class="auth-setup-card">',
-            '  <div class="auth-setup-icon">🔐</div>',
-            '  <h2>Welcome to Pubky Node</h2>',
-            '  <p class="auth-setup-desc">Set a dashboard password to secure your node.</p>',
-            '  <div class="auth-setup-field">',
-            '    <input type="password" id="auth-setup-pass" placeholder="Choose a password (4+ characters)" autocomplete="new-password">',
-            '  </div>',
-            '  <div class="auth-setup-field">',
-            '    <input type="password" id="auth-setup-confirm" placeholder="Confirm password" autocomplete="new-password">',
-            '  </div>',
-            '  <button id="auth-setup-btn" class="btn-primary auth-setup-submit">🚀 Set Password & Enter</button>',
-            '  <div id="auth-setup-error" class="auth-setup-error"></div>',
-            '</div>'
-        ].join('\n');
-        document.body.appendChild(overlay);
+        var overlay = document.getElementById('unified-onboarding-overlay');
+        if (overlay) overlay.style.display = 'flex';
+        unifiedShowStep(1);
 
-        var btn = document.getElementById('auth-setup-btn');
-        var passInput = document.getElementById('auth-setup-pass');
-        var confirmInput = document.getElementById('auth-setup-confirm');
-        var errorEl = document.getElementById('auth-setup-error');
+        var btn = document.getElementById('onboard-dash-btn');
+        var passInput = document.getElementById('onboard-dash-pw');
+        var confirmInput = document.getElementById('onboard-dash-pw2');
+        var errorEl = document.getElementById('onboard-dash-err');
 
-        async function doSetup() {
+        async function doDashSetup() {
             var pass = passInput.value;
             var confirm = confirmInput.value;
             errorEl.textContent = '';
@@ -75,7 +60,7 @@
             }
 
             btn.disabled = true;
-            btn.textContent = 'Setting up...';
+            btn.textContent = 'Creating...';
 
             try {
                 var res = await fetch('/api/auth/setup', {
@@ -86,24 +71,50 @@
                 var data = await res.json();
                 if (data.success) {
                     _authPassword = pass;
-                    overlay.remove();
-                    initDashboard();
+                    btn.textContent = 'Success!';
+                    setTimeout(() => {
+                        initDashboard();
+                    }, 500);
                 } else {
                     errorEl.textContent = data.error || 'Setup failed.';
                     btn.disabled = false;
-                    btn.textContent = '🚀 Set Password & Enter';
+                    btn.textContent = 'Save & Continue →';
                 }
             } catch (e) {
                 errorEl.textContent = 'Network error: ' + e.message;
                 btn.disabled = false;
-                btn.textContent = '🚀 Set Password & Enter';
+                btn.textContent = 'Save & Continue →';
             }
         }
 
-        btn.addEventListener('click', doSetup);
-        confirmInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSetup(); });
+        // Clean up previous listeners if function is called multiple times
+        var newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        newBtn.addEventListener('click', doDashSetup);
+
+        confirmInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doDashSetup(); });
         passInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') confirmInput.focus(); });
         setTimeout(function () { passInput.focus(); }, 100);
+    }
+
+    // Help manage unified steps
+    var _unifiedStep = 1;
+    function unifiedShowStep(stepNum) {
+        _unifiedStep = stepNum;
+        document.querySelectorAll('.onboarding-step[data-onboard-step]').forEach(function(el) {
+            el.classList.remove('active');
+        });
+        var target = document.querySelector('.onboarding-step[data-onboard-step="' + stepNum + '"]');
+        if (target) target.classList.add('active');
+
+        // Update dots
+        var dots = document.querySelectorAll('.onboarding-dot[data-dot]');
+        dots.forEach(function(dot) {
+            var d = parseInt(dot.getAttribute('data-dot'));
+            dot.classList.remove('active', 'done');
+            if (d < stepNum) dot.classList.add('done');
+            if (d === stepNum) dot.classList.add('active');
+        });
     }
 
     function showLoginOverlay() {
@@ -171,14 +182,14 @@
     // ========== Tab Navigation ==========
 
     function initTabs() {
-        const tabs = document.querySelectorAll('.tab');
+        const navItems = document.querySelectorAll('.nav-item');
         // Include icon buttons that act as tab switchers
-        const allTabTriggers = document.querySelectorAll('.tab, [data-tab].btn-icon');
+        const allTabTriggers = document.querySelectorAll('.nav-item, [data-tab].btn-icon');
 
         function switchToTab(target) {
-            // Update tab button active states (only for .tab elements)
-            tabs.forEach(function (t) { t.classList.remove('active'); });
-            var matchingTab = document.querySelector('.tab[data-tab="' + target + '"]');
+            // Update tab button active states (only for .nav-item elements)
+            navItems.forEach(function (t) { t.classList.remove('active'); });
+            var matchingTab = document.querySelector('.nav-item[data-tab="' + target + '"]');
             if (matchingTab) matchingTab.classList.add('active');
             // Update content panels
             document.querySelectorAll('.tab-content').forEach(function (panel) {
@@ -279,10 +290,12 @@
             return;
         }
 
+        try {
         setStatus(true);
 
         // Header
-        document.getElementById('version').textContent = 'v' + data.version;
+        var versionEl = document.getElementById('version');
+        if (versionEl) versionEl.textContent = 'v' + data.version;
 
         // Stats
         var uptimeStr = formatUptime(data.uptime_secs);
@@ -293,6 +306,8 @@
         var dhtSize = data.dht ? data.dht.dht_size_estimate : 0;
         var rtEl = document.getElementById('routing-table-size');
         if (rtEl) rtEl.textContent = formatNumber(dhtSize);
+        var dashDhtEl = document.getElementById('dash-dht-size');
+        if (dashDhtEl) dashDhtEl.textContent = dhtSize > 0 ? formatNumber(dhtSize) + ' peers' : 'Initializing…';
         var wlEl = document.getElementById('watchlist-count');
         if (wlEl) wlEl.textContent = data.watchlist.key_count;
 
@@ -462,11 +477,18 @@
         // Footer
         document.getElementById('last-updated').textContent =
             'Last updated: ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            console.error('update() crashed:', e.message, e.stack);
+        }
     }
 
     async function poll() {
         var data = await fetchStatus();
         update(data);
+        // Also update homeserver status for dashboard overview card
+        if (typeof loadHsStatus === 'function') {
+            try { loadHsStatus(); } catch(e) {}
+        }
     }
 
     // ========== Key Explorer ==========
@@ -625,6 +647,15 @@
 
             renderRecords(data);
             showExplorer('explorer-results');
+
+            // Show pubky URI bar
+            var uriBar = document.getElementById('explorer-uri-bar');
+            var uriVal = document.getElementById('explorer-pubky-uri');
+            if (uriBar && uriVal) {
+                uriVal.textContent = 'pubky://' + key + '/';
+                uriBar.style.display = '';
+            }
+
             saveHistory(key);
             renderHistory();
         } catch (e) {
@@ -712,12 +743,68 @@
 
     // ========== Init ==========
 
-    function initDashboard() {
+    async function initDashboard() {
         initTabs();
         poll();
         setInterval(poll, POLL_INTERVAL);
         fetchWatchlistKeys();
         initEventListeners();
+
+        // ── Post-login: check vault state and decide what to show ──
+        try {
+            var res = await authFetch('/api/vault/status');
+            if (res.ok) {
+                var vdata = await res.json();
+                if (!vdata.exists) {
+                    // No vault — show onboarding in CREATE mode
+                    var overlay = document.getElementById('unified-onboarding-overlay');
+                    if (overlay) overlay.style.display = 'flex';
+                    var btn = document.getElementById('unified-vault-btn');
+                    if (btn) {
+                        btn.dataset.mode = 'create';
+                        btn.textContent = 'Secure Vault & Continue';
+                        document.getElementById('unified-vault-confirm-wrap').style.display = 'block';
+                    }
+                    unifiedShowStep(2);
+                    return;
+                } else if (!vdata.unlocked) {
+                    // Vault exists but locked — show step 2 in UNLOCK mode
+                    var overlay = document.getElementById('unified-onboarding-overlay');
+                    if (overlay) overlay.style.display = 'flex';
+                    
+                    document.getElementById('onboard-vault-title').textContent = 'Unlock Vault';
+                    document.getElementById('onboard-vault-desc').textContent = 'Enter your vault password to continue setup.';
+                    document.getElementById('unified-vault-confirm-wrap').style.display = 'none'; // hide confirm
+                    
+                    var btn = document.getElementById('unified-vault-btn');
+                    if (btn) {
+                        btn.dataset.mode = 'unlock';
+                        btn.textContent = 'Unlock Vault & Continue';
+                    }
+                    unifiedShowStep(2);
+                    return;
+                }
+                
+                // Vault exists & unlocked — check homeserver status
+                var hsRes = await authFetch('/api/homeserver/status');
+                if (hsRes.ok) {
+                    var hsData = await hsRes.json();
+                    if (hsData.state === 'stopped') {
+                        // Homeserver not running — show launch overlay
+                        var overlay = document.getElementById('unified-onboarding-overlay');
+                        if (overlay) overlay.style.display = 'flex';
+                        unifiedShowStep(3);
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Failed to check vault status:', e);
+        }
+        
+        // Everything is running, make sure overlay is hidden
+        var overlay = document.getElementById('unified-onboarding-overlay');
+        if (overlay) overlay.style.display = 'none';
     }
 
     // Start auth check — initDashboard() called after successful login/setup
@@ -726,12 +813,12 @@
     function initEventListeners() {
 
         // Explorer: Resolve button click
-        document.getElementById('explorer-btn').addEventListener('click', function () {
+        document.getElementById('explorer-btn')?.addEventListener('click', function () {
             resolveKey();
         });
 
         // Explorer: Enter key
-        document.getElementById('explorer-input').addEventListener('keydown', function (e) {
+        document.getElementById('explorer-input')?.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 resolveKey();
@@ -748,8 +835,8 @@
         });
 
         // Watchlist: Add button + Enter key
-        document.getElementById('watchlist-add-btn').addEventListener('click', addWatchlistKey);
-        document.getElementById('watchlist-input').addEventListener('keydown', function (e) {
+        document.getElementById('watchlist-add-btn')?.addEventListener('click', addWatchlistKey);
+        document.getElementById('watchlist-input')?.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 addWatchlistKey();
@@ -757,7 +844,7 @@
         });
 
         // Watchlist: Remove + Copy (delegated)
-        document.getElementById('watchlist-keys').addEventListener('click', function (e) {
+        document.getElementById('watchlist-keys')?.addEventListener('click', function (e) {
             var removeBtn = e.target.closest('.key-remove');
             if (removeBtn) {
                 removeWatchlistKey(removeBtn.dataset.key);
@@ -774,7 +861,7 @@
         });
 
         // Relay: Copy URL
-        document.getElementById('relay-copy').addEventListener('click', function () {
+        document.getElementById('relay-copy')?.addEventListener('click', function () {
             var url = document.getElementById('relay-url').textContent;
             var btn = this;
             navigator.clipboard.writeText(url).then(function () {
@@ -803,10 +890,10 @@
             } catch (e) { /* ignore */ }
         }
 
-        document.getElementById('dns-enable-btn').addEventListener('click', function () {
+        document.getElementById('dns-enable-btn')?.addEventListener('click', function () {
             toggleDns(true);
         });
-        document.getElementById('dns-disable-btn').addEventListener('click', function () {
+        document.getElementById('dns-disable-btn')?.addEventListener('click', function () {
             toggleDns(false);
         });
 
@@ -833,27 +920,27 @@
             }
         }
 
-        document.getElementById('dns-set-system-btn').addEventListener('click', function () {
+        document.getElementById('dns-set-system-btn')?.addEventListener('click', function () {
             setSystemDns('set-system');
         });
-        document.getElementById('dns-reset-system-btn').addEventListener('click', function () {
+        document.getElementById('dns-reset-system-btn')?.addEventListener('click', function () {
             setSystemDns('reset-system');
         });
-        document.getElementById('dns-reset-connected-btn').addEventListener('click', function () {
+        document.getElementById('dns-reset-connected-btn')?.addEventListener('click', function () {
             setSystemDns('reset-system', 'dns-connected-feedback');
         });
-        document.getElementById('dns-disable-btn2').addEventListener('click', function () {
+        document.getElementById('dns-disable-btn2')?.addEventListener('click', function () {
             toggleDns(false);
         });
 
         // Node Controls
-        document.getElementById('node-restart-btn').addEventListener('click', function () {
+        document.getElementById('node-restart-btn')?.addEventListener('click', function () {
             if (confirm('Restart Pubky Node?')) {
                 authFetch('/api/node/restart', { method: 'POST' });
                 document.getElementById('connection-status').querySelector('.status-label').textContent = 'Restarting...';
             }
         });
-        document.getElementById('node-shutdown-btn').addEventListener('click', function () {
+        document.getElementById('node-shutdown-btn')?.addEventListener('click', function () {
             if (confirm('Shutdown Pubky Node? You will need to start it again manually.')) {
                 authFetch('/api/node/shutdown', { method: 'POST' });
                 document.getElementById('connection-status').querySelector('.status-label').textContent = 'Shutting down...';
@@ -861,18 +948,18 @@
         });
 
         // === Collapsible Guides ===
-        document.getElementById('upnp-guide-toggle').addEventListener('click', function () {
+        document.getElementById('upnp-guide-toggle')?.addEventListener('click', function () {
             this.parentElement.classList.toggle('expanded');
         });
-        document.getElementById('dns-connected-toggle').addEventListener('click', function () {
+        document.getElementById('dns-connected-toggle')?.addEventListener('click', function () {
             this.parentElement.classList.toggle('expanded');
         });
-        document.getElementById('vanity-info-toggle').addEventListener('click', function () {
+        document.getElementById('vanity-info-toggle')?.addEventListener('click', function () {
             this.parentElement.classList.toggle('expanded');
         });
 
         // === HTTP Proxy Setup ===
-        document.getElementById('proxy-setup-btn').addEventListener('click', async function () {
+        document.getElementById('proxy-setup-btn')?.addEventListener('click', async function () {
             var feedback = document.getElementById('proxy-setup-feedback');
             feedback.style.display = 'block';
             feedback.textContent = 'Configuring /etc/hosts... (admin password may be required)';
@@ -893,7 +980,7 @@
             }
             updateProxyHostsState();
         });
-        document.getElementById('proxy-reset-btn').addEventListener('click', async function () {
+        document.getElementById('proxy-reset-btn')?.addEventListener('click', async function () {
             var feedback = document.getElementById('proxy-setup-feedback');
             feedback.style.display = 'block';
             feedback.textContent = 'Resetting /etc/hosts... (admin password may be required)';
@@ -1032,19 +1119,19 @@
         }
 
         // Copy buttons for vanity result
-        document.getElementById('vanity-copy-pubkey').addEventListener('click', function () {
+        document.getElementById('vanity-copy-pubkey')?.addEventListener('click', function () {
             navigator.clipboard.writeText(document.getElementById('vanity-pubkey').textContent);
             this.title = 'Copied!';
             setTimeout(function () { document.getElementById('vanity-copy-pubkey').title = 'Copy public key'; }, 1500);
         });
-        document.getElementById('vanity-copy-seed').addEventListener('click', function () {
+        document.getElementById('vanity-copy-seed')?.addEventListener('click', function () {
             navigator.clipboard.writeText(document.getElementById('vanity-seed').textContent);
             this.title = 'Copied!';
             setTimeout(function () { document.getElementById('vanity-copy-seed').title = 'Copy seed'; }, 1500);
         });
 
         // Save vanity key to vault
-        document.getElementById('vanity-save-vault-btn').addEventListener('click', async function () {
+        document.getElementById('vanity-save-vault-btn')?.addEventListener('click', async function () {
             var pubkey = document.getElementById('vanity-pubkey').textContent;
             var seed = document.getElementById('vanity-seed').textContent;
             if (!pubkey || pubkey === '--' || !seed || seed === '--') return;
@@ -1172,7 +1259,7 @@
         });
 
         // Add record button
-        document.getElementById('publisher-add-record').addEventListener('click', function () {
+        document.getElementById('publisher-add-record')?.addEventListener('click', function () {
             addPublisherRecord('A', '@', '', '3600');
         });
 
@@ -1186,7 +1273,7 @@
         });
 
         // Generate keypair → save to vault → select it
-        document.getElementById('publisher-generate-key').addEventListener('click', async function () {
+        document.getElementById('publisher-generate-key')?.addEventListener('click', async function () {
             var bytes = new Uint8Array(32);
             crypto.getRandomValues(bytes);
             var hex = Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
@@ -1250,13 +1337,13 @@
         });
 
         // Toggle key visibility
-        document.getElementById('publisher-toggle-key').addEventListener('click', function () {
+        document.getElementById('publisher-toggle-key')?.addEventListener('click', function () {
             var inp = document.getElementById('publisher-secret-key');
             inp.type = inp.type === 'password' ? 'text' : 'password';
         });
 
         // Publish to DHT
-        document.getElementById('publisher-submit-btn').addEventListener('click', async function () {
+        document.getElementById('publisher-submit-btn')?.addEventListener('click', async function () {
             var statusEl = document.getElementById('publisher-status');
             var badge = document.getElementById('publisher-badge');
             var source = getPublisherKeySource();
@@ -1365,6 +1452,18 @@
                         document.getElementById('publisher-secret-key').value = '';
                         document.getElementById('publisher-secret-key').type = 'password';
                     }
+
+                    // Show success feedback with pubky URI
+                    var pubkey = data.public_key || '';
+                    if (pubkey) {
+                        var feedbackEl = document.getElementById('publisher-success-feedback');
+                        var uriEl = document.getElementById('publisher-pubky-uri');
+                        if (feedbackEl && uriEl) {
+                            uriEl.textContent = 'pubky://' + pubkey + '/';
+                            feedbackEl.style.display = '';
+                            feedbackEl._pubkey = pubkey;
+                        }
+                    }
                 } else {
                     throw new Error(data.message || JSON.stringify(data));
                 }
@@ -1417,7 +1516,7 @@
         loadSettings();
 
         // Change password handler
-        document.getElementById('settings-change-pw-btn').addEventListener('click', async function () {
+        document.getElementById('settings-change-pw-btn')?.addEventListener('click', async function () {
             var currentPw = document.getElementById('settings-current-pw').value;
             var newPw = document.getElementById('settings-new-pw').value;
             var confirmPw = document.getElementById('settings-confirm-pw').value;
@@ -1497,18 +1596,45 @@
                     createEl.style.display = 'block';
                     badge.textContent = 'No Vault';
                     badge.className = 'badge';
+                    updateSidebarVaultWidget('none');
                 } else if (!data.unlocked) {
                     lockedEl.style.display = 'block';
                     badge.textContent = 'Locked';
                     badge.className = 'badge badge-warning';
+                    updateSidebarVaultWidget('locked');
                 } else {
                     unlockedEl.style.display = 'block';
                     badge.textContent = 'Unlocked';
                     badge.className = 'badge badge-green';
+                    updateSidebarVaultWidget('unlocked');
                     loadVaultKeys();
                 }
             } catch (e) { /* ignore */ }
         }
+
+        function updateSidebarVaultWidget(state) {
+            var widget = document.getElementById('sidebar-vault-widget');
+            var icon = document.getElementById('sidebar-vault-icon');
+            var text = document.getElementById('sidebar-vault-text');
+            if (!widget) return;
+
+            if (state === 'none') {
+                widget.className = 'vault-widget';
+                text.textContent = 'No Vault';
+            } else if (state === 'locked') {
+                widget.className = 'vault-widget locked';
+                text.textContent = 'Vault Locked';
+                icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />';
+            } else if (state === 'unlocked') {
+                widget.className = 'vault-widget unlocked';
+                text.textContent = 'Vault Unlocked';
+                icon.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /><path d="M12 11v4" stroke-width="2" stroke-linecap="round"/>';
+            }
+        }
+
+        document.getElementById('sidebar-vault-widget')?.addEventListener('click', function() {
+            if (window._switchToTab) window._switchToTab('vault');
+        });
 
         async function loadVaultKeys() {
             try {
@@ -1631,7 +1757,7 @@
         }
 
         // Export entire vault as JSON file
-        document.getElementById('vault-export-all-btn').addEventListener('click', async function () {
+        document.getElementById('vault-export-all-btn')?.addEventListener('click', async function () {
             try {
                 var res = await authFetch('/api/vault/export-all');
                 if (!res.ok) return;
@@ -1652,10 +1778,10 @@
         });
 
         // Import vault from JSON file
-        document.getElementById('vault-import-btn').addEventListener('click', function () {
+        document.getElementById('vault-import-btn')?.addEventListener('click', function () {
             document.getElementById('vault-import-file').click();
         });
-        document.getElementById('vault-import-file').addEventListener('change', function () {
+        document.getElementById('vault-import-file')?.addEventListener('change', function () {
             var file = this.files[0];
             if (!file) return;
             var reader = new FileReader();
@@ -1696,7 +1822,7 @@
         loadVaultStatus();
 
         // Create vault
-        document.getElementById('vault-create-btn').addEventListener('click', async function () {
+        document.getElementById('vault-create-btn')?.addEventListener('click', async function () {
             var pw = document.getElementById('vault-create-pw').value;
             var confirm = document.getElementById('vault-create-confirm').value;
             var err = document.getElementById('vault-create-error');
@@ -1727,7 +1853,7 @@
         });
 
         // Unlock vault
-        document.getElementById('vault-unlock-btn').addEventListener('click', async function () {
+        document.getElementById('vault-unlock-btn')?.addEventListener('click', async function () {
             var pw = document.getElementById('vault-unlock-pw').value;
             var err = document.getElementById('vault-unlock-error');
             err.textContent = '';
@@ -1757,17 +1883,17 @@
         });
 
         // Lock vault
-        document.getElementById('vault-lock-btn').addEventListener('click', async function () {
+        document.getElementById('vault-lock-btn')?.addEventListener('click', async function () {
             await authFetch('/api/vault/lock', { method: 'POST' });
             loadVaultStatus();
         });
 
         // Show/hide add key form
-        document.getElementById('vault-add-manual-btn').addEventListener('click', function () {
+        document.getElementById('vault-add-manual-btn')?.addEventListener('click', function () {
             var form = document.getElementById('vault-add-form');
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         });
-        document.getElementById('vault-add-cancel-btn').addEventListener('click', function () {
+        document.getElementById('vault-add-cancel-btn')?.addEventListener('click', function () {
             document.getElementById('vault-add-form').style.display = 'none';
         });
 
@@ -1807,7 +1933,7 @@
             return null;
         }
 
-        document.getElementById('vault-add-save-btn').addEventListener('click', async function () {
+        document.getElementById('vault-add-save-btn')?.addEventListener('click', async function () {
             var name = document.getElementById('vault-add-name').value || 'Unnamed Key';
             var secret = document.getElementById('vault-add-secret').value;
             var pubkey = document.getElementById('vault-add-pubkey').value;
@@ -1843,16 +1969,19 @@
         });
 
         // Enter key support for vault forms
-        document.getElementById('vault-unlock-pw').addEventListener('keydown', function (e) {
+        document.getElementById('vault-unlock-pw')?.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') document.getElementById('vault-unlock-btn').click();
         });
-        document.getElementById('vault-create-confirm').addEventListener('keydown', function (e) {
+        document.getElementById('vault-create-confirm')?.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') document.getElementById('vault-create-btn').click();
         });
 
         // ========== Homeserver Tab ==========
 
         // Status polling
+        // Track current server pubkey for cross-referencing
+        var _hsServerPubkey = null;
+
         async function loadHsStatus() {
             try {
                 var res = await authFetch('/api/homeserver/status');
@@ -1861,14 +1990,35 @@
                 badge.textContent = data.state.charAt(0).toUpperCase() + data.state.slice(1);
                 badge.className = 'badge' + (data.state === 'running' ? ' badge-success' : data.state === 'error' ? ' badge-error' : '');
 
+                // Dashboard overview stat card
+                var dashHs = document.getElementById('dash-hs-status');
+                if (dashHs) {
+                    if (data.state === 'running') {
+                        dashHs.textContent = '● Online';
+                        dashHs.style.color = 'var(--green)';
+                    } else if (data.state === 'error') {
+                        dashHs.textContent = '● Error';
+                        dashHs.style.color = 'var(--red)';
+                    } else {
+                        dashHs.textContent = '○ Stopped';
+                        dashHs.style.color = 'var(--text-muted)';
+                    }
+                }
+
                 var info = document.getElementById('hs-server-info');
                 var startBtn = document.getElementById('hs-start-btn');
                 var stopBtn = document.getElementById('hs-stop-btn');
+                var changeKeyBtn = document.getElementById('hs-key-change-btn');
+
+                // Always show key summary if we have a pubkey (even when stopped)
+                _hsServerPubkey = data.pubkey || null;
+                updateHsKeySummary(_hsServerPubkey);
 
                 if (data.state === 'running') {
                     info.style.display = 'block';
                     startBtn.style.display = 'none';
                     stopBtn.style.display = 'inline-flex';
+                    if (changeKeyBtn) changeKeyBtn.style.display = 'inline-flex';
                     document.getElementById('hs-pid').textContent = data.pid || '—';
                     var secs = data.uptime_secs || 0;
                     var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
@@ -1879,17 +2029,120 @@
                         document.getElementById('hs-port-admin').textContent = '127.0.0.1:' + data.ports.admin;
                     }
                     loadHsStats();
+                    loadHsTunnelStatus();
                 } else {
                     info.style.display = 'none';
                     startBtn.style.display = 'inline-flex';
                     stopBtn.style.display = 'none';
+                    if (changeKeyBtn) changeKeyBtn.style.display = _hsServerPubkey ? 'inline-flex' : 'none';
                     document.getElementById('hs-stats-badge').textContent = 'Offline';
                     document.getElementById('hs-stats-badge').className = 'badge';
+                    document.getElementById('hs-quickstart-btn').style.display = 'none';
                 }
             } catch (e) { /* ignore */ }
         }
 
-        // Load stats from admin /info
+        // Load and display tunnel URL in the status card
+        async function loadHsTunnelStatus() {
+            var tunnelEl = document.getElementById('hs-tunnel-url');
+            if (!tunnelEl) return;
+            try {
+                var res = await authFetch('/api/tunnel/status');
+                var data = await res.json();
+                if (data.state === 'running' && data.public_url) {
+                    tunnelEl.innerHTML = '<a href="' + data.public_url + '" target="_blank" style="color:#818cf8; text-decoration:none;">' + data.public_url.replace('https://', '') + '</a>';
+                } else if (data.state === 'starting') {
+                    tunnelEl.textContent = '⏳ Starting…';
+                } else {
+                    tunnelEl.textContent = 'Not active';
+                    tunnelEl.style.color = '#64748b';
+                }
+            } catch (e) {
+                tunnelEl.textContent = '—';
+            }
+        }
+
+        // Update the rich server key summary card
+        function updateHsKeySummary(pubkey) {
+            var summary = document.getElementById('hs-key-summary');
+            if (!pubkey) {
+                summary.style.display = 'none';
+                return;
+            }
+            summary.style.display = 'block';
+
+            // Truncated key display
+            var truncated = pubkey.length > 20 ? pubkey.slice(0, 10) + '…' + pubkey.slice(-10) : pubkey;
+            var keyDisplay = document.getElementById('hs-key-display');
+            keyDisplay.textContent = truncated;
+            keyDisplay.title = 'Click to copy: ' + pubkey;
+            keyDisplay.onclick = function () {
+                navigator.clipboard.writeText(pubkey);
+                keyDisplay.textContent = '✅ Copied!';
+                setTimeout(function () { keyDisplay.textContent = truncated; }, 1500);
+            };
+
+            // Copy button
+            document.getElementById('hs-key-copy-btn').onclick = function () {
+                navigator.clipboard.writeText(pubkey);
+                this.textContent = '✅';
+                var btn = this;
+                setTimeout(function() { btn.textContent = '📋'; }, 1500);
+            };
+
+            // Explorer link
+            var explorerLink = document.getElementById('hs-key-explorer-link');
+            explorerLink.href = 'https://app.pubky.org/explorer?key=' + pubkey;
+
+            // PKARR status — resolve via local relay
+            checkPkarrStatus(pubkey);
+
+            // Cross-reference with vault keys for label
+            loadVaultKeyLabel(pubkey);
+        }
+
+        // Check PKARR publication status via local relay
+        async function checkPkarrStatus(pubkey) {
+            var statusEl = document.getElementById('hs-key-pkarr-status');
+            try {
+                var res = await fetch('http://localhost:6881/pkarr/' + pubkey);
+                if (res.ok) {
+                    statusEl.innerHTML = '<span style="color:#4ade80;">✅ PKARR</span>';
+                } else {
+                    statusEl.innerHTML = '<span style="color:#f59e0b;">⚠️ PKARR</span>';
+                }
+            } catch (e) {
+                statusEl.innerHTML = '<span style="color:#64748b;">— PKARR</span>';
+            }
+        }
+
+        // Find vault key label for server key
+        async function loadVaultKeyLabel(pubkey) {
+            var labelEl = document.getElementById('hs-key-label');
+            try {
+                var res = await authFetch('/api/vault/keys');
+                if (!res.ok) {
+                    labelEl.style.display = 'none';
+                    return;
+                }
+                var data = await res.json();
+                var keys = data.keys || [];
+                var match = keys.find(function(k) { return k.pubkey === pubkey; });
+                if (match) {
+                    labelEl.textContent = '🏠 ' + match.name;
+                    labelEl.style.display = 'inline-block';
+                } else {
+                    labelEl.textContent = '🏠 Server Key';
+                    labelEl.style.display = 'inline-block';
+                    labelEl.style.background = 'rgba(245,158,11,0.2)';
+                    labelEl.style.color = '#fbbf24';
+                }
+            } catch (e) {
+                labelEl.style.display = 'none';
+            }
+        }
+
+        // Load stats from admin /info + our config API
         async function loadHsStats() {
             try {
                 var res = await authFetch('/api/homeserver/info');
@@ -1898,15 +2151,80 @@
                 var badge = document.getElementById('hs-stats-badge');
                 badge.textContent = 'Connected';
                 badge.className = 'badge badge-success';
-                document.getElementById('hs-version').textContent = data.version || '—';
-                document.getElementById('hs-users').textContent = data.users_count != null ? data.users_count : '—';
-                document.getElementById('hs-signup-mode').textContent = data.signup_mode || '—';
-                document.getElementById('hs-server-key').textContent = data.public_key || '—';
+                document.getElementById('hs-users').textContent = data.num_users != null ? data.num_users : (data.users_count != null ? data.users_count : '—');
+
+                // Version and signup_mode aren't in admin /info — get from our config
+                try {
+                    var cfgRes = await authFetch('/api/homeserver/config');
+                    if (cfgRes.ok) {
+                        var cfg = await cfgRes.json();
+                        document.getElementById('hs-signup-mode').textContent = cfg.signup_mode || '—';
+                    }
+                } catch(e) { /* ignore */ }
+
+                // Update server key from info if available
+                var pk = data.public_key || _hsServerPubkey;
+                if (pk && pk !== _hsServerPubkey) {
+                    _hsServerPubkey = pk;
+                    updateHsKeySummary(pk);
+                }
+
+                // Show quickstart button if vault is unlocked and no users
+                var userCount = data.num_users != null ? data.num_users : data.users_count;
+                var qsBtn = document.getElementById('hs-quickstart-btn');
+                if (qsBtn) {
+                    if (userCount != null && userCount === 0) {
+                        try {
+                            var vRes = await authFetch('/api/vault/keys');
+                            qsBtn.style.display = vRes.ok ? 'inline-flex' : 'none';
+                        } catch(e) {
+                            qsBtn.style.display = 'none';
+                        }
+                    } else {
+                        qsBtn.style.display = 'none';
+                    }
+                }
             } catch (e) { /* ignore */ }
         }
 
+        // ⚡ Quickstart — one-click identity
+        var quickstartBtn = document.getElementById('hs-quickstart-btn');
+        if (quickstartBtn) {
+            quickstartBtn.addEventListener('click', async function () {
+                quickstartBtn.disabled = true;
+                quickstartBtn.textContent = '⏳ Creating…';
+                var resultDiv = document.getElementById('hs-quickstart-result');
+                var msgDiv = document.getElementById('hs-quickstart-msg');
+                resultDiv.style.display = 'block';
+                msgDiv.textContent = 'Generating key, signing up, publishing…';
+                try {
+                    var res = await authFetch('/api/quickstart', { method: 'POST' });
+                    var data = await res.json();
+                    if (data.success) {
+                        msgDiv.innerHTML = '✅ <strong>Identity created!</strong><br>' +
+                            '<span style="font-size:11px;color:#94a3b8;">Pubky: </span>' +
+                            '<code style="font-size:11px;color:#6366f1;">pubky://' + data.pubkey + '</code><br>' +
+                            '<span style="font-size:11px;color:#94a3b8;">Homeserver: </span>' +
+                            '<code style="font-size:11px;">' + data.homeserver + '</code><br>' +
+                            (data.pkarr_published ? '<span style="font-size:11px;color:#4ade80;">✅ PKARR published to DHT</span>' : '<span style="font-size:11px;color:#f59e0b;">⚠️ PKARR publish pending</span>');
+                        quickstartBtn.style.display = 'none';
+                        loadHsStatus();
+                    } else {
+                        msgDiv.innerHTML = '❌ ' + (data.error || 'Failed');
+                        if (data.step === 'vault') {
+                            msgDiv.innerHTML += '<br><span style="font-size:11px;">Unlock your vault first (Keys tab).</span>';
+                        }
+                    }
+                } catch (e) {
+                    msgDiv.textContent = '❌ Network error';
+                }
+                quickstartBtn.disabled = false;
+                quickstartBtn.textContent = '⚡ Create My Identity';
+            });
+        }
+
         // Prerequisites check
-        document.getElementById('hs-check-btn').addEventListener('click', async function () {
+        document.getElementById('hs-check-btn')?.addEventListener('click', async function () {
             this.textContent = '⏳';
             try {
                 var res = await authFetch('/api/homeserver/setup-check');
@@ -1921,12 +2239,24 @@
                 document.getElementById('hs-cfg-status').textContent = data.config_ok ? '✅ Ready' : '❌ Not generated';
                 document.getElementById('hs-cfg-status').style.color = data.config_ok ? '#4ade80' : '#f87171';
                 document.getElementById('hs-cfg-status').title = data.config_ok ? data.config_path : 'Config not generated yet.';
+
+                // Enable/disable Start button based on binary availability
+                var startBtn = document.getElementById('hs-start-btn');
+                if (!data.binary_ok) {
+                    startBtn.disabled = true;
+                    startBtn.title = 'pubky-homeserver binary not found. Build with build-sidecars.sh or install to PATH.';
+                    startBtn.textContent = '⚠️ Binary Missing';
+                } else {
+                    startBtn.disabled = false;
+                    startBtn.title = '';
+                    startBtn.textContent = '▶ Start Server';
+                }
             } catch (e) { /* ignore */ }
             this.textContent = 'Check';
         });
 
         // Generate config
-        document.getElementById('hs-gen-config-btn').addEventListener('click', async function () {
+        document.getElementById('hs-gen-config-btn')?.addEventListener('click', async function () {
             try {
                 var res = await authFetch('/api/homeserver/generate-config', { method: 'POST' });
                 var data = await res.json();
@@ -1937,7 +2267,7 @@
         });
 
         // Start server
-        document.getElementById('hs-start-btn').addEventListener('click', async function () {
+        document.getElementById('hs-start-btn')?.addEventListener('click', async function () {
             var msg = document.getElementById('hs-control-msg');
             this.disabled = true;
             this.textContent = '⏳ Starting...';
@@ -1968,7 +2298,7 @@
         });
 
         // Stop server
-        document.getElementById('hs-stop-btn').addEventListener('click', async function () {
+        document.getElementById('hs-stop-btn')?.addEventListener('click', async function () {
             this.disabled = true;
             try {
                 await authFetch('/api/homeserver/stop', { method: 'POST' });
@@ -1978,7 +2308,7 @@
         });
 
         // Generate signup token
-        document.getElementById('hs-gen-token-btn').addEventListener('click', async function () {
+        document.getElementById('hs-gen-token-btn')?.addEventListener('click', async function () {
             var display = document.getElementById('hs-token-display');
             this.textContent = '⏳';
             try {
@@ -2068,7 +2398,7 @@
         });
 
         // Copy token
-        document.getElementById('hs-token-copy').addEventListener('click', function () {
+        document.getElementById('hs-token-copy')?.addEventListener('click', function () {
             navigator.clipboard.writeText(document.getElementById('hs-token-value').textContent);
             this.textContent = '✅';
             var btn = this;
@@ -2090,7 +2420,7 @@
         }
 
         // Save config
-        document.getElementById('hs-save-config-btn').addEventListener('click', async function () {
+        document.getElementById('hs-save-config-btn')?.addEventListener('click', async function () {
             var msg = document.getElementById('hs-config-msg');
             try {
                 var res = await authFetch('/api/homeserver/config', {
@@ -2119,6 +2449,7 @@
         document.querySelector('[data-tab="homeserver"]').addEventListener('click', function () {
             loadHsStatus();
             loadHsConfig();
+            onHsTabActivated();
             // Auto-run prerequisites check
             document.getElementById('hs-check-btn').click();
         });
@@ -2145,20 +2476,20 @@
             document.getElementById('ring-export-modal').classList.add('active');
         }
 
-        document.getElementById('ring-export-close').addEventListener('click', function () {
+        document.getElementById('ring-export-close')?.addEventListener('click', function () {
             document.getElementById('ring-export-modal').classList.remove('active');
             document.getElementById('export-qr-container').innerHTML = '';
         });
 
         // Close on overlay click
-        document.getElementById('ring-export-modal').addEventListener('click', function (e) {
+        document.getElementById('ring-export-modal')?.addEventListener('click', function (e) {
             if (e.target === this) {
                 this.classList.remove('active');
                 document.getElementById('export-qr-container').innerHTML = '';
             }
         });
 
-        document.getElementById('export-copy-hex').addEventListener('click', function () {
+        document.getElementById('export-copy-hex')?.addEventListener('click', function () {
             var hex = document.getElementById('export-hex-value').textContent;
             navigator.clipboard.writeText(hex);
             this.textContent = '✅';
@@ -2190,6 +2521,246 @@
                     publishPkarrBtn.disabled = false;
                 }
             });
+        }
+
+        // ─── Profile Editor ─────────────────────────────────
+        var profileKeySelect = document.getElementById('profile-key-select');
+        var profileFormContainer = document.getElementById('profile-form-container');
+        var profileSaveBtn = document.getElementById('profile-save-btn');
+        var profileVerifyBtn = document.getElementById('profile-verify-btn');
+        var profileNexusBtn = document.getElementById('profile-nexus-btn');
+        var profileMsg = document.getElementById('profile-msg');
+        var profileNexusResult = document.getElementById('profile-nexus-result');
+        var profileAddLinkBtn = document.getElementById('profile-add-link-btn');
+        var profileBadge = document.getElementById('hs-profile-badge');
+
+        // Populate key selector from identities (signed-up keys)
+        async function populateProfileKeys() {
+            try {
+                var res = await authFetch('/api/identity/list');
+                var identities = await res.json();
+                profileKeySelect.innerHTML = '<option value="">— Select an identity —</option>';
+                if (Array.isArray(identities) && identities.length > 0) {
+                    for (var i = 0; i < identities.length; i++) {
+                        var id = identities[i];
+                        var opt = document.createElement('option');
+                        opt.value = id.pubkey;
+                        var label = id.pubkey.substring(0, 12) + '…';
+                        opt.textContent = label + ' (' + id.status + ')';
+                        profileKeySelect.appendChild(opt);
+                    }
+                }
+                // Also add vault keys that might not be signed up
+                var vaultRes = await authFetch('/api/vault/keys');
+                var vaultData = await vaultRes.json();
+                var keys = vaultData.keys || [];
+                var existingOpts = new Set();
+                for (var j = 1; j < profileKeySelect.options.length; j++) {
+                    existingOpts.add(profileKeySelect.options[j].value);
+                }
+                for (var k = 0; k < keys.length; k++) {
+                    if (!existingOpts.has(keys[k].pubkey)) {
+                        var opt2 = document.createElement('option');
+                        opt2.value = keys[k].pubkey;
+                        var lbl = keys[k].label || keys[k].pubkey.substring(0, 12) + '…';
+                        opt2.textContent = lbl + ' (vault only)';
+                        profileKeySelect.appendChild(opt2);
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to populate profile keys:', e);
+            }
+        }
+
+        // Load profile from homeserver
+        async function loadProfile(pubkey) {
+            profileMsg.textContent = 'Loading…';
+            profileMsg.style.color = '';
+            try {
+                var res = await authFetch('/api/profile/' + encodeURIComponent(pubkey));
+                var data = await res.json();
+                if (data.exists && data.profile) {
+                    var p = data.profile;
+                    document.getElementById('profile-name').value = p.name || '';
+                    document.getElementById('profile-bio').value = p.bio || '';
+                    document.getElementById('profile-status').value = p.status || '';
+                    // Populate links
+                    var linksList = document.getElementById('profile-links-list');
+                    linksList.innerHTML = '';
+                    if (p.links && p.links.length > 0) {
+                        for (var i = 0; i < p.links.length; i++) {
+                            addLinkRow(p.links[i].title, p.links[i].url);
+                        }
+                    }
+                    profileBadge.textContent = 'Saved';
+                    profileBadge.className = 'badge badge-success';
+                    profileMsg.textContent = '';
+                } else {
+                    // No profile yet — clear form
+                    document.getElementById('profile-name').value = '';
+                    document.getElementById('profile-bio').value = '';
+                    document.getElementById('profile-status').value = '';
+                    document.getElementById('profile-links-list').innerHTML = '';
+                    profileBadge.textContent = 'New';
+                    profileBadge.className = 'badge badge-warning';
+                    profileMsg.textContent = 'No profile yet — create one!';
+                    profileMsg.style.color = 'var(--warning)';
+                }
+                profileFormContainer.style.display = '';
+            } catch (e) {
+                profileMsg.textContent = '❌ ' + e.message;
+                profileMsg.style.color = 'var(--danger)';
+            }
+        }
+
+        // Save profile
+        async function saveProfile() {
+            var pubkey = profileKeySelect.value;
+            if (!pubkey) return;
+            var name = document.getElementById('profile-name').value.trim();
+            if (name.length < 3) {
+                profileMsg.textContent = '❌ Name must be at least 3 characters';
+                profileMsg.style.color = 'var(--danger)';
+                return;
+            }
+            profileSaveBtn.disabled = true;
+            profileMsg.textContent = 'Saving…';
+            profileMsg.style.color = '';
+
+            // Collect links
+            var linkRows = document.getElementById('profile-links-list').querySelectorAll('.profile-link-row');
+            var links = [];
+            linkRows.forEach(function (row) {
+                var title = row.querySelector('.profile-link-title').value.trim();
+                var url = row.querySelector('.profile-link-url').value.trim();
+                if (title && url) links.push({ title: title, url: url });
+            });
+
+            var payload = {
+                name: name,
+                bio: document.getElementById('profile-bio').value.trim() || null,
+                status: document.getElementById('profile-status').value.trim() || null,
+                links: links.length > 0 ? links : null,
+            };
+
+            try {
+                var res = await authFetch('/api/profile/' + encodeURIComponent(pubkey), {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                var data = await res.json();
+                if (res.ok && data.ok) {
+                    profileMsg.textContent = '✅ Profile saved!';
+                    profileMsg.style.color = 'var(--success)';
+                    profileBadge.textContent = 'Saved';
+                    profileBadge.className = 'badge badge-success';
+                } else {
+                    profileMsg.textContent = '❌ ' + (data.error || 'Failed');
+                    profileMsg.style.color = 'var(--danger)';
+                }
+            } catch (e) {
+                profileMsg.textContent = '❌ ' + e.message;
+                profileMsg.style.color = 'var(--danger)';
+            } finally {
+                profileSaveBtn.disabled = false;
+            }
+        }
+
+        // Add a link row to the links list
+        function addLinkRow(title, url) {
+            var list = document.getElementById('profile-links-list');
+            var row = document.createElement('div');
+            row.className = 'profile-link-row';
+            row.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;align-items:center;';
+            row.innerHTML = '<input type="text" class="publisher-key-input profile-link-title" placeholder="Title" value="' + (title || '').replace(/"/g, '&quot;') + '" style="flex:1;min-width:80px;">' +
+                '<input type="text" class="publisher-key-input profile-link-url" placeholder="https://…" value="' + (url || '').replace(/"/g, '&quot;') + '" style="flex:2;min-width:120px;">' +
+                '<button class="btn-sm" style="color:var(--danger);padding:4px 8px;" title="Remove link">✕</button>';
+            row.querySelector('button').addEventListener('click', function () { row.remove(); });
+            list.appendChild(row);
+        }
+
+        // Check Nexus indexing
+        async function checkProfileNexus(pubkey) {
+            profileNexusResult.style.display = '';
+            profileNexusResult.innerHTML = '<span style="color:var(--text-secondary);">Checking Nexus…</span>';
+            try {
+                var res = await authFetch('/api/profile/' + encodeURIComponent(pubkey) + '/nexus');
+                var data = await res.json();
+                var html = '<strong>Nexus Indexing Status</strong><br>';
+                var prodStatus = data.production || {};
+                var stagingStatus = data.staging || {};
+                html += '🏭 <strong>Production:</strong> ' + (prodStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (prodStatus.status || '?') + ')') + '<br>';
+                html += '🧪 <strong>Staging:</strong> ' + (stagingStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (stagingStatus.status || '?') + ')') + '<br>';
+                if (prodStatus.indexed && prodStatus.data) {
+                    html += '<br><em>Profile on Nexus:</em> ' + (prodStatus.data.name || '—');
+                    html += '<br><a href="https://app.pubky.app/profile/' + pubkey + '" target="_blank" style="color:var(--primary);">View on pubky-app →</a>';
+                }
+                profileNexusResult.innerHTML = html;
+                // Also update the status card Nexus badge
+                var nexusEl = document.getElementById('hs-nexus-status');
+                if (nexusEl) {
+                    nexusEl.innerHTML = prodStatus.indexed ? '<span style="color:#4ade80;">✅ Indexed</span>' : '<span style="color:#f59e0b;">⚠️ Not indexed</span>';
+                }
+            } catch (e) {
+                profileNexusResult.innerHTML = '❌ ' + e.message;
+            }
+        }
+
+        // Verify via tunnel
+        async function verifyProfile(pubkey) {
+            profileMsg.textContent = 'Verifying via tunnel…';
+            profileMsg.style.color = '';
+            try {
+                var res = await authFetch('/api/profile/' + encodeURIComponent(pubkey) + '/verify');
+                var data = await res.json();
+                if (data.reachable) {
+                    profileMsg.textContent = '✅ Profile reachable at ' + data.tunnel_url;
+                    profileMsg.style.color = 'var(--success)';
+                } else {
+                    profileMsg.textContent = '⚠️ Not reachable: ' + (data.reason || data.error || 'tunnel may not be active');
+                    profileMsg.style.color = 'var(--warning)';
+                }
+            } catch (e) {
+                profileMsg.textContent = '❌ ' + e.message;
+                profileMsg.style.color = 'var(--danger)';
+            }
+        }
+
+        // Event listeners
+        if (profileKeySelect) {
+            profileKeySelect.addEventListener('change', function () {
+                var pk = profileKeySelect.value;
+                var emptyState = document.getElementById('profile-empty-state');
+                if (pk) {
+                    if (emptyState) emptyState.style.display = 'none';
+                    loadProfile(pk);
+                } else {
+                    if (emptyState) emptyState.style.display = 'block';
+                    profileFormContainer.style.display = 'none';
+                    profileBadge.textContent = '—';
+                    profileBadge.className = 'badge';
+                }
+            });
+        }
+        if (profileSaveBtn) profileSaveBtn.addEventListener('click', function () { saveProfile(); });
+        if (profileAddLinkBtn) profileAddLinkBtn.addEventListener('click', function () { addLinkRow('', ''); });
+        if (profileVerifyBtn) profileVerifyBtn.addEventListener('click', function () {
+            var pk = profileKeySelect.value;
+            if (pk) verifyProfile(pk);
+        });
+        if (profileNexusBtn) profileNexusBtn.addEventListener('click', function () {
+            var pk = profileKeySelect.value;
+            if (pk) checkProfileNexus(pk);
+        });
+
+        // Auto-populate on Homeserver tab activation
+        var _profileKeysLoaded = false;
+        function onHsTabActivated() {
+            if (!_profileKeysLoaded) {
+                _profileKeysLoaded = true;
+                populateProfileKeys();
+            }
         }
 
         // ─── Log Stream SSE ──────────────────────────────
@@ -2435,7 +3006,15 @@
                         relayTunnelUrl.style.display = 'none';
                     }
                 }
-                if (relayTunnelStartBtn) relayTunnelStartBtn.disabled = (st === 'running' || st === 'starting');
+                if (relayTunnelStartBtn) {
+                    if (!data.binary_available) {
+                        relayTunnelStartBtn.disabled = true;
+                        relayTunnelStartBtn.title = 'cloudflared binary not found. Run build-sidecars.sh to download it.';
+                    } else {
+                        relayTunnelStartBtn.disabled = (st === 'running' || st === 'starting');
+                        relayTunnelStartBtn.title = '';
+                    }
+                }
                 if (relayTunnelStopBtn) relayTunnelStopBtn.disabled = (st === 'stopped');
             } catch (e) { console.error('relay tunnel status:', e); }
         }
@@ -2599,6 +3178,802 @@
                 hsBrowseFiles(pk);
             });
         }
+
+        // Dev badge removed — no longer needed
+
+        // ========== Unified Onboarding Sequence ==========
+
+        // Step 2: Vault Creation
+        var uVaultBtn = document.getElementById('unified-vault-btn');
+        if (uVaultBtn) {
+            uVaultBtn.addEventListener('click', async function () {
+                var pw = document.getElementById('unified-vault-pwd').value;
+                var pw2 = document.getElementById('unified-vault-pwd-conf').value;
+                var err = document.getElementById('unified-vault-err');
+                err.textContent = '';
+                var isUnlock = uVaultBtn.dataset.mode === 'unlock';
+
+                if (pw.length < 4) { err.textContent = 'Password must be at least 4 characters.'; return; }
+                if (!isUnlock && pw !== pw2) { err.textContent = 'Passwords do not match.'; return; }
+
+                uVaultBtn.disabled = true;
+                uVaultBtn.textContent = 'Securing...';
+                try {
+                    var endpoint = isUnlock ? '/api/vault/unlock' : '/api/vault/create';
+                    var res = await authFetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: pw })
+                    });
+                    var data = await res.json();
+                    if (data.success) {
+                        unifiedShowStep(3);
+                    } else {
+                        err.textContent = data.error || (isUnlock ? 'Failed to unlock vault.' : 'Failed to create vault.');
+                    }
+                } catch (e) { err.textContent = 'Network error: ' + e.message; }
+                uVaultBtn.disabled = false;
+                uVaultBtn.textContent = isUnlock ? 'Unlock Vault & Continue →' : 'Secure Vault & Continue →';
+            });
+        }
+
+        // Step 3: Launch
+        var uLaunchBtn = document.getElementById('unified-launch-btn');
+        if (uLaunchBtn) {
+            uLaunchBtn.addEventListener('click', async function () {
+                var err = document.getElementById('unified-hs-err');
+                err.textContent = '';
+                var logBox = document.getElementById('unified-launch-log');
+                
+                function addLog(msg, color) {
+                    var span = document.createElement('div');
+                    span.innerHTML = msg;
+                    if(color) span.style.color = color;
+                    logBox.appendChild(span);
+                    logBox.scrollTop = logBox.scrollHeight;
+                }
+
+                uLaunchBtn.disabled = true;
+                unifiedShowStep(4);
+                logBox.innerHTML = '⏳ Initialization started...<br>';
+                document.getElementById('unified-done-btn').style.display = 'none';
+
+                try {
+                    var signupMode = document.getElementById('unified-hs-signup').value;
+                    var accessMode = document.querySelector('input[name="unified-hs-access"]:checked');
+                    var useTunnel = accessMode && accessMode.value === 'tunnel';
+
+                    // 1. Config
+                    addLog('⏳ Saving Homeserver configuration...', 'var(--text-secondary)');
+                    await authFetch('/api/homeserver/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ signup_mode: signupMode })
+                    });
+
+                    // 2. Start Homeserver
+                    addLog('⏳ Booting Homeserver process...', 'var(--text-secondary)');
+                    var hsRes = await authFetch('/api/homeserver/start', { method: 'POST' });
+                    var hsData = await hsRes.json();
+                    if (!hsData.success) throw new Error(hsData.error || 'Failed to start homeserver');
+                    addLog('✅ Homeserver is running!', 'var(--success)');
+
+                    // 3. Quickstart (Keygen, Signup, PKARR, Watchlist)
+                    addLog('⏳ Generating Sovereign Identity & Publishing...', 'var(--text-secondary)');
+                    var qsRes = await authFetch('/api/quickstart', { method: 'POST' });
+                    var qsData = await qsRes.json();
+                    if (!qsRes.ok || !qsData.success) throw new Error(qsData.error || 'Failed to setup identity');
+                    addLog('✅ Identity created (pubky://' + qsData.pubkey.substring(0,8) + '...)', 'var(--success)');
+                    if (qsData.pkarr_published) {
+                        addLog('✅ Routing record published to DHT', 'var(--success)');
+                    }
+
+                    // 4. Tunnel
+                    if (useTunnel) {
+                        addLog('⏳ Establishing Cloudflare Relay Tunnel...', 'var(--text-secondary)');
+                        var tunnelRes = await authFetch('/api/tunnel/start', { method: 'POST' });
+                        if (!tunnelRes.ok) {
+                            addLog('⚠ Tunnel failed. You may configure it later in the UI.', 'var(--warning)');
+                        } else {
+                            addLog('✅ Tunnel connected', 'var(--success)');
+                            // Auto-publish PKARR again with new tunnel URL
+                            await authFetch('/api/homeserver/publish-pkarr', { method: 'POST' });
+                        }
+                    }
+
+                    addLog('<br>🎉 <strong>Welcome to the Sovereign Web!</strong>', 'var(--primary)');
+                    document.getElementById('unified-done-btn').style.display = 'block';
+
+                } catch (e) {
+                    addLog('❌ Error: ' + e.message, 'var(--danger)');
+                    var retryBtn = document.createElement('button');
+                    retryBtn.className = 'btn btn-secondary onboarding-btn';
+                    retryBtn.style.marginTop = '10px';
+                    retryBtn.textContent = 'Retry Setup';
+                    retryBtn.onclick = function() { 
+                        unifiedShowStep(3); 
+                        uLaunchBtn.disabled = false;
+                    };
+                    logBox.appendChild(retryBtn);
+                }
+            });
+        }
+
+        // Step 4: Done
+        var uDoneBtn = document.getElementById('unified-done-btn');
+        if (uDoneBtn) {
+            uDoneBtn.addEventListener('click', function() {
+                var overlay = document.getElementById('unified-onboarding-overlay');
+                if (overlay) overlay.style.display = 'none';
+                if (typeof loadVaultStatus === 'function') loadVaultStatus();
+                if (typeof loadVaultKeys === 'function') loadVaultKeys();
+            });
+        }
+
+        // Vault state check now handled in initDashboard() after login
+
+        // ========== Stage 2: Global Copy Helper ==========
+
+        window.copyToClipboard = function (text, label) {
+            navigator.clipboard.writeText(text).then(function () {
+                showCopyToast(label || 'Copied to clipboard');
+            });
+        };
+
+        function showCopyToast(msg) {
+            var existing = document.getElementById('copy-toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.id = 'copy-toast';
+            toast.className = 'copy-toast';
+            toast.textContent = '✅ ' + msg;
+            document.body.appendChild(toast);
+            requestAnimationFrame(function () {
+                toast.classList.add('show');
+            });
+            setTimeout(function () {
+                toast.classList.remove('show');
+                setTimeout(function () { toast.remove(); }, 300);
+            }, 2000);
+        }
+
+        // Publisher: Verify button — switches to Explorer tab and auto-resolves
+        var pubVerifyBtn = document.getElementById('publisher-verify-btn');
+        if (pubVerifyBtn) {
+            pubVerifyBtn.addEventListener('click', function () {
+                var feedbackEl = document.getElementById('publisher-success-feedback');
+                var pubkey = feedbackEl ? feedbackEl._pubkey : '';
+                if (!pubkey) return;
+                // Switch to Explorer tab
+                var explorerTab = document.querySelector('[data-tab="explorer"]');
+                if (explorerTab) explorerTab.click();
+                // Fill and resolve
+                var input = document.getElementById('explorer-key');
+                if (input) input.value = pubkey;
+                setTimeout(function () {
+                    document.getElementById('explorer-btn').click();
+                }, 200);
+            });
+        }
+
+        // Publisher: Copy URI button
+        var pubCopyBtn = document.getElementById('publisher-copy-uri-btn');
+        if (pubCopyBtn) {
+            pubCopyBtn.addEventListener('click', function () {
+                var uri = document.getElementById('publisher-pubky-uri').textContent;
+                copyToClipboard(uri, 'Pubky URI copied');
+            });
+        }
+
+        // Explorer: Copy URI button
+        var explorerCopyBtn = document.getElementById('explorer-copy-uri-btn');
+        if (explorerCopyBtn) {
+            explorerCopyBtn.addEventListener('click', function () {
+                var uri = document.getElementById('explorer-pubky-uri').textContent;
+                copyToClipboard(uri, 'Pubky URI copied');
+            });
+        }
+
+        // ========== Stage 2: Reachability Self-Test ==========
+
+        async function checkReachability() {
+            try {
+                var res = await authFetch('/api/reachability-check');
+                var data = await res.json();
+
+                var dht = document.getElementById('tl-dht');
+                var relay = document.getElementById('tl-relay');
+                var tunnel = document.getElementById('tl-tunnel');
+                var suggestion = document.getElementById('reachability-suggestion');
+
+                if (dht) {
+                    dht.className = 'traffic-dot ' + (data.dht_healthy ? 'green' : 'red');
+                }
+                if (relay) {
+                    relay.className = 'traffic-dot ' + (data.relay_reachable ? 'green' : 'red');
+                }
+                if (tunnel) {
+                    tunnel.className = 'traffic-dot ' + (data.tunnel_active ? 'green' : 'amber');
+                }
+                if (suggestion && data.suggestion) {
+                    suggestion.textContent = data.suggestion;
+                    suggestion.style.display = '';
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Check on Networks tab visit
+        document.querySelectorAll('.tab').forEach(function (t) {
+            t.addEventListener('click', function () {
+                if (t.dataset.tab === 'networks') {
+                    checkReachability();
+                }
+            });
+        });
+
+        // Manual refresh
+        var reachBtn = document.getElementById('reachability-refresh-btn');
+        if (reachBtn) {
+            reachBtn.addEventListener('click', function () {
+                reachBtn.textContent = '⏳';
+                checkReachability().then(function () { reachBtn.textContent = 'Check'; });
+            });
+        }
+
+        // Auto-check on initial load
+        setTimeout(checkReachability, 1500);
+
+        // ========== Stage 3: Recovery Tab ==========
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            var units = ['B', 'KB', 'MB', 'GB'];
+            var i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+        }
+
+        async function fetchBackupStatus() {
+            try {
+                var res = await authFetch('/api/backup/status');
+                var data = await res.json();
+                document.getElementById('backup-count').textContent = data.backup_count || 0;
+                document.getElementById('backup-active-syncs').textContent = data.active_syncs || 0;
+                document.getElementById('backup-total-size').textContent = formatBytes(data.total_size || 0);
+
+                // Show backup dir as clickable link
+                var dirEl = document.getElementById('backup-dir-display');
+                if (dirEl && data.backup_dir) {
+                    dirEl.textContent = '📂 ' + data.backup_dir;
+                    dirEl.title = 'Click to open in Finder: ' + data.backup_dir;
+                    dirEl.onclick = function(e) {
+                        e.preventDefault();
+                        fetch('/api/backup/open-dir', { method: 'POST', headers: authHeaders() })
+                            .then(function(r) { if (!r.ok) console.warn('Could not open folder'); });
+                    };
+                }
+
+                var badge = document.getElementById('backup-status-badge');
+                if (data.backup_count > 0) {
+                    badge.textContent = data.active_syncs > 0 ? 'Syncing' : 'Idle';
+                    badge.className = 'badge ' + (data.active_syncs > 0 ? 'badge-warn' : 'badge-success');
+                } else {
+                    badge.textContent = 'No Backups';
+                    badge.className = 'badge';
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        async function fetchBackupList() {
+            try {
+                var res = await authFetch('/api/backup/list');
+                var data = await res.json();
+                var list = document.getElementById('backup-list');
+                var empty = document.getElementById('backup-empty');
+                var backups = data.backups || [];
+
+                // Update dropdowns
+                var exportSelect = document.getElementById('backup-export-select');
+                var verifySelect = document.getElementById('backup-verify-select');
+                exportSelect.innerHTML = '<option value="">— Select identity to export —</option>';
+                verifySelect.innerHTML = '<option value="">— Select identity to verify —</option>';
+
+                if (backups.length === 0) {
+                    list.innerHTML = '';
+                    list.appendChild(empty);
+                    empty.style.display = '';
+                    return;
+                }
+
+                empty.style.display = 'none';
+                list.innerHTML = '';
+
+                backups.forEach(function (b) {
+                    var item = document.createElement('div');
+                    item.className = 'backup-item';
+                    var lastSync = b.last_sync ? b.last_sync : 'Never';
+                    var statusIcon = b.is_syncing ? '⏳' : (b.last_error ? '⚠' : '✅');
+                    item.innerHTML =
+                        '<span class="backup-item-pubky" title="' + b.pubky + '">' + statusIcon + ' ' + b.pubky + '</span>' +
+                        '<span class="backup-item-size">' + formatBytes(b.data_size || 0) + ' (' + (b.file_count || 0) + ' files)</span>' +
+                        '<div class="backup-item-actions">' +
+                            '<button class="btn-sm btn-secondary backup-sync-btn" data-pubky="' + b.pubky + '" title="Force sync">⟳</button>' +
+                            '<button class="btn-sm btn-secondary backup-remove-btn" data-pubky="' + b.pubky + '" title="Remove">✕</button>' +
+                        '</div>';
+                    list.appendChild(item);
+
+                    // Dropdown options
+                    var opt1 = document.createElement('option');
+                    opt1.value = b.pubky;
+                    opt1.textContent = b.pubky.substring(0, 12) + '…';
+                    exportSelect.appendChild(opt1);
+
+                    var opt2 = opt1.cloneNode(true);
+                    verifySelect.appendChild(opt2);
+                });
+
+                // Wire sync/remove buttons
+                list.querySelectorAll('.backup-sync-btn').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        btn.textContent = '⏳';
+                        await authFetch('/api/backup/force-sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pubky: btn.dataset.pubky })
+                        });
+                        btn.textContent = '⟳';
+                        fetchBackupStatus();
+                        fetchBackupList();
+                    });
+                });
+
+                list.querySelectorAll('.backup-remove-btn').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        await authFetch('/api/backup/stop', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pubky: btn.dataset.pubky })
+                        });
+                        fetchBackupStatus();
+                        fetchBackupList();
+                    });
+                });
+
+            } catch (e) { /* ignore */ }
+        }
+
+        // Add backup button
+        document.getElementById('backup-add-btn')?.addEventListener('click', async function () {
+            var input = document.getElementById('backup-add-pubky');
+            var pubky = input.value.trim();
+            if (!pubky) return;
+
+            var res = await authFetch('/api/backup/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pubky: pubky })
+            });
+            var data = await res.json();
+
+            if (res.ok) {
+                input.value = '';
+                showCopyToast('Backup added for ' + pubky.substring(0, 12) + '…');
+                // Auto-trigger sync for the new identity
+                authFetch('/api/backup/force-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubky: pubky })
+                });
+                fetchBackupStatus();
+                fetchBackupList();
+            } else {
+                showCopyToast(data.error || 'Failed to add backup');
+            }
+        });
+
+        // Sync All button
+        document.getElementById('backup-sync-all-btn')?.addEventListener('click', async function () {
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = '⏳ Syncing…';
+            try {
+                await authFetch('/api/backup/sync-all', { method: 'POST' });
+                showCopyToast('Sync-all triggered — running in background');
+                // Poll for updates every 2s for 30s
+                var polls = 0;
+                var poller = setInterval(function() {
+                    fetchBackupStatus();
+                    fetchBackupList();
+                    polls++;
+                    if (polls > 15) clearInterval(poller);
+                }, 2000);
+            } catch (e) { showCopyToast('Sync failed'); }
+            btn.disabled = false;
+            btn.textContent = '⟳ Sync All Now';
+        });
+
+        // ─── Snapshots ──────────────────────────────────────────
+        async function fetchSnapshots() {
+            try {
+                var res = await authFetch('/api/backup/snapshots');
+                var data = await res.json();
+                var list = document.getElementById('snapshot-list');
+                var empty = document.getElementById('snapshot-empty');
+                var badge = document.getElementById('snapshot-count-badge');
+                var snaps = data.snapshots || [];
+                badge.textContent = snaps.length;
+                if (snaps.length === 0) {
+                    list.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+                list.innerHTML = snaps.map(function(s) {
+                    var tier = s.tier || 'manual';
+                    var tierColors = { daily:'#22c55e', monthly:'#3b82f6', quarterly:'#a855f7', yearly:'#f59e0b', manual:'#6b7280' };
+                    var tierColor = tierColors[tier] || '#6b7280';
+                    var displayTs = s.display_ts || s.timestamp || '';
+                    return '<div style="background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:' + tierColor + '22;color:' + tierColor + ';border:1px solid ' + tierColor + '44;text-transform:uppercase;font-weight:600;letter-spacing:0.5px;">' + tier + '</span>' +
+                                '<span style="font-family:var(--mono);font-size:0.78rem;color:#c4b5fd;">' + displayTs + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                            '<span style="font-size:0.78rem;color:#9ca3af;">' + (s.file_count || 0) + ' files · ' + formatBytes(s.size || 0) + '</span>' +
+                            '<div style="display:flex;gap:6px;">' +
+                                '<button class="btn-sm" onclick="restoreSnapshot(\'' + s.pubky + '\',\'' + s.timestamp + '\')" style="font-size:0.72rem;padding:2px 8px;background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">⏪ Restore</button>' +
+                                '<button class="btn-sm" onclick="deleteSnapshot(\'' + s.pubky + '\',\'' + s.timestamp + '\')" style="font-size:0.72rem;padding:2px 8px;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);">🗑</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (e) { /* ignore */ }
+        }
+
+        document.getElementById('snapshot-create-btn')?.addEventListener('click', async function () {
+            var btn = this;
+            // Get the first backed-up pubky
+            var pubky = null;
+            try {
+                var listRes = await authFetch('/api/backup/list');
+                var listData = await listRes.json();
+                if (listData.pubkeys && listData.pubkeys.length > 0) {
+                    pubky = listData.pubkeys[0];
+                }
+            } catch(e) {}
+            if (!pubky) { showCopyToast('No backup data to snapshot'); return; }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Creating…';
+            try {
+                var res = await authFetch('/api/backup/snapshot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubky: pubky })
+                });
+                var data = await res.json();
+                if (data.error) {
+                    showCopyToast('Error: ' + data.error);
+                } else {
+                    showCopyToast('Snapshot created: ' + data.timestamp);
+                    fetchSnapshots();
+                }
+            } catch (e) { showCopyToast('Snapshot failed'); }
+            btn.disabled = false;
+            btn.textContent = '📸 Create Snapshot';
+        });
+
+        window.restoreSnapshot = async function(pubky, timestamp) {
+            if (!confirm('Restore snapshot ' + timestamp + '?\n\nThis will replace your current backup data with this snapshot. The sync cursor is preserved so new events will still be fetched.')) return;
+            try {
+                var res = await authFetch('/api/backup/snapshot/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubky: pubky, timestamp: timestamp })
+                });
+                var data = await res.json();
+                if (data.error) { showCopyToast('Error: ' + data.error); }
+                else { showCopyToast('Restored to ' + timestamp); fetchBackupStatus(); fetchBackupList(); }
+            } catch (e) { showCopyToast('Restore failed'); }
+        };
+
+        window.deleteSnapshot = async function(pubky, timestamp) {
+            if (!confirm('Delete snapshot ' + timestamp + '?')) return;
+            try {
+                var res = await authFetch('/api/backup/snapshot/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubky: pubky, timestamp: timestamp })
+                });
+                var data = await res.json();
+                if (data.error) { showCopyToast('Error: ' + data.error); }
+                else { showCopyToast('Snapshot deleted'); fetchSnapshots(); }
+            } catch (e) { showCopyToast('Delete failed'); }
+        };
+
+        // Initial snapshot load
+        fetchSnapshots();
+
+        // ─── Migration ─────────────────────────────────────────────
+        // Populate migration pubky selector from backup list
+        async function populateMigrationSelectors() {
+            try {
+                var res = await authFetch('/api/backup/list');
+                var data = await res.json();
+                var sel = document.getElementById('migration-pubky');
+                sel.innerHTML = '<option value="">— Select identity —</option>';
+                if (data.backups) {
+                    data.backups.forEach(function(b) {
+                        sel.innerHTML += '<option value="' + b.pubky + '">' + b.pubky.substring(0,16) + '… (' + (b.file_count || 0) + ' files)</option>';
+                    });
+                }
+                // Populate source selector with snapshots
+                var snapRes = await authFetch('/api/backup/snapshots');
+                var snapData = await snapRes.json();
+                var srcSel = document.getElementById('migration-source');
+                srcSel.innerHTML = '<option value="latest">Latest backup</option>';
+                if (snapData.snapshots) {
+                    snapData.snapshots.forEach(function(s) {
+                        var label = (s.tier || '') + ' ' + (s.display_ts || s.timestamp) + ' (' + (s.file_count || 0) + ' files)';
+                        srcSel.innerHTML += '<option value="snapshot:' + s.timestamp + '">' + label + '</option>';
+                    });
+                }
+            } catch(e) { /* ignore */ }
+        }
+        populateMigrationSelectors();
+
+        // Preflight
+        document.getElementById('migration-preflight-btn')?.addEventListener('click', async function() {
+            var pubky = document.getElementById('migration-pubky').value;
+            var target = document.getElementById('migration-target').value;
+            var source = document.getElementById('migration-source').value;
+            if (!pubky) { showToast('Select a pubky first', 'error'); return; }
+            if (!target) { showToast('Enter target homeserver URL', 'error'); return; }
+
+            var resultsDiv = document.getElementById('migration-preflight-results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<span style="color:#c4b5fd;">Running preflight checks…</span>';
+
+            try {
+                var res = await authFetch('/api/migration/preflight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubky: pubky, target_homeserver: target, source: source })
+                });
+                var data = await res.json();
+                var html = '';
+                (data.checks || []).forEach(function(c) {
+                    var icon = c.passed ? '✅' : '❌';
+                    html += '<div style="margin-bottom:4px;">' + icon + ' <strong>' + c.name + '</strong>: ' + c.detail + '</div>';
+                });
+                if (data.file_count) {
+                    html += '<div style="margin-top:6px;color:#9ca3af;">📦 ' + data.file_count + ' files, ' + formatBytes(data.total_bytes || 0) + '</div>';
+                }
+                resultsDiv.innerHTML = html;
+                document.getElementById('migration-execute-btn').disabled = !data.ok;
+                if (data.ok) showToast('Preflight passed ✓', 'success');
+            } catch(e) {
+                resultsDiv.innerHTML = '<span style="color:#f87171;">Preflight failed: ' + e.message + '</span>';
+            }
+        });
+
+        // Execute migration
+        document.getElementById('migration-execute-btn')?.addEventListener('click', async function() {
+            var pubky = document.getElementById('migration-pubky').value;
+            var target = document.getElementById('migration-target').value;
+            var source = document.getElementById('migration-source').value;
+            var signupToken = document.getElementById('migration-signup-token').value;
+            var dryRun = document.getElementById('migration-dryrun').checked;
+
+            if (!pubky || !target) { showToast('Complete all required fields', 'error'); return; }
+
+            var confirmMsg = dryRun
+                ? 'Start dry-run migration? Data will be uploaded but PKARR will NOT be updated.'
+                : '⚠️ LIVE MIGRATION: This will upload data AND update your PKARR record. Continue?';
+            if (!confirm(confirmMsg)) return;
+
+            this.disabled = true;
+            document.getElementById('migration-progress').style.display = 'block';
+
+            try {
+                await authFetch('/api/migration/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pubky: pubky,
+                        target_homeserver: target,
+                        source: source,
+                        signup_token: signupToken || null,
+                        dry_run: dryRun
+                    })
+                });
+                // Start polling status
+                pollMigrationStatus();
+            } catch(e) {
+                showToast('Migration launch failed: ' + e.message, 'error');
+                this.disabled = false;
+            }
+        });
+
+        // Poll migration status
+        var migrationPollInterval = null;
+        function pollMigrationStatus() {
+            if (migrationPollInterval) clearInterval(migrationPollInterval);
+            migrationPollInterval = setInterval(async function() {
+                try {
+                    var res = await authFetch('/api/migration/status');
+                    var data = await res.json();
+                    var phaseEl = document.getElementById('migration-phase');
+                    var fileCountEl = document.getElementById('migration-file-count');
+                    var progressBar = document.getElementById('migration-progress-bar');
+                    var detailEl = document.getElementById('migration-status-detail');
+
+                    var phaseLabels = {
+                        idle: '⏸ Idle', backup: '📸 Creating snapshot…', signup: '🔐 Signing up…',
+                        uploading: '📤 Uploading files…', pkarr: '🌐 Updating PKARR…',
+                        done: '✅ Complete', error: '❌ Error'
+                    };
+                    phaseEl.textContent = phaseLabels[data.phase] || data.phase;
+                    fileCountEl.textContent = (data.uploaded_files || 0) + ' / ' + (data.total_files || 0) + ' files';
+
+                    var pct = data.total_files > 0 ? Math.round((data.uploaded_files / data.total_files) * 100) : 0;
+                    progressBar.style.width = pct + '%';
+
+                    var detail = formatBytes(data.uploaded_bytes || 0) + ' / ' + formatBytes(data.total_bytes || 0);
+                    if (data.dry_run) detail += ' (dry run)';
+                    if (data.error) detail += ' — ' + data.error;
+                    detailEl.textContent = detail;
+
+                    if (data.phase === 'done' || data.phase === 'error') {
+                        clearInterval(migrationPollInterval);
+                        migrationPollInterval = null;
+                        document.getElementById('migration-execute-btn').disabled = false;
+                        if (data.phase === 'done') {
+                            showToast('Migration complete! ' + (data.dry_run ? '(dry run)' : 'PKARR updated.'), 'success');
+                        } else {
+                            showToast('Migration error: ' + (data.error || 'Unknown'), 'error');
+                        }
+                    }
+                } catch(e) { /* ignore poll errors */ }
+            }, 1000);
+        }
+
+        // Export bundle button
+        document.getElementById('backup-export-btn')?.addEventListener('click', async function () {
+            var pubky = document.getElementById('backup-export-select').value;
+            if (!pubky) return;
+            var includeKeys = document.getElementById('backup-export-keys').checked;
+
+            var res = await authFetch('/api/backup/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pubky: pubky, include_keys: includeKeys })
+            });
+            var data = await res.json();
+            var resultEl = document.getElementById('backup-export-result');
+
+            if (res.ok) {
+                resultEl.style.display = '';
+                resultEl.innerHTML = '<strong>📦 Recovery Bundle</strong><br>' +
+                    'Pubky: <code>' + data.pubky + '</code><br>' +
+                    'Files: ' + data.file_count + ' | Size: ' + formatBytes(data.total_size || 0) + '<br>' +
+                    (data.secret_key ? '🔑 Secret key included' : 'No secret key') + '<br>' +
+                    '<button class="btn-sm btn-secondary" style="margin-top:8px;" onclick="copyToClipboard(JSON.stringify(' + JSON.stringify(data).replace(/'/g, "\\'") + ', null, 2), \'Bundle copied to clipboard\')">📋 Copy JSON</button>';
+            } else {
+                resultEl.style.display = '';
+                resultEl.innerHTML = '❌ ' + (data.error || 'Export failed');
+            }
+        });
+
+        // Verify button
+        document.getElementById('backup-verify-btn')?.addEventListener('click', async function () {
+            var pubky = document.getElementById('backup-verify-select').value;
+            if (!pubky) return;
+
+            var res = await authFetch('/api/backup/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pubky: pubky })
+            });
+            var data = await res.json();
+            var resultEl = document.getElementById('backup-verify-result');
+
+            if (res.ok && data.valid) {
+                resultEl.className = 'backup-verify-result';
+                resultEl.style.display = '';
+                resultEl.innerHTML = '✅ <strong>Backup valid</strong><br>' +
+                    'Files: ' + data.file_count + ' | Size: ' + formatBytes(data.total_size || 0) + '<br>' +
+                    'Cursor: ' + (data.has_cursor ? 'Present' : 'Missing');
+            } else {
+                resultEl.className = 'backup-verify-result error';
+                resultEl.style.display = '';
+                resultEl.innerHTML = '❌ ' + (data.error || 'Verification failed');
+            }
+        });
+
+        // Load backup data on Recovery tab visit
+        document.querySelectorAll('.tab').forEach(function (t) {
+            t.addEventListener('click', function () {
+                if (t.dataset.tab === 'recovery') {
+                    fetchBackupStatus();
+                    fetchBackupList();
+                }
+            });
+        });
+
+        // ========== Stage 4: Hosting Wizard ==========
+
+        // Legacy wizard code removed. Unification implemented above.
+
+        // ========== Stage 4: API Explorer ==========
+
+        document.querySelectorAll('.api-try-btn').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                var endpoint = btn.closest('.api-endpoint');
+                var method = endpoint.dataset.method;
+                var path = endpoint.dataset.path;
+                var responseEl = document.getElementById('hs-api-response');
+                var bodyEl = document.getElementById('hs-api-resp-body');
+                var statusEl = document.getElementById('hs-api-resp-status');
+                var methodEl = document.getElementById('hs-api-resp-method');
+                var pathEl = document.getElementById('hs-api-resp-path');
+
+                btn.textContent = '⏳';
+                responseEl.style.display = '';
+                methodEl.textContent = method;
+                methodEl.className = 'api-method ' + method.toLowerCase();
+                pathEl.textContent = path;
+                bodyEl.textContent = 'Loading…';
+
+                try {
+                    // Route through our proxy
+                    var proxyPath = '/api/homeserver/info';
+                    if (path === '/users') proxyPath = '/api/homeserver/users';
+                    else if (path === '/generate_signup_token') proxyPath = '/api/homeserver/signup-token';
+                    else if (path === '/metrics') proxyPath = '/api/homeserver/proxy-url';
+                    else proxyPath = '/api/homeserver/info';
+
+                    var res = await authFetch(proxyPath);
+                    var data = await res.json();
+                    statusEl.textContent = res.status;
+                    statusEl.className = 'badge ' + (res.ok ? 'badge-success' : 'badge-error');
+                    bodyEl.textContent = JSON.stringify(data, null, 2);
+                } catch (e) {
+                    statusEl.textContent = 'Error';
+                    statusEl.className = 'badge badge-error';
+                    bodyEl.textContent = e.message;
+                }
+                btn.textContent = 'Try';
+            });
+        });
+
+        // ========== Stage 4: File Breadcrumb ==========
+
+        window.renderFileBreadcrumb = function (path, onClick) {
+            var bc = document.getElementById('hs-files-breadcrumb');
+            if (!bc) return;
+            bc.style.display = '';
+            bc.innerHTML = '';
+            var parts = path.split('/').filter(Boolean);
+            parts.unshift('root');
+            parts.forEach(function (part, idx) {
+                if (idx > 0) {
+                    var sep = document.createElement('span');
+                    sep.className = 'file-breadcrumb-sep';
+                    sep.textContent = '/';
+                    bc.appendChild(sep);
+                }
+                var span = document.createElement('span');
+                span.className = 'file-breadcrumb-item';
+                span.textContent = part;
+                span.addEventListener('click', function () {
+                    var newPath = '/' + parts.slice(1, idx + 1).join('/');
+                    if (onClick) onClick(newPath || '/');
+                });
+                bc.appendChild(span);
+            });
+        };
 
     } // end initEventListeners
 })();

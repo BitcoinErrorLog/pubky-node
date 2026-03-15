@@ -200,6 +200,15 @@ impl KeyVault {
         Ok(info)
     }
 
+    /// Check if a key exists in the vault (requires unlocked).
+    pub fn has_key(&self, pubkey: &str) -> bool {
+        let guard = self.unlocked_keys.read().unwrap();
+        match guard.as_ref() {
+            Some(keys) => keys.iter().any(|k| k.pubkey == pubkey),
+            None => false,
+        }
+    }
+
     /// Export a key's secret hex. Requires unlocked vault.
     pub fn export_key(&self, pubkey: &str) -> Result<String, String> {
         let guard = self.unlocked_keys.read().unwrap();
