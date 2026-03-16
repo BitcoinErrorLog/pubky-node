@@ -764,20 +764,37 @@
             var res = await authFetch('/api/vault/status');
             if (res.ok) {
                 var vdata = await res.json();
+                var vaultChanged = false;
                 if (!vdata.exists) {
                     // No vault — auto-create with the dashboard password (silent)
-                    authFetch('/api/vault/create', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ password: _authPassword })
-                    }).catch(function(e) { console.warn('Vault auto-create:', e); });
+                    try {
+                        await authFetch('/api/vault/create', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: _authPassword })
+                        });
+                        vaultChanged = true;
+                    } catch (e) { console.warn('Vault auto-create:', e); }
                 } else if (!vdata.unlocked) {
                     // Vault locked — try auto-unlock with login password (silent)
-                    authFetch('/api/vault/unlock', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ password: _authPassword })
-                    }).catch(function(e) { console.warn('Vault auto-unlock:', e); });
+                    try {
+                        var ur = await authFetch('/api/vault/unlock', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: _authPassword })
+                        });
+                        if (ur.ok) vaultChanged = true;
+                    } catch (e) { console.warn('Vault auto-unlock:', e); }
+                } else {
+                    vaultChanged = true; // already unlocked, still refresh UI
+                }
+                // Refresh all vault-dependent UI now that vault is ready
+                if (vaultChanged) {
+                    if (typeof loadVaultStatus === 'function') loadVaultStatus();
+                    if (typeof loadVaultKeys === 'function') loadVaultKeys();
+                    if (typeof populateProfileKeys === 'function') populateProfileKeys();
+                    if (typeof hsIdentityLoad === 'function') hsIdentityLoad();
+                    if (typeof fetchBackupList === 'function') fetchBackupList();
                 }
             }
         } catch (e) {
