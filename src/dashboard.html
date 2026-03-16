@@ -474,38 +474,7 @@
                         </div>
                     </section>
 
-                    <!-- Reachability Card -->
-                    <section class="card" id="reachability-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon" style="background:rgba(34,197,94,0.15);color:#22c55e;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                                        <polyline points="22 4 12 14.01 9 11.01"/>
-                                    </svg>
-                                </div>
-                                <h2>Reachability</h2>
-                            </div>
-                            <button class="btn-sm btn-secondary" id="reachability-refresh-btn" title="Check now">Check</button>
-                        </div>
-                        <div class="card-body">
-                            <div class="traffic-lights" id="reachability-lights">
-                                <div class="traffic-item">
-                                    <span class="traffic-dot" id="tl-dht"></span>
-                                    <span class="traffic-label">DHT Client</span>
-                                </div>
-                                <div class="traffic-item">
-                                    <span class="traffic-dot" id="tl-relay"></span>
-                                    <span class="traffic-label">Relay Port</span>
-                                </div>
-                                <div class="traffic-item">
-                                    <span class="traffic-dot" id="tl-tunnel"></span>
-                                    <span class="traffic-label">Tunnel</span>
-                                </div>
-                            </div>
-                            <div class="reachability-suggestion" id="reachability-suggestion" style="display:none;"></div>
-                        </div>
-                    </section>
+
 
                     <!-- PKDNS Panel -->
                     <section class="card" id="dns-panel">
@@ -1871,43 +1840,7 @@ pubky-node node shutdown                      # Graceful shutdown
 
                 <div class="grid" id="hs-grid">
 
-                    <!-- Prerequisites Check -->
-                    <section class="card" id="hs-prereq-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-blue">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2">
-                                        <path
-                                            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                                    </svg>
-                                </div>
-                                <h2>Prerequisites</h2>
-                            </div>
-                            <div style="display:flex;gap:6px;">
-                                <button class="btn-sm btn-secondary" id="hs-check-btn">Check</button>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="hs-prereq-list" class="hs-prereq-list">
-                                <div class="hs-prereq-item"><span class="hs-prereq-label">PostgreSQL</span><span
-                                        class="hs-prereq-status" id="hs-pg-status">✅ Embedded (auto-managed)</span>
-                                </div>
-                                <div class="hs-prereq-item"><span class="hs-prereq-label">Database</span><span
-                                        class="hs-prereq-status" id="hs-db-status">✅ Auto-created on start</span></div>
-                                <div class="hs-prereq-item"><span class="hs-prereq-label">Binary</span><span
-                                        class="hs-prereq-status" id="hs-bin-status">—</span></div>
-                                <div class="hs-prereq-item"><span class="hs-prereq-label">Config</span><span
-                                        class="hs-prereq-status" id="hs-cfg-status">—</span></div>
-                            </div>
-                            <div class="hs-form-actions" style="margin-top:12px;">
-                                <button class="btn-sm btn-secondary" id="hs-gen-config-btn">Generate Config</button>
-                            </div>
-                            <div id="hs-fix-log"
-                                style="display:none;margin-top:10px;font-size:12px;line-height:1.8;color:var(--text-secondary);font-family:var(--font-mono);">
-                            </div>
-                        </div>
-                    </section>
+
 
 
                     <!-- Homeserver Control + Stats -->

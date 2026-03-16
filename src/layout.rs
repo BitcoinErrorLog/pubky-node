@@ -152,7 +152,6 @@ pub fn default_layout() -> Layout {
                 visible: true,
                 category: Some("My Homeserver".to_string()),
                 cards: vec![
-                    CardLayout { id: "hs-prereq-panel".to_string(), visible: true },
                     CardLayout { id: "hs-control-panel".to_string(), visible: true },
                     CardLayout { id: "hs-invite-panel".to_string(), visible: true },
                     CardLayout { id: "hs-config-panel".to_string(), visible: true },
@@ -177,7 +176,6 @@ pub fn default_layout() -> Layout {
                     CardLayout { id: "dns-tunnel-panel".to_string(), visible: true },
                     CardLayout { id: "proxy-panel".to_string(), visible: true },
                     CardLayout { id: "dns-panel".to_string(), visible: true },
-                    CardLayout { id: "reachability-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
