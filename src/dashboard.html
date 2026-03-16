@@ -1180,56 +1180,58 @@
                                 <h2>Homeserver Migration</h2>
                             </div>
                         </div>
-                        <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:12px;">
-                            Migrate your data to a different homeserver. This creates a pre-migration snapshot, uploads all data to the new server, and updates your PKARR record.
-                        </p>
-                        <div style="display:flex;flex-direction:column;gap:10px;">
-                            <!-- Pubky selector -->
-                            <label style="font-size:0.78rem;color:#c4b5fd;">
-                                Pubky to migrate
-                                <select id="migration-pubky" class="input" style="width:100%;margin-top:4px;font-family:var(--mono);font-size:0.78rem;">
-                                    <option value="">— Select identity —</option>
-                                </select>
-                            </label>
-                            <!-- Source selector -->
-                            <label style="font-size:0.78rem;color:#c4b5fd;">
-                                Data source
-                                <select id="migration-source" class="input" style="width:100%;margin-top:4px;font-size:0.82rem;">
-                                    <option value="latest">Latest backup</option>
-                                </select>
-                            </label>
-                            <!-- Target homeserver -->
-                            <label style="font-size:0.78rem;color:#c4b5fd;">
-                                Target homeserver URL
-                                <input id="migration-target" class="input" type="text" placeholder="https://new-homeserver.example.com" style="width:100%;margin-top:4px;" />
-                            </label>
-                            <!-- Signup token (optional) -->
-                            <label style="font-size:0.78rem;color:#c4b5fd;">
-                                Signup token <span style="color:#6b7280;">(optional)</span>
-                                <input id="migration-signup-token" class="input" type="text" placeholder="Leave empty if not required" style="width:100%;margin-top:4px;" />
-                            </label>
-                            <!-- Dry-run toggle -->
-                            <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#c4b5fd;cursor:pointer;">
-                                <input id="migration-dryrun" type="checkbox" checked />
-                                Dry run (upload only, do NOT update PKARR/DNS record)
-                            </label>
-                            <!-- Buttons -->
-                            <div style="display:flex;gap:8px;margin-top:4px;">
-                                <button class="btn-sm btn-primary" id="migration-preflight-btn">🔍 Preflight Check</button>
-                                <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>🚀 Execute Migration</button>
-                            </div>
-                            <!-- Preflight results -->
-                            <div id="migration-preflight-results" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;font-size:0.82rem;"></div>
-                            <!-- Progress -->
-                            <div id="migration-progress" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;">
-                                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                                    <span id="migration-phase" style="font-size:0.82rem;color:#c4b5fd;font-weight:600;">Idle</span>
-                                    <span id="migration-file-count" style="font-size:0.78rem;color:#9ca3af;">0 / 0 files</span>
+                        <div class="card-body">
+                            <p style="color:#9ca3af;font-size:0.85rem;margin:0 0 16px;">
+                                Migrate your data to a different homeserver. This creates a pre-migration snapshot, uploads all data to the new server, and updates your PKARR record.
+                            </p>
+                            <div style="display:flex;flex-direction:column;gap:14px;">
+                                <!-- Pubky selector -->
+                                <label style="font-size:0.78rem;color:#c4b5fd;display:flex;flex-direction:column;gap:4px;">
+                                    Pubky to migrate
+                                    <select id="migration-pubky" class="input" style="width:100%;font-family:var(--mono);font-size:0.78rem;">
+                                        <option value="">— Select identity —</option>
+                                    </select>
+                                </label>
+                                <!-- Source selector -->
+                                <label style="font-size:0.78rem;color:#c4b5fd;display:flex;flex-direction:column;gap:4px;">
+                                    Data source
+                                    <select id="migration-source" class="input" style="width:100%;font-size:0.82rem;">
+                                        <option value="latest">Latest backup</option>
+                                    </select>
+                                </label>
+                                <!-- Target homeserver -->
+                                <label style="font-size:0.78rem;color:#c4b5fd;display:flex;flex-direction:column;gap:4px;">
+                                    Target homeserver URL
+                                    <input id="migration-target" class="input" type="text" placeholder="https://new-homeserver.example.com" style="width:100%;" />
+                                </label>
+                                <!-- Signup token (optional) -->
+                                <label style="font-size:0.78rem;color:#c4b5fd;display:flex;flex-direction:column;gap:4px;">
+                                    Signup token <span style="color:#6b7280;">(optional)</span>
+                                    <input id="migration-signup-token" class="input" type="text" placeholder="Leave empty if not required" style="width:100%;" />
+                                </label>
+                                <!-- Dry-run toggle -->
+                                <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#c4b5fd;cursor:pointer;padding:4px 0;">
+                                    <input id="migration-dryrun" type="checkbox" checked />
+                                    Dry run (upload only, do NOT update PKARR/DNS record)
+                                </label>
+                                <!-- Buttons -->
+                                <div style="display:flex;gap:10px;margin-top:4px;">
+                                    <button class="btn-sm btn-primary" id="migration-preflight-btn">🔍 Preflight Check</button>
+                                    <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>🚀 Execute Migration</button>
                                 </div>
-                                <div style="width:100%;height:6px;background:rgba(139,92,246,0.15);border-radius:3px;overflow:hidden;">
-                                    <div id="migration-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#8b5cf6,#a855f7);border-radius:3px;transition:width 0.3s;"></div>
+                                <!-- Preflight results -->
+                                <div id="migration-preflight-results" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;font-size:0.82rem;"></div>
+                                <!-- Progress -->
+                                <div id="migration-progress" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;">
+                                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                                        <span id="migration-phase" style="font-size:0.82rem;color:#c4b5fd;font-weight:600;">Idle</span>
+                                        <span id="migration-file-count" style="font-size:0.78rem;color:#9ca3af;">0 / 0 files</span>
+                                    </div>
+                                    <div style="width:100%;height:6px;background:rgba(139,92,246,0.15);border-radius:3px;overflow:hidden;">
+                                        <div id="migration-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg,#8b5cf6,#a855f7);border-radius:3px;transition:width 0.3s;"></div>
+                                    </div>
+                                    <div id="migration-status-detail" style="font-size:0.72rem;color:#9ca3af;margin-top:6px;"></div>
                                 </div>
-                                <div id="migration-status-detail" style="font-size:0.72rem;color:#9ca3af;margin-top:6px;"></div>
                             </div>
                         </div>
                     </section>
