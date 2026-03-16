@@ -4249,7 +4249,46 @@
     function renderPageList() {
         var container = document.getElementById('layout-page-list');
         container.innerHTML = '';
+        var lastCat = null;
         currentLayout.pages.forEach(function(page, pageIdx) {
+            // Show category separator if this page starts a new category
+            var cat = page.category || null;
+            if (cat && cat !== lastCat) {
+                var catRow = document.createElement('div');
+                catRow.className = 'layout-category-row';
+                catRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 8px;margin-top:' + (pageIdx === 0 ? '0' : '8px') + ';';
+                var catInput = document.createElement('input');
+                catInput.type = 'text';
+                catInput.value = cat;
+                catInput.className = 'layout-category-input';
+                catInput.style.cssText = 'background:none;border:none;border-bottom:1px solid rgba(139,92,246,0.3);color:#a78bfa;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:2px 4px;flex:1;outline:none;';
+                catInput.addEventListener('change', (function(pi) {
+                    return function() {
+                        var newCat = this.value.trim();
+                        if (!newCat) return;
+                        // Update this page and all following pages that shared the old category
+                        var oldCat = currentLayout.pages[pi].category;
+                        currentLayout.pages[pi].category = newCat;
+                        for (var i = pi + 1; i < currentLayout.pages.length; i++) {
+                            if (currentLayout.pages[i].category === oldCat) {
+                                // Don't change — they might have explicitly set the same category
+                                break;
+                            }
+                            if (!currentLayout.pages[i].category) {
+                                // Inherits from previous, no change needed
+                                continue;
+                            }
+                            break;
+                        }
+                        renderPageList();
+                    };
+                })(pageIdx));
+                catInput.addEventListener('click', function(e) { e.stopPropagation(); });
+                catRow.appendChild(catInput);
+                container.appendChild(catRow);
+                lastCat = cat;
+            }
+
             var item = document.createElement('div');
             item.className = 'layout-page-item';
             item.draggable = true;
@@ -4447,26 +4486,73 @@
         }).catch(err => alert('Reset failed: ' + err));
     }
 
+    // Cache original SVG icons from the sidebar, keyed by data-tab id
+    var _navIcons = {};
+    (function cacheNavIcons() {
+        document.querySelectorAll('#nav-tabs .nav-item[data-tab]').forEach(function(btn) {
+            var svg = btn.querySelector('svg');
+            if (svg) _navIcons[btn.dataset.tab] = svg.cloneNode(true);
+        });
+    })();
+
     function rebuildSidebar() {
         if (!currentLayout) return;
         var nav = document.getElementById('nav-tabs');
-        // Update nav item labels and visibility based on layout
+        var activeTab = nav.querySelector('.nav-item.active');
+        var activeTabId = activeTab ? activeTab.dataset.tab : 'dashboard';
+
+        // Clear existing nav
+        nav.innerHTML = '';
+
+        // Group pages by category, preserving layout order
+        var lastCategory = null;
+        var currentSection = null;
+
         currentLayout.pages.forEach(function(page) {
-            var btn = nav.querySelector('[data-tab="' + page.id + '"]');
-            if (btn) {
-                // Update label text (preserve inner SVG icon)
-                var svg = btn.querySelector('svg');
-                btn.textContent = '';
-                if (svg) btn.appendChild(svg);
-                btn.appendChild(document.createTextNode('\n                        ' + page.label + '\n                    '));
-                // Update page visibility in sidebar
-                var section = btn.closest('.nav-section');
-                if (section) {
-                    btn.style.display = page.visible ? '' : 'none';
-                }
+            var cat = page.category || null;
+
+            // Start a new nav-section if category changes (or is explicitly set)
+            if (cat && cat !== lastCategory) {
+                currentSection = document.createElement('div');
+                currentSection.className = 'nav-section';
+                var catLabel = document.createElement('div');
+                catLabel.className = 'nav-label';
+                catLabel.textContent = cat.toUpperCase();
+                currentSection.appendChild(catLabel);
+                nav.appendChild(currentSection);
+                lastCategory = cat;
             }
 
-            // Apply card visibility within this page's tab content
+            // If no category and no section yet, create one without label
+            if (!currentSection) {
+                currentSection = document.createElement('div');
+                currentSection.className = 'nav-section';
+                nav.appendChild(currentSection);
+            }
+
+            // Create nav button
+            var btn = document.createElement('button');
+            btn.className = 'nav-item' + (page.id === activeTabId ? ' active' : '');
+            btn.dataset.tab = page.id;
+
+            // Preserve special element IDs
+            if (page.id === 'guide') btn.id = 'guide-icon-btn';
+            if (page.id === 'settings') btn.id = 'settings-icon-btn';
+
+            // Re-use cached SVG icon
+            var icon = _navIcons[page.id];
+            if (icon) btn.appendChild(icon.cloneNode(true));
+
+            btn.appendChild(document.createTextNode('\n                        ' + page.label + '\n                    '));
+
+            // Hide if not visible
+            if (!page.visible) btn.style.display = 'none';
+
+            currentSection.appendChild(btn);
+        });
+
+        // Apply card visibility within each page's tab content
+        currentLayout.pages.forEach(function(page) {
             page.cards.forEach(function(card) {
                 var el = document.getElementById(card.id);
                 if (el) {
@@ -4474,6 +4560,9 @@
                 }
             });
         });
+
+        // Re-bind tab click listeners
+        initTabs();
     }
 
     // Apply layout on page load

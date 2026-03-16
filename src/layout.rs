@@ -25,6 +25,9 @@ pub struct PageLayout {
     pub icon: String,
     /// Whether the page is visible in the sidebar
     pub visible: bool,
+    /// Category group label shown in sidebar (e.g. "Overview", "My Identity")
+    #[serde(default)]
+    pub category: Option<String>,
     /// Ordered list of cards on this page
     pub cards: Vec<CardLayout>,
 }
@@ -112,6 +115,7 @@ pub fn default_layout() -> Layout {
                 label: "Dashboard".to_string(),
                 icon: "📊".to_string(),
                 visible: true,
+                category: Some("Overview".to_string()),
                 cards: vec![
                     CardLayout { id: "stats-row".to_string(), visible: true },
                     CardLayout { id: "health-row".to_string(), visible: true },
@@ -124,6 +128,7 @@ pub fn default_layout() -> Layout {
                 label: "Keychain".to_string(),
                 icon: "🔐".to_string(),
                 visible: true,
+                category: Some("My Identity".to_string()),
                 cards: vec![
                     CardLayout { id: "vault-panel".to_string(), visible: true },
                     CardLayout { id: "watchlist-panel".to_string(), visible: true },
@@ -134,6 +139,7 @@ pub fn default_layout() -> Layout {
                 label: "Profile".to_string(),
                 icon: "👤".to_string(),
                 visible: true,
+                category: None,
                 cards: vec![
                     CardLayout { id: "hs-profile-panel".to_string(), visible: true },
                 ],
@@ -143,6 +149,7 @@ pub fn default_layout() -> Layout {
                 label: "Server Dashboard".to_string(),
                 icon: "🖥".to_string(),
                 visible: true,
+                category: Some("My Homeserver".to_string()),
                 cards: vec![
                     CardLayout { id: "hs-prereq-panel".to_string(), visible: true },
                     CardLayout { id: "hs-control-panel".to_string(), visible: true },
@@ -161,6 +168,7 @@ pub fn default_layout() -> Layout {
                 label: "Network Status".to_string(),
                 icon: "🌐".to_string(),
                 visible: true,
+                category: Some("Node & Network".to_string()),
                 cards: vec![
                     CardLayout { id: "upnp-panel".to_string(), visible: true },
                     CardLayout { id: "hs-tunnel-panel".to_string(), visible: true },
@@ -176,6 +184,7 @@ pub fn default_layout() -> Layout {
                 label: "Network Explorer".to_string(),
                 icon: "🔍".to_string(),
                 visible: true,
+                category: Some("Tools".to_string()),
                 cards: vec![
                     CardLayout { id: "explorer-main".to_string(), visible: true },
                 ],
@@ -185,6 +194,7 @@ pub fn default_layout() -> Layout {
                 label: "PKARR Publisher".to_string(),
                 icon: "📡".to_string(),
                 visible: true,
+                category: None,
                 cards: vec![
                     CardLayout { id: "publisher-panel".to_string(), visible: true },
                 ],
@@ -194,6 +204,7 @@ pub fn default_layout() -> Layout {
                 label: "Vanity Key Gen".to_string(),
                 icon: "⭐".to_string(),
                 visible: true,
+                category: None,
                 cards: vec![
                     CardLayout { id: "vanity-panel".to_string(), visible: true },
                 ],
@@ -203,6 +214,7 @@ pub fn default_layout() -> Layout {
                 label: "Recovery".to_string(),
                 icon: "🔄".to_string(),
                 visible: true,
+                category: Some("System".to_string()),
                 cards: vec![
                     CardLayout { id: "backup-status-panel".to_string(), visible: true },
                     CardLayout { id: "backup-identities-panel".to_string(), visible: true },
@@ -217,6 +229,7 @@ pub fn default_layout() -> Layout {
                 label: "Guide".to_string(),
                 icon: "📖".to_string(),
                 visible: true,
+                category: None,
                 cards: vec![
                     CardLayout { id: "guide-content".to_string(), visible: true },
                 ],
@@ -226,6 +239,7 @@ pub fn default_layout() -> Layout {
                 label: "Settings".to_string(),
                 icon: "⚙️".to_string(),
                 visible: true,
+                category: None,
                 cards: vec![
                     CardLayout { id: "settings-password".to_string(), visible: true },
                     CardLayout { id: "settings-storage".to_string(), visible: true },
