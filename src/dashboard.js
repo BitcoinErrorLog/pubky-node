@@ -498,6 +498,10 @@
         if (typeof loadHsStatus === 'function') {
             try { loadHsStatus(); } catch(e) {}
         }
+        // Keep vault state fresh (sidebar widget, key lists)
+        if (typeof loadVaultStatus === 'function') {
+            try { loadVaultStatus(); } catch(e) {}
+        }
     }
 
     // ========== Key Explorer ==========
@@ -2414,7 +2418,8 @@
 
                 if (!tokenRes.ok) {
                     var errMsg = data.error || 'Homeserver returned ' + tokenRes.status;
-                    document.getElementById('hs-token-value').textContent = '❌ ' + errMsg;
+                    document.getElementById('hs-token-value').textContent = errMsg;
+                    document.getElementById('hs-token-qr').style.display = 'none';
                     display.style.display = 'block';
                     document.getElementById('hs-invite-badge').textContent = 'Error';
                     document.getElementById('hs-invite-badge').className = 'badge badge-error';
@@ -2430,6 +2435,7 @@
                     // Format: pubkyring://signup?hs={homeserver_pubkey}&st={token}&relay={relay_url}
                     var qrContainer = document.getElementById('hs-token-qr');
                     qrContainer.innerHTML = '';
+                    qrContainer.style.display = 'flex';
                     try {
                         var params = new URLSearchParams();
                         params.set('st', data.token);
@@ -2475,13 +2481,13 @@
                     document.getElementById('hs-invite-badge').textContent = 'Generated';
                     document.getElementById('hs-invite-badge').className = 'badge badge-success';
                 } else {
-                    document.getElementById('hs-token-value').textContent = '❌ No token returned. Is signup mode set to "Token Required"?';
+                    document.getElementById('hs-token-value').textContent = 'No token returned. Is signup mode set to "Token Required"?';
                     display.style.display = 'block';
                     document.getElementById('hs-invite-badge').textContent = 'Error';
                     document.getElementById('hs-invite-badge').className = 'badge badge-error';
                 }
             } catch (e) {
-                document.getElementById('hs-token-value').textContent = '❌ ' + (e.message || 'Failed to connect to homeserver');
+                document.getElementById('hs-token-value').textContent = (e.message || 'Failed to connect to homeserver');
                 display.style.display = 'block';
                 document.getElementById('hs-invite-badge').textContent = 'Error';
                 document.getElementById('hs-invite-badge').className = 'badge badge-error';
@@ -2492,9 +2498,9 @@
         // Copy token
         document.getElementById('hs-token-copy')?.addEventListener('click', function () {
             navigator.clipboard.writeText(document.getElementById('hs-token-value').textContent);
-            this.textContent = '✅';
+            this.textContent = 'Copied';
             var btn = this;
-            setTimeout(function () { btn.textContent = ''; }, 1500);
+            setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
         });
 
         // Load config into form
