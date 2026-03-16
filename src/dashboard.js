@@ -4213,6 +4213,8 @@
 // ═══════ Layout Editor ═══════
 (function() {
     'use strict';
+
+    document.addEventListener('DOMContentLoaded', function() {
     var currentLayout = null;
 
     // Open/close editor
@@ -4409,18 +4411,26 @@
     }
 
     function saveLayout() {
-        layoutFetch('/api/layout', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(currentLayout)
-        }).then(r => r.json()).then(function(result) {
-            if (result.status === 'ok') {
-                rebuildSidebar();
-                closeLayoutEditor();
-            } else {
-                alert('Save failed: ' + (result.error || 'unknown'));
-            }
-        }).catch(err => alert('Save failed: ' + err));
+        try {
+            layoutFetch('/api/layout', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentLayout)
+            }).then(function(r) {
+                return r.json();
+            }).then(function(result) {
+                if (result.status === 'ok') {
+                    rebuildSidebar();
+                    closeLayoutEditor();
+                } else {
+                    alert('Save failed: ' + (result.error || JSON.stringify(result)));
+                }
+            }).catch(function(err) {
+                alert('Save failed: ' + err);
+            });
+        } catch(e) {
+            alert('Save error: ' + e.message);
+        }
     }
 
     function resetLayout() {
@@ -4468,4 +4478,5 @@
         rebuildSidebar();
     }).catch(function() { /* layout API not available, use default HTML */ });
 
+    }); // end DOMContentLoaded
 })();
