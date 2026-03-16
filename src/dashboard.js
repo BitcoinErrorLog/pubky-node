@@ -4329,7 +4329,17 @@
 
             var icon = document.createElement('span');
             icon.className = 'layout-page-icon';
-            icon.textContent = page.icon;
+            // Use real SVG icon from sidebar cache, fall back to emoji
+            var cachedSvg = _navIcons[page.id];
+            if (cachedSvg) {
+                var svgClone = cachedSvg.cloneNode(true);
+                svgClone.style.width = '18px';
+                svgClone.style.height = '18px';
+                svgClone.style.opacity = '0.7';
+                icon.appendChild(svgClone);
+            } else {
+                icon.textContent = page.icon;
+            }
 
             var label = document.createElement('input');
             label.className = 'layout-page-label';
