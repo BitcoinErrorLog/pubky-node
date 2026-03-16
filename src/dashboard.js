@@ -17,6 +17,8 @@
         }
         return fetch(url, opts);
     }
+    // Expose globally for layout editor and other modules
+    window._authFetch = authFetch;
 
     async function checkAuthSetup() {
         try {
@@ -1981,6 +1983,7 @@
         // Status polling
         // Track current server pubkey for cross-referencing
         var _hsServerPubkey = null;
+        var _tunnelAutoStartAttempted = false; // only auto-start tunnels once per session
 
         async function loadHsStatus() {
             try {
@@ -2034,6 +2037,12 @@
                     loadHsStats();
                     loadHsTunnelStatus();
                     loadHsNexusStatus();
+
+                    // Auto-start tunnels once when homeserver first comes online
+                    if (!_tunnelAutoStartAttempted) {
+                        _tunnelAutoStartAttempted = true;
+                        autoStartTunnels();
+                    }
                 } else {
                     info.style.display = 'none';
                     startBtn.style.display = 'inline-flex';
@@ -2063,6 +2072,45 @@
                 }
             } catch (e) {
                 tunnelEl.textContent = '—';
+            }
+        }
+
+        // Auto-start tunnels when homeserver comes online (once per session)
+        async function autoStartTunnels() {
+            try {
+                // Check HS tunnel
+                var hsRes = await authFetch('/api/tunnel/status');
+                var hsData = await hsRes.json();
+                if (hsData.state !== 'running') {
+                    console.log('[auto-start] Starting HS tunnel...');
+                    await authFetch('/api/tunnel/start', { method: 'POST' });
+                    // Wait for tunnel to establish, then publish PKARR
+                    setTimeout(async function() {
+                        try {
+                            await authFetch('/api/homeserver/publish-pkarr', { method: 'POST' });
+                            console.log('[auto-start] PKARR published with tunnel URL');
+                        } catch(e) { console.warn('[auto-start] PKARR publish failed:', e); }
+                        loadHsTunnelStatus();
+                    }, 5000);
+                }
+
+                // Check relay tunnel
+                var relayRes = await authFetch('/api/relay-tunnel/status');
+                var relayData = await relayRes.json();
+                if (relayData.state !== 'running') {
+                    console.log('[auto-start] Starting relay tunnel...');
+                    await authFetch('/api/relay-tunnel/start', { method: 'POST' });
+                }
+
+                // Check DNS tunnel
+                var dnsRes = await authFetch('/api/dns-tunnel/status');
+                var dnsData = await dnsRes.json();
+                if (dnsData.state !== 'running') {
+                    console.log('[auto-start] Starting DNS tunnel...');
+                    await authFetch('/api/dns-tunnel/start', { method: 'POST' });
+                }
+            } catch(e) {
+                console.warn('[auto-start] Tunnel auto-start error:', e);
             }
         }
 
@@ -4176,8 +4224,12 @@
     document.getElementById('layout-save-btn').addEventListener('click', saveLayout);
     document.getElementById('layout-reset-btn').addEventListener('click', resetLayout);
 
+    function layoutFetch(url, opts) {
+        return (window._authFetch || fetch)(url, opts);
+    }
+
     function openLayoutEditor() {
-        fetch('/api/layout').then(r => r.json()).then(layout => {
+        layoutFetch('/api/layout').then(r => r.json()).then(layout => {
             currentLayout = layout;
             renderPageList();
             document.getElementById('layout-editor-overlay').style.display = 'flex';
@@ -4357,7 +4409,7 @@
     }
 
     function saveLayout() {
-        fetch('/api/layout', {
+        layoutFetch('/api/layout', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(currentLayout)
@@ -4373,7 +4425,7 @@
 
     function resetLayout() {
         if (!confirm('Reset layout to defaults? This will undo all customizations.')) return;
-        fetch('/api/layout/reset', { method: 'POST' }).then(r => r.json()).then(function(layout) {
+        layoutFetch('/api/layout/reset', { method: 'POST' }).then(r => r.json()).then(function(layout) {
             currentLayout = layout;
             renderPageList();
             rebuildSidebar();
@@ -4411,7 +4463,7 @@
     }
 
     // Apply layout on page load
-    fetch('/api/layout').then(r => r.json()).then(function(layout) {
+    layoutFetch('/api/layout').then(r => r.json()).then(function(layout) {
         currentLayout = layout;
         rebuildSidebar();
     }).catch(function() { /* layout API not available, use default HTML */ });
