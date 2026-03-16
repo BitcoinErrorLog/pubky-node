@@ -2412,6 +2412,77 @@
             loadHsStatus();
         });
 
+        // Change server key
+        document.getElementById('hs-key-change-btn')?.addEventListener('click', async function () {
+            var msg = document.getElementById('hs-control-msg');
+            try {
+                // Fetch vault keys
+                var res = await authFetch('/api/vault/keys');
+                if (!res.ok) {
+                    msg.style.display = 'block';
+                    msg.textContent = 'Vault is locked. Unlock it first.';
+                    msg.style.background = 'rgba(239,68,68,0.15)';
+                    msg.style.color = '#f87171';
+                    return;
+                }
+                var data = await res.json();
+                var keys = data.keys || [];
+                if (keys.length === 0) {
+                    msg.style.display = 'block';
+                    msg.textContent = 'No keys in vault. Generate or import a key first.';
+                    msg.style.background = 'rgba(239,68,68,0.15)';
+                    msg.style.color = '#f87171';
+                    return;
+                }
+
+                // Build key list for prompt
+                var lines = keys.map(function(k, i) {
+                    var label = k.name || k.label || k.pubkey.substring(0, 16) + '...';
+                    return (i + 1) + '. ' + label + ' (' + k.pubkey.substring(0, 8) + '...)';
+                });
+                var choice = prompt('Select a key to assign to the homeserver:\n\n' + lines.join('\n') + '\n\nEnter number (1-' + keys.length + '):');
+                if (!choice) return;
+                var idx = parseInt(choice, 10) - 1;
+                if (isNaN(idx) || idx < 0 || idx >= keys.length) {
+                    msg.style.display = 'block';
+                    msg.textContent = 'Invalid selection.';
+                    msg.style.background = 'rgba(239,68,68,0.15)';
+                    msg.style.color = '#f87171';
+                    return;
+                }
+
+                var selectedKey = keys[idx].pubkey;
+                this.disabled = true;
+                msg.style.display = 'block';
+                msg.textContent = 'Setting key and restarting homeserver...';
+                msg.style.background = 'rgba(99,102,241,0.15)';
+                msg.style.color = '#a5b4fc';
+
+                var setRes = await authFetch('/api/homeserver/set-key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubkey: selectedKey }),
+                });
+                var result = await setRes.json();
+                if (result.success) {
+                    msg.textContent = result.message || 'Key changed successfully.';
+                    msg.style.background = 'rgba(34,197,94,0.15)';
+                    msg.style.color = '#4ade80';
+                } else {
+                    msg.textContent = result.error || 'Failed to change key.';
+                    msg.style.background = 'rgba(239,68,68,0.15)';
+                    msg.style.color = '#f87171';
+                }
+            } catch (e) {
+                msg.style.display = 'block';
+                msg.textContent = e.message || 'Failed to change key.';
+                msg.style.background = 'rgba(239,68,68,0.15)';
+                msg.style.color = '#f87171';
+            }
+            this.disabled = false;
+            loadHsStatus();
+        });
+
         // Generate signup token
         document.getElementById('hs-gen-token-btn')?.addEventListener('click', async function () {
             var display = document.getElementById('hs-token-display');
