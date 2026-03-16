@@ -747,6 +747,7 @@
 
     async function initDashboard() {
         initTabs();
+        if (window._loadLayout) window._loadLayout(); // Apply saved layout (labels, order, categories)
         poll();
         setInterval(poll, POLL_INTERVAL);
         fetchWatchlistKeys();
@@ -4496,7 +4497,7 @@
     })();
 
     function rebuildSidebar() {
-        if (!currentLayout) return;
+        if (!currentLayout || !currentLayout.pages || currentLayout.pages.length === 0) return;
         var nav = document.getElementById('nav-tabs');
         var activeTab = nav.querySelector('.nav-item.active');
         var activeTabId = activeTab ? activeTab.dataset.tab : 'dashboard';
@@ -4565,11 +4566,16 @@
         initTabs();
     }
 
-    // Apply layout on page load
-    layoutFetch('/api/layout').then(r => r.json()).then(function(layout) {
-        currentLayout = layout;
-        rebuildSidebar();
-    }).catch(function() { /* layout API not available, use default HTML */ });
+    // Apply layout after login (not on DOMContentLoaded, since layout API requires auth)
+    // Exposed so initDashboard can trigger it after successful login
+    window._loadLayout = function() {
+        layoutFetch('/api/layout').then(r => r.json()).then(function(layout) {
+            if (layout && layout.pages && layout.pages.length > 0) {
+                currentLayout = layout;
+                rebuildSidebar();
+            }
+        }).catch(function() { /* layout API not available, use default HTML */ });
+    };
 
     }); // end DOMContentLoaded
 })();
