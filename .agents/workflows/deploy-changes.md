@@ -35,12 +35,16 @@ hdiutil detach "/Volumes/Pubky Node" -quiet
 
 ## 4. Relaunch the app — updates BOTH the macOS window AND localhost:9090
 
-> The Tauri app owns the `pubky-node` sidecar process. Closing the window only minimizes to tray.
-> Use the tray menu → **Quit Pubky Node**, or run:
+> **CRITICAL**: `osascript quit` only closes the Tauri window — the sidecar `pubky-node` process keeps running and holds port 9090.
+> You MUST kill all pubky processes before relaunching, otherwise the new app cannot bind to port 9090 and the old binary continues serving stale content.
 
 // turbo
 ```bash
-osascript -e 'quit app "Pubky Node"'
+osascript -e 'quit app "Pubky Node"' 2>/dev/null
+sleep 1
+pkill -f "pubky-node" 2>/dev/null
+pkill -f "pubky-homeserver" 2>/dev/null
+pkill -f "pkdns" 2>/dev/null
 sleep 2
 open "/Applications/Pubky Node.app"
 ```
