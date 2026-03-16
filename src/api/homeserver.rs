@@ -103,15 +103,86 @@ pub async fn api_hs_set_key(
     };
 
     // Write to homeserver's secret file
-    match state.homeserver.set_server_key(&secret_hex) {
-        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
+    if let Err(e) = state.homeserver.set_server_key(&secret_hex) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
+            "error": format!("Failed to set key: {}", e)
+        })));
+    }
+
+    // If homeserver is running, restart it so it picks up the new key
+    // The restart triggers auto-PKARR publish + auto-signup via the post-boot task
+    let was_running = state.homeserver.state() == crate::homeserver::HomeserverState::Running;
+    if was_running {
+        let _ = state.homeserver.stop();
+        // Brief pause to let process exit cleanly
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        match state.homeserver.start().await {
+            Ok(_) => {
+                // Spawn the same post-boot automation (PKARR + signup)
+                let state_clone = state.clone();
+                let pubkey_owned = pubkey.to_string();
+                tokio::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
+                    let cfg = state_clone.homeserver.get_config();
+                    let icann_domain = cfg.icann_domain.clone();
+
+                    // Update cached pubkey
+                    if let Ok(mut guard) = state_clone.homeserver.server_pubkey.write() {
+                        *guard = Some(pubkey_owned.clone());
+                    }
+
+                    // Get secret for PKARR + signup
+                    let secret_opt = state_clone.vault.export_key(&pubkey_owned).ok()
+                        .or_else(|| state_clone.homeserver.read_server_secret());
+
+                    if let Some(ref secret) = secret_opt {
+                        // Publish PKARR
+                        if let Err(e) = publish_homeserver_pkarr(secret, &icann_domain, &state_clone).await {
+                            tracing::warn!("Set-key auto-PKARR publish failed: {}", e);
+                        } else {
+                            tracing::info!("Set-key: PKARR published for {}", pubkey_owned);
+                        }
+
+                        // Auto-signup server key as user
+                        let cfg2 = state_clone.homeserver.get_config();
+                        let token_url = format!("http://127.0.0.1:{}/signup_token", cfg2.admin_port);
+                        let signup_token = admin_fetch_get(&token_url, &cfg2.admin_password).await
+                            .ok()
+                            .and_then(|data| data.get("token").and_then(|t| t.as_str()).map(|s| s.to_string()));
+                        let token_ref = signup_token.as_deref();
+
+                        match state_clone.identity.signup(secret, &pubkey_owned, token_ref, cfg2.drive_icann_port).await {
+                            Ok(_) => tracing::info!("Set-key auto-signup: {} registered as user", pubkey_owned),
+                            Err(e) => {
+                                if e.contains("409") || e.contains("already") || e.contains("exists") {
+                                    tracing::info!("Set-key auto-signup: {} already registered", pubkey_owned);
+                                } else {
+                                    tracing::warn!("Set-key auto-signup failed: {}", e);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                (StatusCode::OK, Json(serde_json::json!({
+                    "success": true,
+                    "pubkey": pubkey,
+                    "message": "Server key set. Homeserver restarted with new key."
+                })))
+            }
+            Err(e) => (StatusCode::OK, Json(serde_json::json!({
+                "success": true,
+                "pubkey": pubkey,
+                "message": format!("Server key set but restart failed: {}. Restart manually.", e)
+            }))),
+        }
+    } else {
+        (StatusCode::OK, Json(serde_json::json!({
             "success": true,
             "pubkey": pubkey,
-            "message": "Server key set. Restart homeserver to apply."
-        }))),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({
-            "error": format!("Failed to set key: {}", e)
-        }))),
+            "message": "Server key set. Start homeserver to apply."
+        })))
     }
 }
 
@@ -202,11 +273,36 @@ pub async fn api_hs_start(
                                 *guard = Some(pubkey_str.to_string());
                             }
 
-                            if let Ok(secret) = state_clone.vault.export_key(pubkey_str) {
-                                if let Err(e) = publish_homeserver_pkarr(&secret, &icann_domain, &state_clone).await {
+                            // Try vault first, fallback to server secret file
+                            let secret_opt = state_clone.vault.export_key(pubkey_str).ok()
+                                .or_else(|| state_clone.homeserver.read_server_secret());
+
+                            if let Some(ref secret) = secret_opt {
+                                // Auto-publish PKARR
+                                if let Err(e) = publish_homeserver_pkarr(secret, &icann_domain, &state_clone).await {
                                     tracing::warn!("Homeserver auto-PKARR publish failed: {}", e);
                                 } else {
                                     tracing::info!("Homeserver PKARR published on start for {}", pubkey_str);
+                                }
+
+                                // Auto-register server key as a user on itself
+                                let cfg2 = state_clone.homeserver.get_config();
+                                let token_url = format!("http://127.0.0.1:{}/signup_token", cfg2.admin_port);
+                                let signup_token = admin_fetch_get(&token_url, &cfg2.admin_password).await
+                                    .ok()
+                                    .and_then(|data| data.get("token").and_then(|t| t.as_str()).map(|s| s.to_string()));
+                                let token_ref = signup_token.as_deref();
+
+                                match state_clone.identity.signup(secret, pubkey_str, token_ref, cfg2.drive_icann_port).await {
+                                    Ok(_) => tracing::info!("Homeserver auto-signup: server key {} registered as user", pubkey_str),
+                                    Err(e) => {
+                                        // Not an error if already registered (409 Conflict)
+                                        if e.contains("409") || e.contains("already") || e.contains("exists") {
+                                            tracing::info!("Homeserver auto-signup: server key {} already registered", pubkey_str);
+                                        } else {
+                                            tracing::warn!("Homeserver auto-signup failed: {}", e);
+                                        }
+                                    }
                                 }
                             }
                         }
