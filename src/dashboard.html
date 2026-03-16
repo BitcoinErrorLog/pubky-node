@@ -149,14 +149,14 @@
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">🌐</div>
+                        <div class="stat-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
                         <div class="stat-data">
                             <span class="stat-value" id="dash-dht-size">--</span>
                             <span class="stat-label">DHT Network</span>
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-icon">🏠</div>
+                        <div class="stat-icon">Server</div>
                         <div class="stat-data">
                             <span class="stat-value" id="dash-hs-status" style="color:var(--yellow, #eab308)">◐ Starting…</span>
                             <span class="stat-label">Homeserver</span>
@@ -467,7 +467,7 @@
                                 <span class="kv-val mono" id="proxy-requests">--</span>
                             </div>
                             <div class="proxy-setup" id="proxy-setup-unconfigured">
-                                <button class="btn-primary btn-sm" id="proxy-setup-btn">⚡ Configure /etc/hosts</button>
+                                <button class="btn-primary btn-sm" id="proxy-setup-btn">Configure /etc/hosts</button>
                             </div>
                             <div class="proxy-setup" id="proxy-setup-configured" style="display:none;">
                                 <span style="color:#22c55e;font-size:13px;">✅ Hosts configured</span>
@@ -565,7 +565,7 @@
                                 </div>
                             </div>
                             <div id="dns-guide" class="inline-guide" style="display:none;">
-                                <div class="inline-guide-title">🌐 Browser Setup</div>
+                                <div class="inline-guide-title">Browser Setup</div>
                                 <p>Point your browser's DNS to this resolver to access <code>.pkarr</code> domains:</p>
                                 <ol>
                                     <li><strong>macOS</strong>: System Settings → Network → DNS → set to <code
@@ -577,7 +577,7 @@
                                     <li>Or set DNS server to <code>127.0.0.1</code> on your router for all devices</li>
                                 </ol>
                                 <div class="dns-actions">
-                                    <button id="dns-set-system-btn" class="btn-primary btn-sm">⚡ Set System DNS</button>
+                                    <button id="dns-set-system-btn" class="btn-primary btn-sm">Set System DNS</button>
                                     <button id="dns-reset-system-btn" class="btn-secondary btn-sm">Reset DNS</button>
                                     <button id="dns-disable-btn" class="btn-secondary btn-sm">Disable PKDNS</button>
                                 </div>
@@ -633,7 +633,7 @@
                                         <input type="password" id="vault-create-confirm"
                                             placeholder="Confirm vault password" autocomplete="new-password">
                                     </div>
-                                    <button class="btn-primary" id="vault-create-btn">🔐 Create Vault</button>
+                                    <button class="btn-primary" id="vault-create-btn">Create Vault</button>
                                     <div id="vault-create-error" class="settings-feedback error"></div>
                                 </div>
                             </div>
@@ -647,7 +647,7 @@
                                         <input type="password" id="vault-unlock-pw" placeholder="Enter vault password"
                                             autocomplete="current-password">
                                     </div>
-                                    <button class="btn-primary" id="vault-unlock-btn">🔓 Unlock Vault</button>
+                                    <button class="btn-primary" id="vault-unlock-btn">Unlock Vault</button>
                                     <div id="vault-unlock-error" class="settings-feedback error"></div>
                                 </div>
                             </div>
@@ -655,10 +655,10 @@
                             <!-- State: Vault unlocked -->
                             <div id="vault-unlocked" style="display: none;">
                                 <div class="vault-toolbar">
-                                    <button class="btn-sm btn-secondary" id="vault-lock-btn">🔒 Lock</button>
+                                    <button class="btn-sm btn-secondary" id="vault-lock-btn">Lock</button>
                                     <button class="btn-sm btn-secondary" id="vault-add-manual-btn">+ Add Key</button>
-                                    <button class="btn-sm btn-secondary" id="vault-export-all-btn">📥 Export</button>
-                                    <button class="btn-sm btn-secondary" id="vault-import-btn">📤 Import</button>
+                                    <button class="btn-sm btn-secondary" id="vault-export-all-btn">Export</button>
+                                    <button class="btn-sm btn-secondary" id="vault-import-btn">Import</button>
                                     <input type="file" id="vault-import-file" accept=".json" style="display:none;">
                                 </div>
                                 <div id="vault-keys-list" class="vault-keys-list"></div>
@@ -688,7 +688,7 @@
                                             autocomplete="off" spellcheck="false">
                                     </div>
                                     <div class="vault-add-actions">
-                                        <button class="btn-primary btn-sm" id="vault-add-save-btn">💾 Save to
+                                        <button class="btn-primary btn-sm" id="vault-add-save-btn">Save to
                                             Vault</button>
                                         <button class="btn-sm btn-secondary" id="vault-add-cancel-btn">Cancel</button>
                                     </div>
@@ -784,9 +784,9 @@
                                 </div>
 
                                 <div class="hs-form-actions" style="margin-top:12px;">
-                                    <button class="btn-primary btn-sm" id="profile-save-btn">💾 Save Profile</button>
-                                    <button class="btn-sm btn-secondary" id="profile-verify-btn" title="Check if profile is reachable via tunnel">🔍 Verify</button>
-                                    <button class="btn-sm btn-secondary" id="profile-nexus-btn" title="Check if Nexus has indexed this profile">🌐 Nexus</button>
+                                    <button class="btn-primary btn-sm" id="profile-save-btn">Save Profile</button>
+                                    <button class="btn-sm btn-secondary" id="profile-verify-btn" title="Check if profile is reachable via tunnel">Verify</button>
+                                    <button class="btn-sm btn-secondary" id="profile-nexus-btn" title="Check if Nexus has indexed this profile">Nexus</button>
                                     <span id="profile-msg" class="hs-action-msg"></span>
                                 </div>
 
@@ -820,10 +820,10 @@
                             <div class="publisher-field">
                                 <label class="publisher-label">Signing Key</label>
                                 <div class="publisher-key-source-tabs">
-                                    <button class="pub-source-tab active" data-source="vault">🔐 From Vault</button>
-                                    <button class="pub-source-tab" data-source="manual">✏️ Manual</button>
+                                    <button class="pub-source-tab active" data-source="vault">From Vault</button>
+                                    <button class="pub-source-tab" data-source="manual">Manual</button>
                                     <button class="btn-sm btn-primary pub-generate-btn" id="publisher-generate-key"
-                                        title="Generate a new random keypair and save to vault">🎲 New</button>
+                                        title="Generate a new random keypair and save to vault">+ New</button>
                                 </div>
                                 <!-- Vault key dropdown -->
                                 <div id="pub-source-vault" class="pub-source-panel">
@@ -838,7 +838,7 @@
                                             placeholder="Hex (64/128 chars) or z-base-32" spellcheck="false"
                                             autocomplete="off" class="publisher-key-input">
                                         <button class="btn-sm publisher-icon-btn" id="publisher-toggle-key"
-                                            title="Show/Hide">👁</button>
+                                            title="Show/Hide">•</button>
                                     </div>
                                 </div>
                             </div>
@@ -848,9 +848,8 @@
                                 <div class="pub-template-row">
                                     <label class="publisher-label">Template</label>
                                     <div class="publisher-presets">
-                                        <button class="publisher-preset-btn active" data-preset="homeserver">🏠
-                                            Homeserver</button>
-                                        <button class="publisher-preset-btn" data-preset="custom">✏️ Custom</button>
+                                        <button class="publisher-preset-btn active" data-preset="homeserver">Homeserver</button>
+                                        <button class="publisher-preset-btn" data-preset="custom">Custom</button>
                                     </div>
                                 </div>
                                 <div id="publisher-records" class="publisher-records"></div>
@@ -864,7 +863,7 @@
                                     <span>Auto-republish</span>
                                 </label>
                                 <button class="btn-primary publisher-submit" id="publisher-submit-btn">
-                                    🚀 Sign &amp; Publish to DHT
+                                    Sign &amp; Publish to DHT
                                 </button>
                             </div>
 
@@ -878,8 +877,8 @@
                                     <code class="pubky-uri-value" id="publisher-pubky-uri">—</code>
                                 </div>
                                 <div class="publisher-feedback-actions">
-                                    <button class="btn-sm btn-primary" id="publisher-verify-btn">🔍 Verify on DHT</button>
-                                    <button class="btn-sm btn-secondary" id="publisher-copy-uri-btn">📋 Copy URI</button>
+                                    <button class="btn-sm btn-primary" id="publisher-verify-btn">Verify on DHT</button>
+                                    <button class="btn-sm btn-secondary" id="publisher-copy-uri-btn">Copy URI</button>
                                 </div>
                             </div>
                         </div>
@@ -915,7 +914,7 @@
                                     <input type="checkbox" id="vanity-suffix">
                                     <span class="vanity-toggle-label">Suffix</span>
                                 </label>
-                                <button class="btn-primary btn-sm" id="vanity-start-btn">⚡ Generate</button>
+                                <button class="btn-primary btn-sm" id="vanity-start-btn">Generate</button>
                                 <button class="btn-secondary btn-sm" id="vanity-stop-btn" style="display:none;">■
                                     Stop</button>
                             </div>
@@ -957,11 +956,11 @@
                                     ⚠️ <strong>Back up your seed!</strong> It cannot be recovered.
                                 </div>
                                 <button class="btn-primary btn-sm" id="vanity-save-vault-btn"
-                                    style="margin-top: 8px;">💾 Save to Vault</button>
+                                    style="margin-top: 8px;">Save to Vault</button>
                             </div>
                             <div class="vanity-info collapsible" id="vanity-info">
                                 <div class="collapsible-toggle vanity-info-toggle" id="vanity-info-toggle">
-                                    <span class="vanity-estimates-label">📊 Time estimates</span>
+                                    <span class="vanity-estimates-label">Time estimates</span>
                                     <svg class="collapse-chevron vanity-chevron" width="14" height="14"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                         <path d="M6 9l6 6 6-6" />
@@ -1045,7 +1044,7 @@
                     <div class="explorer-meta" id="explorer-meta"></div>
                     <div class="explorer-uri-bar" id="explorer-uri-bar" style="display:none;">
                         <code class="pubky-uri-value" id="explorer-pubky-uri">—</code>
-                        <button class="btn-sm btn-secondary" id="explorer-copy-uri-btn" title="Copy pubky URI">📋 Copy</button>
+                        <button class="btn-sm btn-secondary" id="explorer-copy-uri-btn" title="Copy pubky URI">Copy</button>
                     </div>
                     <div class="dns-table-wrap">
                         <div class="dns-table-header">
@@ -1162,7 +1161,7 @@
                         </div>
                         <div class="card-body">
                             <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:12px;">Create point-in-time snapshots of your backup data. Use snapshots to protect against account compromise — you can restore to any previous state.</p>
-                            <button class="btn-sm btn-primary" id="snapshot-create-btn" style="margin-bottom:12px;">📸 Create Snapshot</button>
+                            <button class="btn-sm btn-primary" id="snapshot-create-btn" style="margin-bottom:12px;">Create Snapshot</button>
                             <div id="snapshot-list" style="display:flex;flex-direction:column;gap:8px;"></div>
                             <p class="backup-empty" id="snapshot-empty" style="display:none;">No snapshots yet. Create one to protect your data.</p>
                         </div>
@@ -1216,8 +1215,8 @@
                                 </label>
                                 <!-- Buttons -->
                                 <div style="display:flex;gap:10px;margin-top:4px;">
-                                    <button class="btn-sm btn-primary" id="migration-preflight-btn">🔍 Preflight Check</button>
-                                    <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>🚀 Execute Migration</button>
+                                    <button class="btn-sm btn-primary" id="migration-preflight-btn">Preflight Check</button>
+                                    <button class="btn-sm" id="migration-execute-btn" style="flex:1;background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.3);" disabled>Execute Migration</button>
                                 </div>
                                 <!-- Preflight results -->
                                 <div id="migration-preflight-results" style="display:none;background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;font-size:0.82rem;"></div>
@@ -1259,7 +1258,7 @@
                                     <input type="checkbox" id="backup-export-keys">
                                     <span>Include secret keys</span>
                                 </label>
-                                <button class="btn-primary btn-sm" id="backup-export-btn">📦 Export Bundle</button>
+                                <button class="btn-primary btn-sm" id="backup-export-btn">Export Bundle</button>
                             </div>
                             <div id="backup-export-result" class="backup-export-result" style="display:none;"></div>
                         </div>
@@ -1283,7 +1282,7 @@
                                 <select id="backup-verify-select" class="pub-vault-select">
                                     <option value="">— Select identity to verify —</option>
                                 </select>
-                                <button class="btn-primary btn-sm" id="backup-verify-btn">✅ Verify Integrity</button>
+                                <button class="btn-primary btn-sm" id="backup-verify-btn">Verify Integrity</button>
                             </div>
                             <div id="backup-verify-result" class="backup-verify-result" style="display:none;"></div>
                         </div>
@@ -1384,7 +1383,7 @@
                         </section>
 
                         <section class="guide-section">
-                            <div class="guide-section-icon">👁</div>
+                            <div class="guide-section-icon">•</div>
                             <h2>Identity Watchlist</h2>
                             <p>Monitor public keys and keep their records alive on the DHT by periodically re-publishing
                                 them. No secret key needed — this works with public keys only.</p>
@@ -1433,7 +1432,7 @@
                         </section>
 
                         <section class="guide-section">
-                            <div class="guide-section-icon">🏠</div>
+                            <div class="guide-section-icon">Server</div>
                             <h2>Homeserver</h2>
                             <p>Built-in <strong>pubky-homeserver</strong> management with embedded PostgreSQL.
                                 No external database installation required — PostgreSQL is bundled and auto-managed.</p>
@@ -1799,7 +1798,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     <!-- Password Management -->
                     <div class="card" id="settings-password">
                         <div class="card-header">
-                            <div class="card-title">🔐 Dashboard Password</div>
+                            <div class="card-title">Dashboard Password</div>
                         </div>
                         <div class="card-body">
                             <p class="settings-desc">Change your dashboard login password.</p>
@@ -1819,7 +1818,7 @@ pubky-node node shutdown                      # Graceful shutdown
                                     <input type="password" id="settings-confirm-pw" placeholder="Confirm new password"
                                         autocomplete="new-password">
                                 </div>
-                                <button class="btn-primary btn-sm" id="settings-change-pw-btn">🔄 Change Password</button>
+                                <button class="btn-primary btn-sm" id="settings-change-pw-btn">Change Password</button>
                                 <div id="settings-pw-feedback" class="settings-feedback"></div>
                             </div>
                         </div>
@@ -1853,12 +1852,12 @@ pubky-node node shutdown                      # Graceful shutdown
                     <!-- Node Controls -->
                     <div class="card" id="settings-controls">
                         <div class="card-header">
-                            <div class="card-title">⚙️ Node Controls</div>
+                            <div class="card-title">Node Controls</div>
                         </div>
                         <div class="card-body">
                             <p class="settings-desc">Restart or shut down the Pubky Node process.</p>
                             <div style="display:flex; gap:12px; margin-top:12px;">
-                                <button class="btn-primary" id="node-restart-btn">🔄 Restart Node</button>
+                                <button class="btn-primary" id="node-restart-btn">Restart Node</button>
                                 <button class="btn-danger" id="node-shutdown-btn" style="background:var(--danger); color:#fff; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;">⏻ Shutdown Node</button>
                             </div>
                         </div>
@@ -1980,11 +1979,11 @@ pubky-node node shutdown                      # Graceful shutdown
                             <!-- Server Key + PKARR (always visible when key exists) -->
                             <div id="hs-key-summary" style="display:none; margin-top:8px; padding:10px 12px; border-radius:8px; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.2);">
                                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    <span style="font-size:11px; color:#94a3b8;">🔑</span>
+                                    <span style="font-size:11px; color:#94a3b8;"></span>
                                     <code id="hs-key-display" style="font-size:12px; color:#818cf8; cursor:pointer;" title="Click to copy"></code>
                                     <span id="hs-key-label" style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(99,102,241,0.2); color:#a5b4fc; display:none;"></span>
-                                    <button id="hs-key-copy-btn" class="btn-secondary btn-sm" style="padding:1px 6px; font-size:10px;" title="Copy full key">📋</button>
-                                    <a id="hs-key-explorer-link" href="#" target="_blank" style="font-size:10px; color:#6366f1; text-decoration:none;">🔍 Explorer</a>
+                                    <button id="hs-key-copy-btn" class="btn-secondary btn-sm" style="padding:1px 6px; font-size:10px;" title="Copy full key">Copy</button>
+                                    <a id="hs-key-explorer-link" href="#" target="_blank" style="font-size:10px; color:#6366f1; text-decoration:none;">Explorer</a>
                                     <span id="hs-key-pkarr-status" style="font-size:10px; margin-left:auto;"></span>
                                 </div>
                             </div>
@@ -1993,8 +1992,8 @@ pubky-node node shutdown                      # Graceful shutdown
                                 <button class="btn-primary btn-sm" id="hs-start-btn">▶ Start Server</button>
                                 <button class="btn-secondary btn-sm" id="hs-stop-btn" style="display:none;">■ Stop
                                     Server</button>
-                                <button class="btn-secondary btn-sm" id="hs-key-change-btn" style="display:none;">✏️ Change Key</button>
-                                <button class="btn-sm btn-primary" id="hs-quickstart-btn" style="display:none; background:linear-gradient(135deg,#6366f1,#8b5cf6);">⚡ Create My Identity</button>
+                                <button class="btn-secondary btn-sm" id="hs-key-change-btn" style="display:none;">Change Key</button>
+                                <button class="btn-sm btn-primary" id="hs-quickstart-btn" style="display:none; background:linear-gradient(135deg,#6366f1,#8b5cf6);">Create My Identity</button>
 
                             </div>
                             <div id="hs-quickstart-result" style="display:none; margin-top:10px; padding:12px; border-radius:8px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3);">
@@ -2028,7 +2027,7 @@ pubky-node node shutdown                      # Graceful shutdown
                             <div id="hs-token-display" style="display:none;margin-top:14px;">
                                 <div class="export-hex-row">
                                     <code class="export-hex" id="hs-token-value">—</code>
-                                    <button class="btn-sm" id="hs-token-copy">📋</button>
+                                    <button class="btn-sm" id="hs-token-copy">Copy</button>
                                 </div>
                                 <div id="hs-token-qr" class="export-qr" style="margin-top:12px;"></div>
                             </div>
@@ -2116,7 +2115,7 @@ pubky-node node shutdown                      # Graceful shutdown
                             <p class="hs-desc">Publishes a PKARR DNS record pointing your homeserver's public key to its
                                 ICANN domain. Requires the homeserver secret key to be in the vault.</p>
                             <div class="hs-form-actions" style="margin-top:0;">
-                                <button class="btn-primary btn-sm" id="hs-publish-pkarr-btn">🌐 Publish Now</button>
+                                <button class="btn-primary btn-sm" id="hs-publish-pkarr-btn">Publish Now</button>
                                 <span id="hs-publish-pkarr-msg" class="hs-action-msg"></span>
                             </div>
                             <p class="hs-desc" style="margin-top:10px;margin-bottom:0;">Auto-republishes every 4 hours
@@ -2387,7 +2386,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     </select>
 
                     <div class="onboarding-error" id="unified-hs-err"></div>
-                    <button class="btn btn-primary onboarding-btn" id="unified-launch-btn">Auto-Setup & Launch ⚡</button>
+                    <button class="btn btn-primary onboarding-btn" id="unified-launch-btn">Auto-Setup & Launch</button>
                 </div>
             </div>
 
@@ -2421,7 +2420,7 @@ pubky-node node shutdown                      # Graceful shutdown
     <div id="ring-export-modal" class="modal-overlay">
         <div class="modal-box" style="max-width:420px;">
             <div class="modal-header">
-                <h3>🔑 Export Key</h3>
+                <h3>Export Key</h3>
                 <button id="ring-export-close" class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
@@ -2429,7 +2428,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     <label class="export-label">Secret Key (hex)</label>
                     <div class="export-hex-row">
                         <code class="export-hex" id="export-hex-value">--</code>
-                        <button class="btn-sm" id="export-copy-hex" title="Copy">📋</button>
+                        <button class="btn-sm" id="export-copy-hex" title="Copy">Copy</button>
                     </div>
                 </div>
                 <div class="export-section">

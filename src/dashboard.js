@@ -124,13 +124,13 @@
         overlay.id = 'auth-setup-overlay';
         overlay.innerHTML = [
             '<div class="auth-setup-card">',
-            '  <div class="auth-setup-icon">🔐</div>',
+            '  <div class="auth-setup-icon"></div>',
             '  <h2>Pubky Node</h2>',
             '  <p class="auth-setup-desc">Enter your dashboard password to continue.</p>',
             '  <div class="auth-setup-field">',
             '    <input type="password" id="auth-login-pass" placeholder="Password" autocomplete="current-password">',
             '  </div>',
-            '  <button id="auth-login-btn" class="btn-primary auth-setup-submit">🔓 Login</button>',
+            '  <button id="auth-login-btn" class="btn-primary auth-setup-submit">Login</button>',
             '  <div id="auth-login-error" class="auth-setup-error"></div>',
             '</div>'
         ].join('\n');
@@ -162,13 +162,13 @@
                 } else {
                     errorEl.textContent = data.error || 'Login failed.';
                     btn.disabled = false;
-                    btn.textContent = '🔓 Login';
+                    btn.textContent = 'Login';
                     passInput.select();
                 }
             } catch (e) {
                 errorEl.textContent = 'Network error: ' + e.message;
                 btn.disabled = false;
-                btn.textContent = '🔓 Login';
+                btn.textContent = 'Login';
             }
         }
 
@@ -1190,7 +1190,7 @@
             var btn = this;
             setTimeout(function () {
                 btn.disabled = false;
-                btn.textContent = '💾 Save to Vault';
+                btn.textContent = 'Save to Vault';
             }, 3000);
         });
 
@@ -1497,7 +1497,7 @@
             }
 
             this.disabled = false;
-            this.textContent = '🚀 Sign & Publish to DHT';
+            this.textContent = 'Sign & Publish to DHT';
             setTimeout(function () {
                 badge.textContent = 'Ready';
                 badge.className = 'badge';
@@ -1592,7 +1592,7 @@
             }
 
             this.disabled = false;
-            this.textContent = '🔄 Change Password';
+            this.textContent = 'Change Password';
         });
 
         // ========== Key Vault ==========
@@ -1692,8 +1692,8 @@
                     '  <span class="vault-key-pubkey" title="' + k.pubkey + '">' + truncPk + '</span>',
                     '</div>',
                     '<div class="vault-key-actions">',
-                    '  <button class="vault-copy-btn" data-pk="' + k.pubkey + '" title="Copy pubkey">📋</button>',
-                    '  <button class="vault-export-btn" data-pk="' + k.pubkey + '" title="Export secret">🔑</button>',
+                    '  <button class="vault-copy-btn" data-pk="' + k.pubkey + '" title="Copy pubkey"></button>',
+                    '  <button class="vault-export-btn" data-pk="' + k.pubkey + '" title="Export secret"></button>',
                     '  <button class="vault-delete-btn danger" data-pk="' + k.pubkey + '" data-name="' + escapeHtml(k.name) + '" title="Delete">🗑</button>',
                     '</div>'
                 ].join('');
@@ -1744,7 +1744,7 @@
                     navigator.clipboard.writeText(this.dataset.pk);
                     this.textContent = '✅';
                     var b = this;
-                    setTimeout(function () { b.textContent = '📋'; }, 1500);
+                    setTimeout(function () { b.textContent = ''; }, 1500);
                 });
             });
 
@@ -1794,7 +1794,7 @@
                 URL.revokeObjectURL(url);
                 this.textContent = '✅ Exported';
                 var btn = this;
-                setTimeout(function () { btn.textContent = '📥 Export'; }, 2000);
+                setTimeout(function () { btn.textContent = 'Export'; }, 2000);
             } catch (e) { /* ignore */ }
         });
 
@@ -1870,7 +1870,7 @@
             } catch (e) { err.textContent = 'Network error.'; }
 
             this.disabled = false;
-            this.textContent = '🔐 Create Vault';
+            this.textContent = 'Create Vault';
         });
 
         // Unlock vault
@@ -1900,7 +1900,7 @@
             } catch (e) { err.textContent = 'Network error.'; }
 
             this.disabled = false;
-            this.textContent = '🔓 Unlock Vault';
+            this.textContent = 'Unlock Vault';
         });
 
         // Lock vault
@@ -2176,7 +2176,7 @@
                 navigator.clipboard.writeText(pubkey);
                 this.textContent = '✅';
                 var btn = this;
-                setTimeout(function() { btn.textContent = '📋'; }, 1500);
+                setTimeout(function() { btn.textContent = ''; }, 1500);
             };
 
             // Explorer link
@@ -2491,7 +2491,7 @@
             navigator.clipboard.writeText(document.getElementById('hs-token-value').textContent);
             this.textContent = '✅';
             var btn = this;
-            setTimeout(function () { btn.textContent = '📋'; }, 1500);
+            setTimeout(function () { btn.textContent = ''; }, 1500);
         });
 
         // Load config into form
@@ -2583,7 +2583,7 @@
             navigator.clipboard.writeText(hex);
             this.textContent = '✅';
             var btn = this;
-            setTimeout(function () { btn.textContent = '📋'; }, 1500);
+            setTimeout(function () { btn.textContent = ''; }, 1500);
         });
 
         // ─── PKARR Publish ───────────────────────────────
@@ -3874,7 +3874,7 @@
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
                             '<div>' +
                                 '<span style="font-size:0.78rem;color:#9ca3af;">' + (s.file_count || 0) + ' files · ' + formatBytes(s.size || 0) + '</span>' +
-                                (shortPubky ? '<br><span style="font-size:0.68rem;color:#6b7280;font-family:var(--mono);" title="' + (s.pubky || '') + '">🔑 ' + shortPubky + '</span>' : '') +
+                                (shortPubky ? '<br><span style="font-size:0.68rem;color:#6b7280;font-family:var(--mono);" title="' + (s.pubky || '') + '"> ' + shortPubky + '</span>' : '') +
                             '</div>' +
                             '<div style="display:flex;gap:6px;">' +
                                 '<button class="btn-sm" onclick="restoreSnapshot(\'' + s.pubky + '\',\'' + s.timestamp + '\')" style="font-size:0.72rem;padding:2px 8px;background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">⏪ Restore</button>' +
@@ -4065,7 +4065,7 @@
                     var detailEl = document.getElementById('migration-status-detail');
 
                     var phaseLabels = {
-                        idle: '⏸ Idle', backup: '📸 Creating snapshot…', signup: '🔐 Signing up…',
+                        idle: '⏸ Idle', backup: '📸 Creating snapshot…', signup: ' Signing up…',
                         uploading: '📤 Uploading files…', pkarr: '🌐 Updating PKARR…',
                         done: '✅ Complete', error: '❌ Error'
                     };
@@ -4113,8 +4113,8 @@
                 resultEl.innerHTML = '<strong>📦 Recovery Bundle</strong><br>' +
                     'Pubky: <code>' + data.pubky + '</code><br>' +
                     'Files: ' + data.file_count + ' | Size: ' + formatBytes(data.total_size || 0) + '<br>' +
-                    (data.secret_key ? '🔑 Secret key included' : 'No secret key') + '<br>' +
-                    '<button class="btn-sm btn-secondary" style="margin-top:8px;" onclick="copyToClipboard(JSON.stringify(' + JSON.stringify(data).replace(/'/g, "\\'") + ', null, 2), \'Bundle copied to clipboard\')">📋 Copy JSON</button>';
+                    (data.secret_key ? ' Secret key included' : 'No secret key') + '<br>' +
+                    '<button class="btn-sm btn-secondary" style="margin-top:8px;" onclick="copyToClipboard(JSON.stringify(' + JSON.stringify(data).replace(/'/g, "\\'") + ', null, 2), \'Bundle copied to clipboard\')"> Copy JSON</button>';
             } else {
                 resultEl.style.display = '';
                 resultEl.innerHTML = '❌ ' + (data.error || 'Export failed');
@@ -4484,6 +4484,11 @@
                 var moved = pages.splice(srcIdx, 1)[0];
                 if (srcIdx < targetIdx) targetIdx--;
                 pages.splice(targetIdx, 0, moved);
+                // Inherit category from the target position's neighbor
+                var neighborCat = null;
+                if (targetIdx > 0) neighborCat = pages[targetIdx - 1].category;
+                if (!neighborCat && targetIdx < pages.length - 1) neighborCat = pages[targetIdx + 1].category;
+                if (neighborCat) moved.category = neighborCat;
                 renderPageList();
             });
         });
