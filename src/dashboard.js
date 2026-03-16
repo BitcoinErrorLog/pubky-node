@@ -2415,8 +2415,11 @@
         // Change server key
         document.getElementById('hs-key-change-btn')?.addEventListener('click', async function () {
             var msg = document.getElementById('hs-control-msg');
+            // Check if picker already open — toggle off
+            var existing = document.getElementById('hs-change-key-picker');
+            if (existing) { existing.remove(); return; }
+
             try {
-                // Fetch vault keys
                 var res = await authFetch('/api/vault/keys');
                 if (!res.ok) {
                     msg.style.display = 'block';
@@ -2435,52 +2438,86 @@
                     return;
                 }
 
-                // Build key list for prompt
-                var lines = keys.map(function(k, i) {
-                    var label = k.name || k.label || k.pubkey.substring(0, 16) + '...';
-                    return (i + 1) + '. ' + label + ' (' + k.pubkey.substring(0, 8) + '...)';
-                });
-                var choice = prompt('Select a key to assign to the homeserver:\n\n' + lines.join('\n') + '\n\nEnter number (1-' + keys.length + '):');
-                if (!choice) return;
-                var idx = parseInt(choice, 10) - 1;
-                if (isNaN(idx) || idx < 0 || idx >= keys.length) {
-                    msg.style.display = 'block';
-                    msg.textContent = 'Invalid selection.';
-                    msg.style.background = 'rgba(239,68,68,0.15)';
-                    msg.style.color = '#f87171';
-                    return;
-                }
+                // Build inline picker
+                var picker = document.createElement('div');
+                picker.id = 'hs-change-key-picker';
+                picker.style.cssText = 'margin-top:10px;padding:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;';
 
-                var selectedKey = keys[idx].pubkey;
-                this.disabled = true;
-                msg.style.display = 'block';
-                msg.textContent = 'Setting key and restarting homeserver...';
-                msg.style.background = 'rgba(99,102,241,0.15)';
-                msg.style.color = '#a5b4fc';
+                var label = document.createElement('div');
+                label.style.cssText = 'font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px;';
+                label.textContent = 'Select new server key';
 
-                var setRes = await authFetch('/api/homeserver/set-key', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pubkey: selectedKey }),
+                var select = document.createElement('select');
+                select.style.cssText = 'width:100%;padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;color-scheme:dark;margin-bottom:8px;';
+                keys.forEach(function(k) {
+                    var opt = document.createElement('option');
+                    opt.value = k.pubkey;
+                    var lbl = k.name || k.label || k.pubkey.substring(0, 16) + '...';
+                    opt.textContent = lbl + ' (' + k.pubkey.substring(0, 8) + '...)';
+                    select.appendChild(opt);
                 });
-                var result = await setRes.json();
-                if (result.success) {
-                    msg.textContent = result.message || 'Key changed successfully.';
-                    msg.style.background = 'rgba(34,197,94,0.15)';
-                    msg.style.color = '#4ade80';
-                } else {
-                    msg.textContent = result.error || 'Failed to change key.';
-                    msg.style.background = 'rgba(239,68,68,0.15)';
-                    msg.style.color = '#f87171';
-                }
+
+                var btnRow = document.createElement('div');
+                btnRow.style.cssText = 'display:flex;gap:8px;';
+
+                var confirmBtn = document.createElement('button');
+                confirmBtn.className = 'btn-primary btn-sm';
+                confirmBtn.textContent = 'Apply Key';
+
+                var cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn-secondary btn-sm';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.addEventListener('click', function() { picker.remove(); });
+
+                confirmBtn.addEventListener('click', async function() {
+                    var selectedKey = select.value;
+                    if (!selectedKey) return;
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = 'Applying...';
+
+                    try {
+                        var setRes = await authFetch('/api/homeserver/set-key', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pubkey: selectedKey }),
+                        });
+                        var result = await setRes.json();
+                        picker.remove();
+                        msg.style.display = 'block';
+                        if (result.success) {
+                            msg.textContent = result.message || 'Key changed successfully.';
+                            msg.style.background = 'rgba(34,197,94,0.15)';
+                            msg.style.color = '#4ade80';
+                        } else {
+                            msg.textContent = result.error || 'Failed to change key.';
+                            msg.style.background = 'rgba(239,68,68,0.15)';
+                            msg.style.color = '#f87171';
+                        }
+                    } catch (e) {
+                        picker.remove();
+                        msg.style.display = 'block';
+                        msg.textContent = e.message || 'Failed to change key.';
+                        msg.style.background = 'rgba(239,68,68,0.15)';
+                        msg.style.color = '#f87171';
+                    }
+                    loadHsStatus();
+                });
+
+                btnRow.appendChild(confirmBtn);
+                btnRow.appendChild(cancelBtn);
+                picker.appendChild(label);
+                picker.appendChild(select);
+                picker.appendChild(btnRow);
+
+                // Insert picker after the control buttons
+                var controlBtns = this.parentElement;
+                controlBtns.parentElement.insertBefore(picker, controlBtns.nextSibling);
             } catch (e) {
                 msg.style.display = 'block';
-                msg.textContent = e.message || 'Failed to change key.';
+                msg.textContent = e.message || 'Failed to load vault keys.';
                 msg.style.background = 'rgba(239,68,68,0.15)';
                 msg.style.color = '#f87171';
             }
-            this.disabled = false;
-            loadHsStatus();
         });
 
         // Generate signup token
