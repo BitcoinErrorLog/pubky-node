@@ -752,91 +752,36 @@
         fetchWatchlistKeys();
         initEventListeners();
 
-        // ── Post-login: auto-manage vault + decide what to show ──
+        // ── Post-login: silently manage vault in background ──
+        // Never show onboarding overlays for returning users.
+        // Vault unlock happens silently; if it fails, the vault tab shows "Locked".
+        // Homeserver + tunnels auto-start independently.
+        var overlay = document.getElementById('unified-onboarding-overlay');
+        if (overlay) overlay.style.display = 'none';
+
         try {
             var res = await authFetch('/api/vault/status');
             if (res.ok) {
                 var vdata = await res.json();
                 if (!vdata.exists) {
-                    // No vault — auto-create with the dashboard password
-                    try {
-                        var createRes = await authFetch('/api/vault/create', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ password: _authPassword })
-                        });
-                        var createData = await createRes.json();
-                        if (!createData.success) {
-                            console.warn('Auto vault create failed:', createData.error);
-                            // Fall back to manual onboarding
-                            var overlay = document.getElementById('unified-onboarding-overlay');
-                            if (overlay) overlay.style.display = 'flex';
-                            var btn = document.getElementById('unified-vault-btn');
-                            if (btn) {
-                                btn.dataset.mode = 'create';
-                                btn.textContent = 'Secure Vault & Continue';
-                                document.getElementById('unified-vault-confirm-wrap').style.display = 'block';
-                            }
-                            unifiedShowStep(2);
-                            return;
-                        }
-                        // Vault auto-created successfully — continue normally
-                    } catch(e) {
-                        console.warn('Vault auto-create error:', e);
-                    }
+                    // No vault — auto-create with the dashboard password (silent)
+                    authFetch('/api/vault/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: _authPassword })
+                    }).catch(function(e) { console.warn('Vault auto-create:', e); });
                 } else if (!vdata.unlocked) {
-                    // Vault exists but locked — auto-unlock with login password
-                    try {
-                        var unlockRes = await authFetch('/api/vault/unlock', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ password: _authPassword })
-                        });
-                        var unlockData = await unlockRes.json();
-                        if (!unlockData.success) {
-                            // Different password — show manual unlock
-                            var overlay = document.getElementById('unified-onboarding-overlay');
-                            if (overlay) overlay.style.display = 'flex';
-                            document.getElementById('onboard-vault-title').textContent = 'Unlock Vault';
-                            document.getElementById('onboard-vault-desc').textContent = 'Your vault uses a different password. Enter it to continue.';
-                            document.getElementById('unified-vault-confirm-wrap').style.display = 'none';
-                            var btn = document.getElementById('unified-vault-btn');
-                            if (btn) {
-                                btn.dataset.mode = 'unlock';
-                                btn.textContent = 'Unlock Vault & Continue';
-                            }
-                            unifiedShowStep(2);
-                            return;
-                        }
-                        // Vault unlocked successfully — continue normally
-                    } catch(e) {
-                        console.warn('Vault auto-unlock error:', e);
-                    }
-                }
-                
-                // Vault exists & unlocked — check homeserver status
-                var hsRes = await authFetch('/api/homeserver/status');
-                if (hsRes.ok) {
-                    var hsData = await hsRes.json();
-                    if (hsData.state === 'stopped') {
-                        // Homeserver not running — show launch overlay with skip option
-                        var overlay = document.getElementById('unified-onboarding-overlay');
-                        if (overlay) overlay.style.display = 'flex';
-                        // Add skip button if not already present
-                        ensureSkipButton(overlay);
-                        unifiedShowStep(3);
-                        return;
-                    }
-                    // If running or starting, skip onboarding entirely
+                    // Vault locked — try auto-unlock with login password (silent)
+                    authFetch('/api/vault/unlock', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: _authPassword })
+                    }).catch(function(e) { console.warn('Vault auto-unlock:', e); });
                 }
             }
         } catch (e) {
-            console.error('Failed to check vault status:', e);
+            console.warn('Vault status check:', e);
         }
-        
-        // Everything is running, make sure overlay is hidden
-        var overlay = document.getElementById('unified-onboarding-overlay');
-        if (overlay) overlay.style.display = 'none';
     }
 
     function ensureSkipButton(overlay) {

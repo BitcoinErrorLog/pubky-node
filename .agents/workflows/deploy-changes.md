@@ -46,6 +46,7 @@ pkill -f "pubky-node" 2>/dev/null
 pkill -f "pubky-homeserver" 2>/dev/null
 pkill -f "pkdns" 2>/dev/null
 sleep 2
+rm -rf ~/Library/WebKit/com.pubky.node ~/Library/Caches/com.pubky.node
 open "/Applications/Pubky Node.app"
 ```
 
