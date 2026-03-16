@@ -4600,12 +4600,29 @@
             currentSection.appendChild(btn);
         });
 
-        // Apply card visibility within each page's tab content
+        // Apply card layout: physically move card DOM elements to match layout data
         currentLayout.pages.forEach(function(page) {
+            var tabDiv = document.getElementById('tab-' + page.id);
+            if (!tabDiv) return;
+
+            // Find or create a grid container inside this tab
+            var grid = tabDiv.querySelector('.grid, .grid-1');
+            if (!grid) return; // Skip non-grid pages (explorer, guide, settings)
+
+            // Move each card into this grid in layout order
             page.cards.forEach(function(card) {
                 var el = document.getElementById(card.id);
-                if (el) {
-                    el.style.display = card.visible ? '' : 'none';
+                if (!el) return;
+
+                // Set visibility
+                el.style.display = card.visible ? '' : 'none';
+
+                // Reparent: move card into this page's grid if it's not already there
+                if (el.parentElement !== grid) {
+                    grid.appendChild(el);
+                } else {
+                    // Already in the right grid — just append to reorder
+                    grid.appendChild(el);
                 }
             });
         });
