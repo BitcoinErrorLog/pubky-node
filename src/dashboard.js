@@ -3838,6 +3838,7 @@
                     var tierColors = { daily:'#22c55e', monthly:'#3b82f6', quarterly:'#a855f7', yearly:'#f59e0b', manual:'#6b7280' };
                     var tierColor = tierColors[tier] || '#6b7280';
                     var displayTs = s.display_ts || s.timestamp || '';
+                    var shortPubky = s.pubky ? s.pubky.substring(0, 16) + '…' : '';
                     return '<div style="background:rgba(30,30,50,0.6);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:10px 12px;">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                             '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -3846,7 +3847,10 @@
                             '</div>' +
                         '</div>' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-                            '<span style="font-size:0.78rem;color:#9ca3af;">' + (s.file_count || 0) + ' files · ' + formatBytes(s.size || 0) + '</span>' +
+                            '<div>' +
+                                '<span style="font-size:0.78rem;color:#9ca3af;">' + (s.file_count || 0) + ' files · ' + formatBytes(s.size || 0) + '</span>' +
+                                (shortPubky ? '<br><span style="font-size:0.68rem;color:#6b7280;font-family:var(--mono);" title="' + (s.pubky || '') + '">🔑 ' + shortPubky + '</span>' : '') +
+                            '</div>' +
                             '<div style="display:flex;gap:6px;">' +
                                 '<button class="btn-sm" onclick="restoreSnapshot(\'' + s.pubky + '\',\'' + s.timestamp + '\')" style="font-size:0.72rem;padding:2px 8px;background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);">⏪ Restore</button>' +
                                 '<button class="btn-sm" onclick="deleteSnapshot(\'' + s.pubky + '\',\'' + s.timestamp + '\')" style="font-size:0.72rem;padding:2px 8px;background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);">🗑</button>' +
@@ -4119,14 +4123,20 @@
         });
 
         // Load backup data on Recovery tab visit
-        document.querySelectorAll('.tab').forEach(function (t) {
+        document.querySelectorAll('.nav-item').forEach(function (t) {
             t.addEventListener('click', function () {
                 if (t.dataset.tab === 'recovery') {
                     fetchBackupStatus();
                     fetchBackupList();
+                    fetchSnapshots();
                 }
             });
         });
+
+        // Also load immediately so data is ready when tab is shown
+        fetchBackupStatus();
+        fetchBackupList();
+        fetchSnapshots();
 
         // ========== Stage 4: Hosting Wizard ==========
 
