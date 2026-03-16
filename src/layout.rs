@@ -121,11 +121,11 @@ pub fn default_layout() -> Layout {
             },
             PageLayout {
                 id: "vault".to_string(),
-                label: "Key Vault".to_string(),
+                label: "Keychain".to_string(),
                 icon: "🔐".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "vault-keys".to_string(), visible: true },
+                    CardLayout { id: "vault-panel".to_string(), visible: true },
                     CardLayout { id: "watchlist-panel".to_string(), visible: true },
                 ],
             },
@@ -135,7 +135,7 @@ pub fn default_layout() -> Layout {
                 icon: "👤".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "profile-editor".to_string(), visible: true },
+                    CardLayout { id: "hs-profile-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
@@ -144,27 +144,31 @@ pub fn default_layout() -> Layout {
                 icon: "🖥".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "hs-prereqs".to_string(), visible: true },
-                    CardLayout { id: "hs-status".to_string(), visible: true },
-                    CardLayout { id: "hs-tokens".to_string(), visible: true },
-                    CardLayout { id: "hs-config".to_string(), visible: true },
-                    CardLayout { id: "hs-pkarr".to_string(), visible: true },
-                    CardLayout { id: "hs-logs".to_string(), visible: true },
+                    CardLayout { id: "hs-prereq-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-control-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-invite-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-config-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-pkarr-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-logs-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-users-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-identity-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-files-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-api-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
-                id: "networks".to_string(),
+                id: "network".to_string(),
                 label: "Network Status".to_string(),
                 icon: "🌐".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "upnp-card".to_string(), visible: true },
-                    CardLayout { id: "tunnel-card".to_string(), visible: true },
-                    CardLayout { id: "relay-tunnel-card".to_string(), visible: true },
-                    CardLayout { id: "dns-tunnel-card".to_string(), visible: true },
-                    CardLayout { id: "proxy-card".to_string(), visible: true },
-                    CardLayout { id: "dns-card".to_string(), visible: true },
-                    CardLayout { id: "reachability-card".to_string(), visible: true },
+                    CardLayout { id: "upnp-panel".to_string(), visible: true },
+                    CardLayout { id: "hs-tunnel-panel".to_string(), visible: true },
+                    CardLayout { id: "relay-tunnel-panel".to_string(), visible: true },
+                    CardLayout { id: "dns-tunnel-panel".to_string(), visible: true },
+                    CardLayout { id: "proxy-panel".to_string(), visible: true },
+                    CardLayout { id: "dns-panel".to_string(), visible: true },
+                    CardLayout { id: "reachability-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
@@ -182,7 +186,7 @@ pub fn default_layout() -> Layout {
                 icon: "📡".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "publisher-main".to_string(), visible: true },
+                    CardLayout { id: "publisher-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
@@ -191,7 +195,7 @@ pub fn default_layout() -> Layout {
                 icon: "⭐".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "vanity-main".to_string(), visible: true },
+                    CardLayout { id: "vanity-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
@@ -200,10 +204,12 @@ pub fn default_layout() -> Layout {
                 icon: "🔄".to_string(),
                 visible: true,
                 cards: vec![
-                    CardLayout { id: "backup-status".to_string(), visible: true },
-                    CardLayout { id: "backup-identities".to_string(), visible: true },
-                    CardLayout { id: "snapshots".to_string(), visible: true },
-                    CardLayout { id: "migration".to_string(), visible: true },
+                    CardLayout { id: "backup-status-panel".to_string(), visible: true },
+                    CardLayout { id: "backup-identities-panel".to_string(), visible: true },
+                    CardLayout { id: "backup-snapshots-panel".to_string(), visible: true },
+                    CardLayout { id: "migration-panel".to_string(), visible: true },
+                    CardLayout { id: "backup-export-panel".to_string(), visible: true },
+                    CardLayout { id: "backup-verify-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {

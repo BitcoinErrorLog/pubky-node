@@ -4357,12 +4357,13 @@
                     var parts = data.split(':');
                     var srcPage = parseInt(parts[1], 10);
                     var srcCard = parseInt(parts[2], 10);
-                    if (srcPage !== pageIdx) return; // only within same page
-                    var cards = currentLayout.pages[pageIdx].cards;
-                    var moved = cards.splice(srcCard, 1)[0];
+                    // Move card (same page = reorder, different page = move between pages)
+                    var srcCards = currentLayout.pages[srcPage].cards;
+                    var moved = srcCards.splice(srcCard, 1)[0];
+                    var targetCards = currentLayout.pages[pageIdx].cards;
                     var targetIdx = parseInt(cardItem.dataset.cardIdx, 10);
-                    if (srcCard < targetIdx) targetIdx--;
-                    cards.splice(targetIdx, 0, moved);
+                    if (srcPage === pageIdx && srcCard < targetIdx) targetIdx--;
+                    targetCards.splice(targetIdx, 0, moved);
                     renderPageList();
                 });
             });
@@ -4448,27 +4449,26 @@
         // Update nav item labels and visibility based on layout
         currentLayout.pages.forEach(function(page) {
             var btn = nav.querySelector('[data-tab="' + page.id + '"]');
-            if (!btn) {
-                // Try alternate tab names (network -> network, etc.)
-                var altId = page.id === 'networks' ? 'network' : page.id;
-                btn = nav.querySelector('[data-tab="' + altId + '"]');
-            }
             if (btn) {
                 // Update label text (preserve inner SVG icon)
                 var svg = btn.querySelector('svg');
                 btn.textContent = '';
                 if (svg) btn.appendChild(svg);
                 btn.appendChild(document.createTextNode('\n                        ' + page.label + '\n                    '));
-                // Update visibility
+                // Update page visibility in sidebar
                 var section = btn.closest('.nav-section');
                 if (section) {
-                    if (page.visible) {
-                        btn.style.display = '';
-                    } else {
-                        btn.style.display = 'none';
-                    }
+                    btn.style.display = page.visible ? '' : 'none';
                 }
             }
+
+            // Apply card visibility within this page's tab content
+            page.cards.forEach(function(card) {
+                var el = document.getElementById(card.id);
+                if (el) {
+                    el.style.display = card.visible ? '' : 'none';
+                }
+            });
         });
     }
 

@@ -140,7 +140,7 @@
             <!-- ===== OVERVIEW / DASHBOARD TAB ===== -->
             <div class="tab-content active" id="tab-dashboard">
                 <!-- Stats Row -->
-                <div class="stats-row">
+                <div class="stats-row" id="stats-row">
                     <div class="stat-card">
                         <div class="stat-icon">⏱️</div>
                         <div class="stat-data">
@@ -165,7 +165,7 @@
                 </div>
 
                 <!-- Node Health: Reachability + Tunnels -->
-                <div class="node-health-row">
+                <div class="node-health-row" id="health-row">
                     <div class="health-group">
                         <span class="health-label">Reachability</span>
                         <span class="traffic-dot green" id="dash-tl-dht" title="DHT Client"></span>
@@ -1013,7 +1013,7 @@
 
             <!-- ===== EXPLORER TAB ===== -->
             <div class="tab-content" id="tab-explorer">
-                <div class="explorer-hero">
+                <div class="explorer-hero" id="explorer-main">
                     <h1>Key Explorer</h1>
                     <p>Look up any PKARR public key to inspect its DNS records from the Mainline DHT.</p>
                 </div>
@@ -1291,7 +1291,7 @@
 
             <!-- ===== GUIDE TAB ===== -->
             <div class="tab-content" id="tab-guide">
-                <div class="guide">
+                <div class="guide" id="guide-content">
                     <div class="guide-hero">
                         <h1>User Guide</h1>
                         <p>Everything you need to know about running and using Pubky Node.</p>
@@ -1795,7 +1795,7 @@ pubky-node node shutdown                      # Graceful shutdown
             <div class="tab-content" id="tab-settings">
                 <div class="grid-1">
                     <!-- Password Management -->
-                    <div class="card">
+                    <div class="card" id="settings-password">
                         <div class="card-header">
                             <div class="card-title">🔐 Dashboard Password</div>
                         </div>
@@ -1824,7 +1824,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     </div>
 
                     <!-- Node Info -->
-                    <div class="card">
+                    <div class="card" id="settings-storage">
                         <div class="card-header">
                             <div class="card-title">📂 Data & Storage</div>
                         </div>
@@ -1849,7 +1849,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     </div>
 
                     <!-- Node Controls -->
-                    <div class="card">
+                    <div class="card" id="settings-controls">
                         <div class="card-header">
                             <div class="card-title">⚙️ Node Controls</div>
                         </div>
@@ -1863,7 +1863,7 @@ pubky-node node shutdown                      # Graceful shutdown
                     </div>
 
                     <!-- About -->
-                    <div class="card">
+                    <div class="card" id="settings-about">
                         <div class="card-header">
                             <div class="card-title">ℹ️ About Pubky Node</div>
                         </div>
