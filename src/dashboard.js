@@ -798,10 +798,12 @@
                 // Refresh all vault-dependent UI now that vault is ready
                 if (vaultChanged) {
                     if (typeof loadVaultStatus === 'function') loadVaultStatus();
-                    if (typeof loadVaultKeys === 'function') loadVaultKeys();
+                    // Must await key load before populating dependent selectors
+                    if (typeof loadVaultKeys === 'function') await loadVaultKeys();
                     if (typeof populateProfileKeys === 'function') populateProfileKeys();
                     if (typeof hsIdentityLoad === 'function') hsIdentityLoad();
                     if (typeof fetchBackupList === 'function') fetchBackupList();
+                    if (typeof window._loadPublisherVaultKeys === 'function') window._loadPublisherVaultKeys();
                 }
             }
         } catch (e) {
@@ -1245,6 +1247,7 @@
         }
         // Load on init and after vault changes
         loadPublisherVaultKeys();
+        window._loadPublisherVaultKeys = loadPublisherVaultKeys;
 
         // --- Source tab switching ---
         document.querySelectorAll('.pub-source-tab').forEach(function (tab) {

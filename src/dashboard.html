@@ -95,10 +95,7 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                         PKARR Publisher
                     </button>
-                    <button class="nav-item" data-tab="vanity">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                        Vanity Key Gen
-                    </button>
+
                 </div>
 
                 <!-- System -->
@@ -727,6 +724,105 @@
                             <div class="watchlist-keys" id="watchlist-keys"></div>
                         </div>
                     </section>
+
+                    <!-- Vanity Key Generator (moved from standalone tab) -->
+                    <section class="card" id="vanity-panel">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-icon card-icon-purple">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="8" cy="15" r="4" />
+                                        <path d="M10.85 12.15L19 4" />
+                                        <path d="M18 5l2 2" />
+                                        <path d="M15 8l2 2" />
+                                    </svg>
+                                </div>
+                                <h2>Vanity Key Generator</h2>
+                            </div>
+                            <span class="badge" id="vanity-badge">Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="vanity-input-row">
+                                <input type="text" id="vanity-input" placeholder="e.g. pubky" spellcheck="false"
+                                    autocomplete="off" maxlength="10" size="10" class="vanity-word-input">
+                                <label class="vanity-toggle">
+                                    <input type="checkbox" id="vanity-suffix">
+                                    <span class="vanity-toggle-label">Suffix</span>
+                                </label>
+                                <button class="btn-primary btn-sm" id="vanity-start-btn">Generate</button>
+                                <button class="btn-secondary btn-sm" id="vanity-stop-btn" style="display:none;">■
+                                    Stop</button>
+                            </div>
+                            <div id="vanity-estimate" class="vanity-estimate" style="display:none;"></div>
+                            <div id="vanity-progress" class="vanity-progress" style="display:none;">
+                                <div class="vanity-progress-bar">
+                                    <div class="vanity-progress-fill" id="vanity-progress-fill"></div>
+                                </div>
+                                <div class="vanity-stats">
+                                    <span id="vanity-keys-checked">0 keys</span>
+                                    <span id="vanity-rate">0/s</span>
+                                    <span id="vanity-elapsed">0s</span>
+                                </div>
+                            </div>
+                            <div id="vanity-result" class="vanity-result" style="display:none;">
+                                <div class="kv-row">
+                                    <span class="kv-key">Public Key</span>
+                                    <span class="kv-val mono vanity-key" id="vanity-pubkey">--</span>
+                                    <button class="copy-btn" id="vanity-copy-pubkey" title="Copy public key">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="kv-row">
+                                    <span class="kv-key">Secret Seed</span>
+                                    <span class="kv-val mono vanity-key" id="vanity-seed">--</span>
+                                    <button class="copy-btn" id="vanity-copy-seed" title="Copy seed">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="vanity-warning">
+                                    <strong>Back up your seed!</strong> It cannot be recovered.
+                                </div>
+                                <button class="btn-primary btn-sm" id="vanity-save-vault-btn"
+                                    style="margin-top: 8px;">Save to Vault</button>
+                            </div>
+                            <div class="vanity-info collapsible" id="vanity-info">
+                                <div class="collapsible-toggle vanity-info-toggle" id="vanity-info-toggle">
+                                    <span class="vanity-estimates-label">Time estimates</span>
+                                    <svg class="collapse-chevron vanity-chevron" width="14" height="14"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <div class="collapsible-body">
+                                    <table class="vanity-time-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Length</th>
+                                                <th>Combinations</th>
+                                                <th>Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>3</td><td>32K</td><td>Instant</td></tr>
+                                            <tr><td>4</td><td>1M</td><td>Seconds</td></tr>
+                                            <tr><td>5</td><td>33M</td><td>Minutes</td></tr>
+                                            <tr><td>6</td><td>1B</td><td>Hours</td></tr>
+                                            <tr><td>7+</td><td>34B+</td><td>Days+</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
@@ -887,128 +983,6 @@
             </div>
 
             <!-- ===== TOOLS: VANITY TAB ===== -->
-            <div class="tab-content" id="tab-vanity">
-                <div class="grid">
-                    <!-- Vanity Key Generator -->
-                    <section class="card" id="vanity-panel">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <div class="card-icon card-icon-purple">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="8" cy="15" r="4" />
-                                        <path d="M10.85 12.15L19 4" />
-                                        <path d="M18 5l2 2" />
-                                        <path d="M15 8l2 2" />
-                                    </svg>
-                                </div>
-                                <h2>Vanity Key Generator</h2>
-                            </div>
-                            <span class="badge" id="vanity-badge">Ready</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="vanity-input-row">
-                                <input type="text" id="vanity-input" placeholder="e.g. pubky" spellcheck="false"
-                                    autocomplete="off" maxlength="10" size="10" class="vanity-word-input">
-                                <label class="vanity-toggle">
-                                    <input type="checkbox" id="vanity-suffix">
-                                    <span class="vanity-toggle-label">Suffix</span>
-                                </label>
-                                <button class="btn-primary btn-sm" id="vanity-start-btn">Generate</button>
-                                <button class="btn-secondary btn-sm" id="vanity-stop-btn" style="display:none;">■
-                                    Stop</button>
-                            </div>
-                            <div id="vanity-estimate" class="vanity-estimate" style="display:none;"></div>
-                            <div id="vanity-progress" class="vanity-progress" style="display:none;">
-                                <div class="vanity-progress-bar">
-                                    <div class="vanity-progress-fill" id="vanity-progress-fill"></div>
-                                </div>
-                                <div class="vanity-stats">
-                                    <span id="vanity-keys-checked">0 keys</span>
-                                    <span id="vanity-rate">0/s</span>
-                                    <span id="vanity-elapsed">0s</span>
-                                </div>
-                            </div>
-                            <div id="vanity-result" class="vanity-result" style="display:none;">
-                                <div class="kv-row">
-                                    <span class="kv-key">Public Key</span>
-                                    <span class="kv-val mono vanity-key" id="vanity-pubkey">--</span>
-                                    <button class="copy-btn" id="vanity-copy-pubkey" title="Copy public key">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" />
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div class="kv-row">
-                                    <span class="kv-key">Secret Seed</span>
-                                    <span class="kv-val mono vanity-key" id="vanity-seed">--</span>
-                                    <button class="copy-btn" id="vanity-copy-seed" title="Copy seed">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" />
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div class="vanity-warning">
-                                    ⚠️ <strong>Back up your seed!</strong> It cannot be recovered.
-                                </div>
-                                <button class="btn-primary btn-sm" id="vanity-save-vault-btn"
-                                    style="margin-top: 8px;">Save to Vault</button>
-                            </div>
-                            <div class="vanity-info collapsible" id="vanity-info">
-                                <div class="collapsible-toggle vanity-info-toggle" id="vanity-info-toggle">
-                                    <span class="vanity-estimates-label">Time estimates</span>
-                                    <svg class="collapse-chevron vanity-chevron" width="14" height="14"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                        <path d="M6 9l6 6 6-6" />
-                                    </svg>
-                                </div>
-                                <div class="collapsible-body">
-                                    <table class="vanity-time-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Length</th>
-                                                <th>Combinations</th>
-                                                <th>Time</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>3</td>
-                                                <td>32K</td>
-                                                <td>Instant</td>
-                                            </tr>
-                                            <tr>
-                                                <td>4</td>
-                                                <td>1M</td>
-                                                <td>Seconds</td>
-                                            </tr>
-                                            <tr>
-                                                <td>5</td>
-                                                <td>33M</td>
-                                                <td>Minutes</td>
-                                            </tr>
-                                            <tr>
-                                                <td>6</td>
-                                                <td>1B</td>
-                                                <td>Hours</td>
-                                            </tr>
-                                            <tr>
-                                                <td>7+</td>
-                                                <td>34B+</td>
-                                                <td>Days+</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-            </div>
 
             <!-- ===== EXPLORER TAB ===== -->
             <div class="tab-content" id="tab-explorer">

@@ -132,6 +132,7 @@ pub fn default_layout() -> Layout {
                 cards: vec![
                     CardLayout { id: "vault-panel".to_string(), visible: true },
                     CardLayout { id: "watchlist-panel".to_string(), visible: true },
+                    CardLayout { id: "vanity-panel".to_string(), visible: true },
                 ],
             },
             PageLayout {
@@ -199,16 +200,7 @@ pub fn default_layout() -> Layout {
                     CardLayout { id: "publisher-panel".to_string(), visible: true },
                 ],
             },
-            PageLayout {
-                id: "vanity".to_string(),
-                label: "Vanity Key Gen".to_string(),
-                icon: "⭐".to_string(),
-                visible: true,
-                category: None,
-                cards: vec![
-                    CardLayout { id: "vanity-panel".to_string(), visible: true },
-                ],
-            },
+
             PageLayout {
                 id: "recovery".to_string(),
                 label: "Recovery".to_string(),
