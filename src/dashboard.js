@@ -1996,6 +1996,9 @@
                     if (data.state === 'running') {
                         dashHs.textContent = '● Online';
                         dashHs.style.color = 'var(--green)';
+                    } else if (data.state === 'starting') {
+                        dashHs.textContent = '◐ Starting…';
+                        dashHs.style.color = 'var(--yellow, #eab308)';
                     } else if (data.state === 'error') {
                         dashHs.textContent = '● Error';
                         dashHs.style.color = 'var(--red)';
