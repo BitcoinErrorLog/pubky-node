@@ -184,13 +184,9 @@
     // ========== Tab Navigation ==========
 
     function initTabs() {
-        const navItems = document.querySelectorAll('.nav-item');
-        // Include icon buttons that act as tab switchers
-        const allTabTriggers = document.querySelectorAll('.nav-item, [data-tab].btn-icon');
-
         function switchToTab(target) {
-            // Update tab button active states (only for .nav-item elements)
-            navItems.forEach(function (t) { t.classList.remove('active'); });
+            // Update tab button active states (live DOM query — works after rebuildSidebar)
+            document.querySelectorAll('.nav-item').forEach(function (t) { t.classList.remove('active'); });
             var matchingTab = document.querySelector('.nav-item[data-tab="' + target + '"]');
             if (matchingTab) matchingTab.classList.add('active');
             // Update content panels
@@ -201,7 +197,18 @@
             if (targetPanel) targetPanel.classList.add('active');
         }
 
-        allTabTriggers.forEach(function (trigger) {
+        // Event delegation — one handler catches all nav-item clicks, even after DOM rebuild
+        var navContainer = document.getElementById('nav-tabs');
+        if (navContainer && !navContainer._delegated) {
+            navContainer._delegated = true;
+            navContainer.addEventListener('click', function(e) {
+                var btn = e.target.closest('.nav-item[data-tab]');
+                if (btn) switchToTab(btn.dataset.tab);
+            });
+        }
+
+        // Also handle icon buttons outside the nav
+        document.querySelectorAll('[data-tab].btn-icon').forEach(function (trigger) {
             trigger.addEventListener('click', function () {
                 switchToTab(trigger.dataset.tab);
             });
@@ -4579,8 +4586,7 @@
             });
         });
 
-        // Re-bind tab click listeners
-        initTabs();
+        // Tab click handlers use event delegation on #nav-tabs — no rebinding needed
     }
 
     // Apply layout after login (not on DOMContentLoaded, since layout API requires auth)
