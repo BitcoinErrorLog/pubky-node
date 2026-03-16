@@ -491,6 +491,7 @@
         }
     }
 
+    var _lastVaultPoll = 0;
     async function poll() {
         var data = await fetchStatus();
         update(data);
@@ -498,9 +499,13 @@
         if (typeof loadHsStatus === 'function') {
             try { loadHsStatus(); } catch(e) {}
         }
-        // Keep vault state fresh (sidebar widget, key lists)
-        if (typeof loadVaultStatus === 'function') {
-            try { loadVaultStatus(); } catch(e) {}
+        // Keep vault state fresh — but only every 30s (vault changes slowly)
+        var now = Date.now();
+        if (now - _lastVaultPoll > 30000) {
+            _lastVaultPoll = now;
+            if (typeof loadVaultStatus === 'function') {
+                try { loadVaultStatus(); } catch(e) {}
+            }
         }
     }
 
@@ -1670,6 +1675,10 @@
                 if (!res.ok) return;
                 var data = await res.json();
                 renderVaultKeys(data.keys || []);
+                // Refresh all dependent key selectors after vault keys load
+                if (typeof populateProfileKeys === 'function') populateProfileKeys();
+                if (typeof hsIdentityLoad === 'function') hsIdentityLoad();
+                if (typeof window._loadPublisherVaultKeys === 'function') window._loadPublisherVaultKeys();
             } catch (e) { /* ignore */ }
         }
 
