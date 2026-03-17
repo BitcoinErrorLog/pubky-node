@@ -30,3 +30,4 @@ src-tauri/binaries/
 
 # AI agent config (local paths, not portable)
 .agents/
+AGENTS.md
