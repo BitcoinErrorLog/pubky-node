@@ -1725,8 +1725,8 @@
                     '  <span class="vault-key-pubkey" title="' + k.pubkey + '">' + truncPk + '</span>',
                     '</div>',
                     '<div class="vault-key-actions">',
-                    '  <button class="vault-copy-btn" data-pk="' + k.pubkey + '" title="Copy pubkey"></button>',
-                    '  <button class="vault-export-btn" data-pk="' + k.pubkey + '" title="Export secret"></button>',
+                    '  <button class="vault-copy-btn" data-pk="' + k.pubkey + '" title="Copy pubkey">📋</button>',
+                    '  <button class="vault-export-btn" data-pk="' + k.pubkey + '" title="Export secret">📤</button>',
                     '  <button class="vault-delete-btn danger" data-pk="' + k.pubkey + '" data-name="' + escapeHtml(k.name) + '" title="Delete">🗑</button>',
                     '</div>'
                 ].join('');
