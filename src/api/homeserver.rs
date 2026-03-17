@@ -196,6 +196,7 @@ pub async fn api_hs_status(
     let hs_state = state.homeserver.state();
     let cfg = state.homeserver.get_config();
     // Get pubkey: from in-memory cache, or derive from secret file on disk
+    let mut server_secret_for_import: Option<String> = None;
     let pubkey = state.homeserver.server_pubkey().or_else(|| {
         state.homeserver.read_server_secret().and_then(|secret_hex| {
             let secret_bytes = hex::decode(secret_hex.trim()).ok()?;
@@ -203,9 +204,27 @@ pub async fn api_hs_status(
             let mut key = [0u8; 32];
             key.copy_from_slice(&secret_bytes);
             let kp = pkarr::Keypair::from_secret_key(&key);
-            Some(kp.public_key().to_z32())
+            let pk = kp.public_key().to_z32();
+            server_secret_for_import = Some(secret_hex);
+            Some(pk)
         })
     });
+
+    // Auto-import server key into vault if unlocked and not already present
+    if let Some(ref pk) = pubkey {
+        if state.vault.is_unlocked() && !state.vault.has_key(pk) {
+            // Get the secret: either we just read it above, or read it now
+            let secret = server_secret_for_import
+                .or_else(|| state.homeserver.read_server_secret());
+            if let Some(ref sec) = secret {
+                match state.vault.add_key("Server Key", sec, "homeserver", pk) {
+                    Ok(_) => tracing::info!("Homeserver key auto-imported into vault: {}", pk),
+                    Err(e) => tracing::warn!("Could not auto-import homeserver key: {}", e),
+                }
+            }
+        }
+    }
+
     Json(serde_json::json!({
         "state": hs_state.as_str(),
         "error": if let crate::homeserver::HomeserverState::Error(ref e) = hs_state { Some(e.as_str()) } else { None::<&str> },
