@@ -37,12 +37,14 @@ pub struct ProfileLink {
 // ─── Helpers ────────────────────────────────────────────────────
 
 /// Sign in to the local homeserver and return a session cookie string.
-/// If the user isn't signed up, auto-signs them up first.
+/// If the user isn't signed up, auto-signs them up first (with admin signup token).
 /// Returns the cookie in the format "{pubkey}={session_value}".
 async fn signin_local(
     secret_hex: &str,
     pubkey: &str,
     icann_port: u16,
+    admin_port: u16,
+    admin_password: &str,
 ) -> Result<String, String> {
     let keypair = decode_keypair(secret_hex)?;
     let token = build_auth_token(&keypair)?;
@@ -60,8 +62,15 @@ async fn signin_local(
         Err(e) => tracing::info!("Session auth failed, trying signup: {}", e),
     }
 
-    // Session failed — try signup (auto-register user)
-    let signup_url = format!("http://127.0.0.1:{}/signup", icann_port);
+    // Session failed — get signup token from admin API for token_required mode
+    let signup_token = get_admin_signup_token(&client, admin_port, admin_password).await;
+
+    // Build signup URL (with token if available)
+    let signup_url = match &signup_token {
+        Some(t) => format!("http://127.0.0.1:{}/signup?token={}", icann_port, t),
+        None => format!("http://127.0.0.1:{}/signup", icann_port),
+    };
+
     let token2 = build_auth_token(&keypair)?;
     match try_auth_request(&client, &signup_url, &token2).await {
         Ok(cookie) => {
@@ -77,6 +86,30 @@ async fn signin_local(
         Ok(cookie) => Ok(format!("{}={}", pubkey, cookie)),
         Err(e) => Err(format!("Auth failed after signup attempt: {}", e)),
     }
+}
+
+/// Get a signup token from the homeserver admin API.
+async fn get_admin_signup_token(
+    client: &reqwest::Client,
+    admin_port: u16,
+    admin_password: &str,
+) -> Option<String> {
+    use base64::Engine;
+    let url = format!("http://127.0.0.1:{}/signup_token", admin_port);
+    let creds = base64::engine::general_purpose::STANDARD
+        .encode(format!("admin:{}", admin_password));
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Basic {}", creds))
+        .send()
+        .await
+        .ok()?;
+
+    if !resp.status().is_success() { return None; }
+
+    let data: serde_json::Value = resp.json().await.ok()?;
+    data.get("token").and_then(|t| t.as_str()).map(|s| s.to_string())
 }
 
 /// Try a signin or signup POST request and extract the session cookie.
@@ -227,8 +260,8 @@ pub async fn api_profile_put(
         None => return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": "Homeserver pubkey not available. Is it running?" }))),
     };
 
-    // Sign in to get session cookie (auto-signup if needed)
-    let cookie = match signin_local(&secret_hex, &pubkey, cfg.drive_icann_port).await {
+    // Sign in to get session cookie (auto-signup if needed, with admin token for token_required mode)
+    let cookie = match signin_local(&secret_hex, &pubkey, cfg.drive_icann_port, cfg.admin_port, &cfg.admin_password).await {
         Ok(c) => c,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Auth failed: {}", e) }))),
     };
