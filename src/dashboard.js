@@ -3820,6 +3820,8 @@
             t.addEventListener('click', function () {
                 if (t.dataset.tab === 'networks') {
                     checkReachability();
+                    hsTunnelRefresh();
+                    relayTunnelRefresh();
                     dnsTunnelRefresh();
                 }
                 // Also update dashboard tunnels when visiting Dashboard tab
