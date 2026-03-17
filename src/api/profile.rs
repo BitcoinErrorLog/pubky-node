@@ -42,6 +42,7 @@ pub struct ProfileLink {
 async fn signin_local(
     secret_hex: &str,
     pubkey: &str,
+    server_pubkey: &str,
     icann_port: u16,
     admin_port: u16,
     admin_password: &str,
@@ -57,12 +58,12 @@ async fn signin_local(
 
     // Try signin — homeserver POST /signin endpoint
     let signin_url = format!("http://127.0.0.1:{}/signin", icann_port);
-    match try_auth_request(&client, &signin_url, &token).await {
+    match try_auth_request(&client, &signin_url, &token, server_pubkey).await {
         Ok(cookie) => return Ok(format!("{}={}", pubkey, cookie)),
         Err(e) => tracing::info!("Signin auth failed, trying signup: {}", e),
     }
 
-    // Session failed — get signup token from admin API for token_required mode
+    // Signin failed — get signup token from admin API for token_required mode
     let signup_token = get_admin_signup_token(&client, admin_port, admin_password).await;
 
     // Build signup URL (with token if available)
@@ -72,7 +73,7 @@ async fn signin_local(
     };
 
     let token2 = build_auth_token(&keypair)?;
-    match try_auth_request(&client, &signup_url, &token2).await {
+    match try_auth_request(&client, &signup_url, &token2, server_pubkey).await {
         Ok(cookie) => {
             tracing::info!("Auto-signup succeeded for {}", &pubkey[..12.min(pubkey.len())]);
             return Ok(format!("{}={}", pubkey, cookie));
@@ -82,7 +83,7 @@ async fn signin_local(
 
     // Both failed — retry signin (signup may have succeeded but returned 409 without cookie)
     let token3 = build_auth_token(&keypair)?;
-    match try_auth_request(&client, &signin_url, &token3).await {
+    match try_auth_request(&client, &signin_url, &token3, server_pubkey).await {
         Ok(cookie) => Ok(format!("{}={}", pubkey, cookie)),
         Err(e) => Err(format!("Auth failed after signup attempt: {}", e)),
     }
@@ -117,14 +118,16 @@ async fn try_auth_request(
     client: &reqwest::Client,
     url: &str,
     token: &[u8],
+    server_pubkey: &str,
 ) -> Result<String, String> {
     let resp = client
         .post(url)
         .body(token.to_vec())
         .header("content-type", "application/octet-stream")
+        .header("pubky-host", server_pubkey)
         .send()
         .await
-        .map_err(|e| format!("Request failed: {}", e))?;
+        .map_err(|e| format!("Request failed: {}", e))?;;
 
     let status = resp.status();
 
@@ -287,7 +290,7 @@ pub async fn api_profile_put(
     };
 
     // Sign in to get session cookie (auto-signup if needed, with admin token for token_required mode)
-    let cookie = match signin_local(&secret_hex, &pubkey, cfg.drive_icann_port, cfg.admin_port, &cfg.admin_password).await {
+    let cookie = match signin_local(&secret_hex, &pubkey, &server_pubkey, cfg.drive_icann_port, cfg.admin_port, &cfg.admin_password).await {
         Ok(c) => c,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Auth failed: {}", e) }))),
     };
