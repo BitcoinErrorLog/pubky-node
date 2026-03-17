@@ -236,10 +236,36 @@ pub async fn api_profile_put(
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "Invalid name" })));
     }
 
-    // Get secret key from vault
+    // Get secret key — try vault first, then fall back to server's secret file
     let secret_hex = match state.vault.export_key(&pubkey) {
         Ok(s) => s,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": format!("Key not in vault: {}", e) }))),
+        Err(_vault_err) => {
+            // Vault export failed — try reading the homeserver's secret file as fallback
+            // This handles the case where the vault is locked but we're saving the server's own profile
+            let server_pk = state.homeserver.server_pubkey().or_else(|| {
+                state.homeserver.read_server_secret().and_then(|s| {
+                    let b = hex::decode(s.trim()).ok()?;
+                    if b.len() != 32 { return None; }
+                    let mut k = [0u8; 32];
+                    k.copy_from_slice(&b);
+                    Some(pkarr::Keypair::from_secret_key(&k).public_key().to_z32())
+                })
+            });
+            if server_pk.as_deref() == Some(&pubkey) {
+                // This IS the server key — read secret from disk
+                match state.homeserver.read_server_secret() {
+                    Some(s) => s.trim().to_string(),
+                    None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+                        "error": "Server secret file not found. Is the homeserver running?"
+                    }))),
+                }
+            } else {
+                // Not the server key — vault is required
+                return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
+                    "error": "Vault is locked. Please unlock the vault to save profiles for non-server keys."
+                })));
+            }
+        }
     };
 
     let cfg = state.homeserver.get_config();
