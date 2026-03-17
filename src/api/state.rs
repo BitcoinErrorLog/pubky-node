@@ -137,14 +137,38 @@ impl DashboardState {
         {
             let check = state.homeserver.check_setup();
             if check.binary_ok {
-                tracing::info!("Homeserver binary found — auto-starting...");
-                let state_clone = state.clone();
-                tokio::spawn(async move {
-                    match state_clone.homeserver.start().await {
-                        Ok(_logs) => tracing::info!("Homeserver auto-started successfully"),
-                        Err(e) => tracing::warn!("Homeserver auto-start failed: {}", e),
-                    }
-                });
+                // Check if homeserver is already running from a previous session
+                if state.homeserver.check_process() {
+                    tracing::info!("Homeserver already running (detected via admin port) — skipping auto-start");
+                } else {
+                    tracing::info!("Homeserver binary found — auto-starting...");
+                    let state_clone = state.clone();
+                    tokio::spawn(async move {
+                        // Retry up to 3 times (homeserver can crash on transient DHT errors)
+                        for attempt in 1..=3 {
+                            match state_clone.homeserver.start().await {
+                                Ok(_logs) => {
+                                    tracing::info!("Homeserver auto-started successfully");
+                                    return;
+                                }
+                                Err(e) => {
+                                    if e.contains("already running") {
+                                        tracing::info!("Homeserver already running — auto-start skipped");
+                                        return;
+                                    }
+                                    tracing::warn!(
+                                        "Homeserver auto-start attempt {}/3 failed: {}",
+                                        attempt, e
+                                    );
+                                    if attempt < 3 {
+                                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                                    }
+                                }
+                            }
+                        }
+                        tracing::error!("Homeserver auto-start failed after 3 attempts");
+                    });
+                }
             } else {
                 tracing::info!("Homeserver binary not found — skipping auto-start. Install pubky-homeserver or run build-sidecars.sh");
             }
