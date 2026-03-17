@@ -278,6 +278,13 @@ pub async fn api_hs_start(
                                 .or_else(|| state_clone.homeserver.read_server_secret());
 
                             if let Some(ref secret) = secret_opt {
+                                // Auto-import server key into vault if unlocked and not already there
+                                if state_clone.vault.is_unlocked() && !state_clone.vault.has_key(pubkey_str) {
+                                    match state_clone.vault.add_key("Server Key", secret, "homeserver", pubkey_str) {
+                                        Ok(_) => tracing::info!("Homeserver key auto-imported into vault: {}", pubkey_str),
+                                        Err(e) => tracing::warn!("Could not auto-import homeserver key into vault: {}", e),
+                                    }
+                                }
                                 // Auto-publish PKARR
                                 if let Err(e) = publish_homeserver_pkarr(secret, &icann_domain, &state_clone).await {
                                     tracing::warn!("Homeserver auto-PKARR publish failed: {}", e);
