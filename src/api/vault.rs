@@ -11,6 +11,35 @@ use axum::{
 };
 use std::sync::Arc;
 
+/// Ensure the homeserver's current key is in the vault.
+/// Called after vault unlock/create — the moment vault access becomes available.
+/// Reads the homeserver secret file, derives the pubkey, and imports if missing.
+pub fn ensure_server_key_in_vault(state: &Arc<DashboardState>) {
+    // Read the homeserver's secret from its file
+    let secret_hex = match state.homeserver.read_server_secret() {
+        Some(s) => s,
+        None => return, // No homeserver key yet — nothing to import
+    };
+
+    // Derive the public key
+    let secret_bytes = match hex::decode(secret_hex.trim()) {
+        Ok(b) if b.len() == 32 => b,
+        _ => return,
+    };
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&secret_bytes);
+    let kp = pkarr::Keypair::from_secret_key(&key);
+    let pubkey = kp.public_key().to_z32();
+
+    // Import into vault if not already there
+    if !state.vault.has_key(&pubkey) {
+        match state.vault.add_key("Server Key", secret_hex.trim(), "homeserver", &pubkey) {
+            Ok(_) => tracing::info!("Homeserver key auto-imported into vault: {}", pubkey),
+            Err(e) => tracing::warn!("Could not auto-import homeserver key: {}", e),
+        }
+    }
+}
+
 /// Simple UTC timestamp for export metadata.
 fn chrono_now_utc() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -44,10 +73,13 @@ pub async fn api_vault_create(
     };
 
     match state.vault.create(password) {
-        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
-            "success": true,
-            "message": "Vault created and unlocked."
-        }))),
+        Ok(()) => {
+            ensure_server_key_in_vault(&state);
+            (StatusCode::OK, Json(serde_json::json!({
+                "success": true,
+                "message": "Vault created and unlocked."
+            })))
+        }
         Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({
             "error": e
         }))),
@@ -67,9 +99,12 @@ pub async fn api_vault_unlock(
     };
 
     match state.vault.unlock(password) {
-        Ok(()) => (StatusCode::OK, Json(serde_json::json!({
-            "success": true
-        }))),
+        Ok(()) => {
+            ensure_server_key_in_vault(&state);
+            (StatusCode::OK, Json(serde_json::json!({
+                "success": true
+            })))
+        }
         Err(e) => (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
             "error": e
         }))),
