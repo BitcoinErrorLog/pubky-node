@@ -42,6 +42,7 @@ pub struct ProfileLink {
 async fn signin_local(
     secret_hex: &str,
     pubkey: &str,
+    server_pubkey: &str,
     icann_port: u16,
     admin_port: u16,
     admin_password: &str,
@@ -55,14 +56,14 @@ async fn signin_local(
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
-    // Try signin — homeserver POST /signin endpoint
-    let signin_url = format!("http://127.0.0.1:{}/signin", icann_port);
-    match try_auth_request(&client, &signin_url, &token).await {
+    // Try session (signin) — homeserver POST /session with pubky-host header
+    let session_url = format!("http://127.0.0.1:{}/session", icann_port);
+    match try_auth_request(&client, &session_url, &token, server_pubkey).await {
         Ok(cookie) => return Ok(format!("{}={}", pubkey, cookie)),
-        Err(e) => tracing::info!("Signin auth failed, trying signup: {}", e),
+        Err(e) => tracing::info!("Session auth failed, trying signup: {}", e),
     }
 
-    // Signin failed — get signup token from admin API for token_required mode
+    // Session failed — get signup token from admin API for token_required mode
     let signup_token = get_admin_signup_token(&client, admin_port, admin_password).await;
 
     // Build signup URL (with token if available)
@@ -72,7 +73,7 @@ async fn signin_local(
     };
 
     let token2 = build_auth_token(&keypair)?;
-    match try_auth_request(&client, &signup_url, &token2).await {
+    match try_auth_request(&client, &signup_url, &token2, server_pubkey).await {
         Ok(cookie) => {
             tracing::info!("Auto-signup succeeded for {}", &pubkey[..12.min(pubkey.len())]);
             return Ok(format!("{}={}", pubkey, cookie));
@@ -80,9 +81,9 @@ async fn signin_local(
         Err(e) => tracing::info!("Signup also failed: {}", e),
     }
 
-    // Both failed — retry signin (signup may have succeeded but returned 409 without cookie)
+    // Both failed — retry session (signup may have succeeded but returned 409 without cookie)
     let token3 = build_auth_token(&keypair)?;
-    match try_auth_request(&client, &signin_url, &token3).await {
+    match try_auth_request(&client, &session_url, &token3, server_pubkey).await {
         Ok(cookie) => Ok(format!("{}={}", pubkey, cookie)),
         Err(e) => Err(format!("Auth failed after signup attempt: {}", e)),
     }
@@ -94,37 +95,49 @@ async fn get_admin_signup_token(
     admin_port: u16,
     admin_password: &str,
 ) -> Option<String> {
-    use base64::Engine;
-    let url = format!("http://127.0.0.1:{}/signup_token", admin_port);
-    let creds = base64::engine::general_purpose::STANDARD
-        .encode(format!("admin:{}", admin_password));
+    let url = format!("http://127.0.0.1:{}/generate_signup_token", admin_port);
 
     let resp = client
         .get(&url)
-        .header("Authorization", format!("Basic {}", creds))
+        .header("X-Admin-Password", admin_password)
         .send()
         .await
         .ok()?;
 
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        tracing::warn!("Admin signup token fetch failed ({})", resp.status());
+        return None;
+    }
 
-    let data: serde_json::Value = resp.json().await.ok()?;
-    data.get("token").and_then(|t| t.as_str()).map(|s| s.to_string())
+    let body = resp.text().await.ok()?;
+    // Response may be JSON {"token":"..."} or plain text token
+    if let Ok(data) = serde_json::from_str::<serde_json::Value>(&body) {
+        data.get("token")
+            .or(data.get("signup_token"))
+            .and_then(|t| t.as_str())
+            .map(|s| s.to_string())
+    } else {
+        // Plain text token (like "VEGX-QJKD-TVJ0")
+        let trimmed = body.trim().to_string();
+        if !trimmed.is_empty() { Some(trimmed) } else { None }
+    }
 }
 
-/// Try a signin or signup POST request and extract the session cookie.
+/// Try a session or signup POST request and extract the session cookie.
 async fn try_auth_request(
     client: &reqwest::Client,
     url: &str,
     token: &[u8],
+    server_pubkey: &str,
 ) -> Result<String, String> {
     let resp = client
         .post(url)
         .body(token.to_vec())
         .header("content-type", "application/octet-stream")
+        .header("pubky-host", server_pubkey)
         .send()
         .await
-        .map_err(|e| format!("Request failed: {}", e))?;;
+        .map_err(|e| format!("Request failed: {}", e))?;
 
     let status = resp.status();
 
@@ -286,9 +299,14 @@ pub async fn api_profile_put(
         None => return (StatusCode::SERVICE_UNAVAILABLE, Json(serde_json::json!({ "error": "Homeserver pubkey not available. Is it running?" }))),
     };
 
+    tracing::info!("Profile PUT: secret resolved for {}", &pubkey[..12.min(pubkey.len())]);
+
     // Sign in to get session cookie (auto-signup if needed, with admin token for token_required mode)
-    let cookie = match signin_local(&secret_hex, &pubkey, cfg.drive_icann_port, cfg.admin_port, &cfg.admin_password).await {
-        Ok(c) => c,
+    let cookie = match signin_local(&secret_hex, &pubkey, &server_pubkey, cfg.drive_icann_port, cfg.admin_port, &cfg.admin_password).await {
+        Ok(c) => {
+            tracing::info!("Profile PUT: auth succeeded for {}", &pubkey[..12.min(pubkey.len())]);
+            c
+        }
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": format!("Auth failed: {}", e) }))),
     };
 
@@ -328,6 +346,8 @@ pub async fn api_profile_put(
         Ok(c) => c,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
     };
+
+    tracing::info!("Profile PUT: sending to {} with pubky-host={}", &put_url, &pubkey[..12.min(pubkey.len())]);
 
     let resp = match client
         .put(&put_url)
