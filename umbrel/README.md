@@ -32,12 +32,15 @@ Find "Pubky Node" in the Networking category and click **Install**. That's it �
 
 ### 3. Open the Dashboard
 
-Click the app icon to access the dashboard. You'll see:
-- **Networks tab** — DHT connectivity, relay info, UPnP status, watchlist
-- **Keys tab** — Key vault, watchlist management, vanity key generator
-- **Homeserver tab** — Built-in homeserver control, user management, configuration
-- **Explorer tab** — Look up any public key's DNS records on the DHT
-- **Guide** — Comprehensive documentation (top-right icon)
+Click the app icon to access the dashboard. The sidebar navigation includes:
+- **Dashboard** — Overview with uptime, peer count, homeserver and tunnel status
+- **Keychain** — Encrypted key vault, identity watchlist, vanity key generator
+- **Profile** — Edit your pubky.app identity and submit to Nexus
+- **Server Dashboard** — Homeserver control, configuration, PKARR publishing, logs, users
+- **Network Status** — UPnP, Cloudflare tunnels, DNS resolver, HTTP proxy
+- **Network Explorer** — Look up any public key's DHT records
+- **Recovery** — Backup sync, snapshots, and identity recovery
+- **Guide** — Built-in documentation and setup instructions
 
 ## Network & Port Forwarding
 
@@ -54,7 +57,7 @@ The node falls back to **Client mode**, which is fully functional:
 To manually enable Server mode, forward **UDP port 6881** on your router.
 
 ### Checking Your Status
-Open the dashboard and look at the **Networks** tab → **Network / UPnP** card:
+Open the dashboard and look at the **Network Status** page → **Network / UPnP** card:
 - **Active** — Port mapped successfully, full participation
 - **No Gateway** — UPnP not available, running in client mode
 - **Failed** — UPnP found but couldn't map the port

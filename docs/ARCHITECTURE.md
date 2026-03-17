@@ -7,14 +7,18 @@
 ```
 1. Load config (TOML + env overrides + CLI flags)
 2. Initialize data directory
-3. Start embedded PostgreSQL (if homeserver enabled)
-4. Start Pkarr relay (HTTP + DHT node)
-5. Start UPnP port mapping (async, best-effort)
-6. Start PKDNS resolver subprocess
-7. Start DNS publisher (periodic task)
-8. Start watchlist republisher (periodic task)
-9. Start HTTP proxy (port 9091)
-10. Start dashboard server (port 9090 — mounts all API routes)
+3. Start Pkarr relay (HTTP + DHT node)
+4. Start UPnP port mapping (async, best-effort)
+5. Start PKDNS resolver subprocess
+6. Start DNS publisher (periodic task)
+7. Start watchlist republisher (periodic task)
+8. Start HTTP proxy (port 9091)
+9. Start dashboard server (port 9090 — mounts all API routes)
+10. Auto-start homeserver (if binary available)
+    → Start embedded PostgreSQL
+    → Start homeserver subprocess
+    → Auto-start Cloudflare tunnel
+    → Auto-publish PKARR record with tunnel URL
 11. Wait for SIGINT/SIGTERM → graceful shutdown
 ```
 
@@ -31,40 +35,53 @@ main.rs
 ├── watchlist.rs      (uses pkarr::Client from relay)
 ├── upnp.rs           (standalone, igd-next crate)
 ├── homeserver.rs     (subprocess: pubky-homeserver binary)
-├── embedded_pg.rs    (postgresql_embedded crate)
+├── embedded_pg.rs    (bundled PostgreSQL extraction + management)
 ├── tunnel.rs         (subprocess: cloudflared binary)
 ├── keyvault.rs       (standalone crypto: argon2 + chacha20poly1305)
 ├── identity.rs       (uses keyvault keys, calls homeserver admin API)
-└── dashboard.rs      (axum server, depends on ALL of the above via DashboardState)
+├── backup.rs         (periodic remote homeserver sync)
+├── dashboard.rs      (axum server, embedded HTML/CSS/JS)
+└── api/              (split API handlers)
+    ├── mod.rs         (route registration)
+    ├── state.rs       (DashboardState struct + auto-start logic)
+    ├── auth.rs        (password authentication, sessions)
+    ├── homeserver.rs  (start/stop, config, PKARR publish, set-key)
+    ├── vault.rs       (key vault CRUD, generate, import, export)
+    ├── tunnel.rs      (Cloudflare tunnel start/stop/status)
+    ├── watchlist.rs   (add/remove/list)
+    ├── identity.rs    (signup/list)
+    ├── quickstart.rs  (one-click: keygen → signup → PKARR → watchlist)
+    ├── network.rs     (network status, HTTP proxy)
+    └── profile.rs     (pubky.app profile read/write via homeserver)
 ```
 
 ## DashboardState (the shared context)
 
+All subsystems communicate through `DashboardState`, which holds `Arc<RwLock<T>>` references:
+
 ```rust
 struct DashboardState {
-    client: Option<pkarr::Client>,      // DHT client (from relay)
+    client: Option<pkarr::Client>,           // DHT client (from relay)
     relay_port: u16,
-    watchlist_keys: SharedWatchlistKeys, // Arc<RwLock<Vec<String>>>
+    watchlist_keys: SharedWatchlistKeys,      // Arc<RwLock<Vec<String>>>
     data_dir: PathBuf,
-    upnp_status: UpnpStatus,            // Arc<RwLock<UpnpInfo>>
-    dns_status: String,
+    upnp_status: UpnpStatus,
     dns_enabled: Arc<RwLock<bool>>,
-    dns_socket: String,
-    dns_forward: String,
-    vault: Arc<RwLock<Option<KeyVault>>>,
-    vault_path: PathBuf,
-    homeserver: Arc<RwLock<HomeserverState>>,
-    tunnel: Arc<RwLock<TunnelState>>,
-    relay_tunnel: Arc<RwLock<TunnelState>>,
+    vault: KeyVaultManager,                   // Encrypted key storage
+    homeserver: HomeserverManager,            // Process lifecycle
+    tunnel: TunnelManager,                    // Cloudflare HS tunnel
+    relay_tunnel: TunnelManager,              // Cloudflare relay tunnel
+    dns_tunnel: TunnelManager,               // Cloudflare DNS tunnel
     identities: Arc<RwLock<Vec<Identity>>>,
+    backup: BackupManager,                    // Remote homeserver sync
     log_sender: broadcast::Sender<String>,
-    // ... auth config, shutdown channels, etc.
+    // ... auth config, shutdown channels
 }
 ```
 
 ## API Route Map
 
-All routes are defined in `start_dashboard()` in `dashboard.rs`:
+All routes are registered in `api/mod.rs`:
 
 | Prefix | Auth | Description |
 |--------|------|-------------|
@@ -77,28 +94,32 @@ All routes are defined in `start_dashboard()` in `dashboard.rs`:
 | `/api/watchlist` | Yes | Watchlist CRUD |
 | `/api/keys/vanity/*` | Yes | Vanity key generator |
 | `/api/homeserver/*` | Yes | Homeserver process control + admin |
+| `/api/profile/*` | Yes | Profile read/write on homeserver |
 | `/api/tunnel/*` | Yes | Homeserver Cloudflare tunnel |
 | `/api/relay-tunnel/*` | Yes | Relay Cloudflare tunnel |
+| `/api/dns-tunnel/*` | Yes | DNS DoH Cloudflare tunnel |
 | `/api/dns/*` | Yes | DNS toggle, system DNS setup |
 | `/api/proxy/*` | Yes | /etc/hosts management |
+| `/api/backup/*` | Yes | Backup sync status + snapshots |
+| `/api/quickstart` | Yes | One-click identity creation |
 | `/api/logs/stream` | Yes | SSE log stream (homeserver stdout) |
 | `/api/settings` | Yes | Data directory, platform info |
 | `/api/shutdown` | Yes | Graceful node shutdown |
 | `/api/restart` | Yes | Node restart |
 | `/health` | No | Health check ("ok") |
-| `/` | No* | Serves embedded HTML (*password prompt in JS) |
+| `/` | No* | Serves embedded HTML (*password prompt) |
 
 ## UI Architecture
 
 The dashboard is a single-page app with **no build step**:
 
-- `dashboard.html` — all HTML structure (~1600 lines), 6 tabs worth of UI
-- `dashboard.css` — all styles (~2000+ lines), dark theme, responsive grid
-- `dashboard.js` — all client-side logic, polling, API calls, SSE
+- `dashboard.html` — sidebar layout with 10 pages (~2100 lines)
+- `dashboard.css` — dark theme, responsive grid, cards (~2000+ lines)
+- `dashboard.js` — all client-side logic, polling, API calls (~4800+ lines)
 
-Tabs: **Networks** | **Keys** | **Homeserver** | **Explorer** | (icons) **Guide** | **Settings**
+**Sidebar pages**: Dashboard | Keychain | Profile | Server Dashboard | Network Status | Network Explorer | PKARR Publisher | Recovery | Guide | Settings
 
-All 3 files are embedded into the Rust binary via `include_str!()` and served as inline responses.
+All 3 files are embedded into the Rust binary via `include_str!()` — changes require rebuild.
 
 ## Tauri Desktop App
 
@@ -116,15 +137,14 @@ The Tauri wrapper (`src-tauri/`) is thin:
 | Docker / Umbrel | `Dockerfile` → multi-stage build |
 | CLI binary | `cargo build --release` |
 
-## Testing
+## Auto-Start Chain
 
-```bash
-cargo test                    # 93 tests, 0 failures (as of last check)
-cargo clippy                  # lint check
-```
+On application launch, `state.rs` orchestrates automatic startup:
 
-Tests are mostly in `dashboard.rs` (`#[cfg(test)]` module at the bottom) and cover:
-- Config parsing and validation
-- API endpoint responses
-- Key vault encryption/decryption
-- Watchlist persistence
+1. Check if homeserver binary exists
+2. Check if homeserver is already running (port probe)
+3. Start embedded PostgreSQL → start homeserver (retry up to 3x)
+4. Check if `cloudflared` binary exists
+5. Start Cloudflare tunnel
+6. Wait 5s for tunnel URL
+7. Publish PKARR record with current tunnel URL
