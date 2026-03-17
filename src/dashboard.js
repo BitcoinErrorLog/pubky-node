@@ -2060,6 +2060,12 @@
                     startBtn.style.display = 'none';
                     stopBtn.style.display = 'inline-flex';
                     if (changeKeyBtn) changeKeyBtn.style.display = 'inline-flex';
+                    // Clear stale start/stop messages when running
+                    var ctrlMsg = document.getElementById('hs-control-msg');
+                    if (ctrlMsg && ctrlMsg.textContent.includes('already running')) {
+                        ctrlMsg.style.display = 'none';
+                        ctrlMsg.textContent = '';
+                    }
                     document.getElementById('hs-pid').textContent = data.pid || '—';
                     var secs = data.uptime_secs || 0;
                     var h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
@@ -2093,20 +2099,25 @@
         // Load and display tunnel URL in the status card
         async function loadHsTunnelStatus() {
             var tunnelEl = document.getElementById('hs-tunnel-url');
-            if (!tunnelEl) return;
+            var cardTunnelEl = document.getElementById('hs-card-tunnel-url');
             try {
                 var res = await authFetch('/api/tunnel/status');
                 var data = await res.json();
                 if (data.state === 'running' && data.public_url) {
-                    tunnelEl.innerHTML = '<a href="' + data.public_url + '" target="_blank" style="color:#818cf8; text-decoration:none;">' + data.public_url.replace('https://', '') + '</a>';
+                    var shortUrl = data.public_url.replace('https://', '');
+                    var linkHtml = '<a href="' + data.public_url + '" target="_blank" style="color:#818cf8; text-decoration:none;">' + shortUrl + '</a>';
+                    if (tunnelEl) tunnelEl.innerHTML = linkHtml;
+                    if (cardTunnelEl) cardTunnelEl.innerHTML = linkHtml;
                 } else if (data.state === 'starting') {
-                    tunnelEl.textContent = '⏳ Starting…';
+                    if (tunnelEl) tunnelEl.textContent = '⏳ Starting…';
+                    if (cardTunnelEl) cardTunnelEl.textContent = '⏳ Starting…';
                 } else {
-                    tunnelEl.textContent = 'Not active';
-                    tunnelEl.style.color = '#64748b';
+                    if (tunnelEl) { tunnelEl.textContent = 'Not active'; tunnelEl.style.color = '#64748b'; }
+                    if (cardTunnelEl) { cardTunnelEl.textContent = 'Not active'; cardTunnelEl.style.color = '#64748b'; }
                 }
             } catch (e) {
-                tunnelEl.textContent = '—';
+                if (tunnelEl) tunnelEl.textContent = '—';
+                if (cardTunnelEl) cardTunnelEl.textContent = '—';
             }
         }
 
