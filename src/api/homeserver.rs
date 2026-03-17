@@ -48,12 +48,15 @@ pub async fn publish_homeserver_pkarr(
     icann_domain: &str,
     state: &Arc<DashboardState>,
 ) -> Result<(), String> {
-    // If icann_domain is empty or "localhost", check tunnel URL as override
-    let domain = if icann_domain.is_empty() || icann_domain == "localhost" {
-        state.tunnel.public_url()
-            .unwrap_or_else(|| icann_domain.to_string())
-    } else {
+    // Always prefer the currently-running tunnel URL over config's icann_domain
+    // (config may have a stale old tunnel URL from a previous session)
+    let domain = if let Some(tunnel_url) = state.tunnel.public_url() {
+        // Strip https:// prefix if present — PKARR HTTPS records just need the hostname
+        tunnel_url.trim_start_matches("https://").trim_start_matches("http://").to_string()
+    } else if !icann_domain.is_empty() && icann_domain != "localhost" {
         icann_domain.to_string()
+    } else {
+        return Err("No tunnel running and no ICANN domain configured".to_string());
     };
 
     let secret_bytes = hex::decode(secret_hex)
