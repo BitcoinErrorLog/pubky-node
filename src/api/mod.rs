@@ -95,6 +95,7 @@ pub fn build_router(
         // Profile
         .route("/api/profile/{pubkey}", get(profile::api_profile_get).put(profile::api_profile_put))
         .route("/api/profile/{pubkey}/nexus", get(profile::api_profile_nexus))
+        .route("/api/profile/{pubkey}/nexus-submit", post(profile::api_profile_nexus_submit))
         .route("/api/profile/{pubkey}/verify", get(profile::api_profile_verify))
         // Tunnel
         .route("/api/tunnel/status", get(tunnel::api_tunnel_status))

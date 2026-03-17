@@ -430,6 +430,50 @@ pub async fn api_profile_verify(
     }
 }
 
+/// POST /api/profile/:pubkey/nexus-submit — submit homeserver to Nexus for indexing
+pub async fn api_profile_nexus_submit(
+    Path(pubkey): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
+    };
+
+    // Submit to production Nexus
+    let prod_url = format!("https://nexus.pubky.app/v0/ingest/{}", pubkey);
+    let prod_result = submit_to_nexus(&client, &prod_url).await;
+
+    // Submit to staging Nexus
+    let staging_url = format!("https://nexus.staging.pubky.app/v0/ingest/{}", pubkey);
+    let staging_result = submit_to_nexus(&client, &staging_url).await;
+
+    tracing::info!("Nexus ingest submitted for {}: prod={:?}, staging={:?}", &pubkey[..12.min(pubkey.len())], prod_result, staging_result);
+
+    (StatusCode::OK, Json(serde_json::json!({
+        "pubkey": pubkey,
+        "production": prod_result,
+        "staging": staging_result,
+    })))
+}
+
+async fn submit_to_nexus(client: &reqwest::Client, url: &str) -> serde_json::Value {
+    match client.put(url).send().await {
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            if status == 200 {
+                serde_json::json!({ "ok": true, "status": status })
+            } else {
+                serde_json::json!({ "ok": false, "status": status, "body": body })
+            }
+        }
+        Err(e) => serde_json::json!({ "ok": false, "error": e.to_string() }),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

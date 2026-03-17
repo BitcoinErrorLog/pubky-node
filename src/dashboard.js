@@ -2905,13 +2905,47 @@
                 var html = '<strong>Nexus Indexing Status</strong><br>';
                 var prodStatus = data.production || {};
                 var stagingStatus = data.staging || {};
-                html += '🏭 <strong>Production:</strong> ' + (prodStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (prodStatus.status || '?') + ')') + '<br>';
-                html += '🧪 <strong>Staging:</strong> ' + (stagingStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (stagingStatus.status || '?') + ')') + '<br>';
+                html += '<strong>Production:</strong> ' + (prodStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (prodStatus.status || '?') + ')') + '<br>';
+                html += '<strong>Staging:</strong> ' + (stagingStatus.indexed ? '✅ Indexed' : '⚠️ Not indexed (' + (stagingStatus.status || '?') + ')') + '<br>';
                 if (prodStatus.indexed && prodStatus.data) {
                     html += '<br><em>Profile on Nexus:</em> ' + (prodStatus.data.name || '—');
                     html += '<br><a href="https://app.pubky.app/profile/' + pubkey + '" target="_blank" style="color:var(--primary);">View on pubky-app →</a>';
                 }
+                if (!prodStatus.indexed || !stagingStatus.indexed) {
+                    html += '<br><button class="btn-primary btn-sm" id="nexus-submit-btn" style="margin-top:8px;">Submit to Nexus</button>';
+                    html += ' <span id="nexus-submit-msg" style="font-size:12px;"></span>';
+                }
                 profileNexusResult.innerHTML = html;
+                // Wire up submit button if present
+                var submitBtn = document.getElementById('nexus-submit-btn');
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', async function() {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Submitting...';
+                        var msgEl = document.getElementById('nexus-submit-msg');
+                        try {
+                            var sres = await authFetch('/api/profile/' + encodeURIComponent(pubkey) + '/nexus-submit', { method: 'POST' });
+                            var sdata = await sres.json();
+                            var prodOk = sdata.production && sdata.production.ok;
+                            var stagingOk = sdata.staging && sdata.staging.ok;
+                            if (prodOk || stagingOk) {
+                                msgEl.textContent = '✅ Submitted! Nexus will start monitoring your homeserver.';
+                                msgEl.style.color = '#4ade80';
+                            } else {
+                                var err = (sdata.production && sdata.production.body) || (sdata.staging && sdata.staging.error) || 'Unknown error';
+                                msgEl.textContent = '⚠️ ' + err;
+                                msgEl.style.color = '#f59e0b';
+                            }
+                            // Re-check after a short delay
+                            setTimeout(function() { checkProfileNexus(pubkey); }, 3000);
+                        } catch(e) {
+                            msgEl.textContent = '❌ ' + e.message;
+                            msgEl.style.color = '#f87171';
+                        }
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit to Nexus';
+                    });
+                }
                 // Also update the status card Nexus badge
                 var nexusEl = document.getElementById('hs-nexus-status');
                 if (nexusEl) {
