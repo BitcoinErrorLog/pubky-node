@@ -492,6 +492,7 @@
     }
 
     var _lastVaultPoll = 0;
+    var _lastTunnelPoll = 0;
     async function poll() {
         var data = await fetchStatus();
         update(data);
@@ -523,6 +524,39 @@
             if (typeof loadVaultStatus === 'function') {
                 try { loadVaultStatus(); } catch(e) {}
             }
+        }
+        // Keep dashboard tunnel badges fresh — every 10s
+        if (now - _lastTunnelPoll > 10000) {
+            _lastTunnelPoll = now;
+            try {
+                var tunnels = [
+                    { api: '/api/tunnel/status', badge: 'dash-hs-tunnel-badge', url: 'dash-hs-tunnel-url' },
+                    { api: '/api/relay-tunnel/status', badge: 'dash-relay-tunnel-badge', url: 'dash-relay-tunnel-url' },
+                    { api: '/api/dns-tunnel/status', badge: 'dash-dns-tunnel-badge', url: 'dash-dns-tunnel-url' }
+                ];
+                tunnels.forEach(async function(t) {
+                    try {
+                        var r = await authFetch(t.api);
+                        var d = await r.json();
+                        var b = document.getElementById(t.badge);
+                        var u = document.getElementById(t.url);
+                        if (b) {
+                            if (d.state === 'running') {
+                                b.textContent = 'Running'; b.className = 'badge badge-sm badge-success';
+                            } else if (d.state === 'starting') {
+                                b.textContent = 'Starting…'; b.className = 'badge badge-sm';
+                            } else {
+                                b.textContent = 'Stopped'; b.className = 'badge badge-sm badge-stopped';
+                            }
+                        }
+                        if (u) {
+                            if (d.public_url) {
+                                u.href = d.public_url; u.textContent = d.public_url.replace('https://', ''); u.style.display = '';
+                            } else { u.style.display = 'none'; }
+                        }
+                    } catch(e) {}
+                });
+            } catch(e) {}
         }
     }
 

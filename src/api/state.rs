@@ -149,6 +149,38 @@ impl DashboardState {
                             match state_clone.homeserver.start().await {
                                 Ok(_logs) => {
                                     tracing::info!("Homeserver auto-started successfully");
+                                    // Auto-start Cloudflare tunnel if binary available
+                                    if crate::tunnel::TunnelManager::binary_available() {
+                                        match state_clone.tunnel.start() {
+                                            Ok(_) => {
+                                                tracing::info!("Cloudflare tunnel auto-starting...");
+                                                // Wait for cloudflared to report its URL, then publish PKARR
+                                                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                                                if let Some(url) = state_clone.tunnel.public_url() {
+                                                    tracing::info!("Tunnel URL: {} — auto-publishing PKARR", url);
+                                                    // Get secret and domain for PKARR publish
+                                                    let secret = state_clone.vault.export_key(
+                                                        &state_clone.homeserver.server_pubkey().unwrap_or_default()
+                                                    ).ok().or_else(|| state_clone.homeserver.read_server_secret());
+                                                    let icann_domain = state_clone.homeserver.get_config().icann_domain.clone();
+                                                    if let Some(secret_hex) = secret {
+                                                        if let Err(e) = crate::api::homeserver::publish_homeserver_pkarr(
+                                                            &secret_hex, &icann_domain, &state_clone
+                                                        ).await {
+                                                            tracing::warn!("Auto PKARR publish failed: {}", e);
+                                                        } else {
+                                                            tracing::info!("PKARR auto-published with tunnel URL");
+                                                        }
+                                                    } else {
+                                                        tracing::warn!("Cannot auto-publish PKARR: no secret key available");
+                                                    }
+                                                } else {
+                                                    tracing::warn!("Tunnel started but no URL yet after 5s");
+                                                }
+                                            }
+                                            Err(e) => tracing::warn!("Tunnel auto-start failed: {}", e),
+                                        }
+                                    }
                                     return;
                                 }
                                 Err(e) => {
