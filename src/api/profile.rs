@@ -55,11 +55,11 @@ async fn signin_local(
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
-    // Try session (signin) — homeserver POST /session endpoint
-    let session_url = format!("http://127.0.0.1:{}/session", icann_port);
-    match try_auth_request(&client, &session_url, &token).await {
+    // Try signin — homeserver POST /signin endpoint
+    let signin_url = format!("http://127.0.0.1:{}/signin", icann_port);
+    match try_auth_request(&client, &signin_url, &token).await {
         Ok(cookie) => return Ok(format!("{}={}", pubkey, cookie)),
-        Err(e) => tracing::info!("Session auth failed, trying signup: {}", e),
+        Err(e) => tracing::info!("Signin auth failed, trying signup: {}", e),
     }
 
     // Session failed — get signup token from admin API for token_required mode
@@ -67,7 +67,7 @@ async fn signin_local(
 
     // Build signup URL (with token if available)
     let signup_url = match &signup_token {
-        Some(t) => format!("http://127.0.0.1:{}/signup?token={}", icann_port, t),
+        Some(t) => format!("http://127.0.0.1:{}/signup?signup_token={}", icann_port, t),
         None => format!("http://127.0.0.1:{}/signup", icann_port),
     };
 
@@ -80,9 +80,9 @@ async fn signin_local(
         Err(e) => tracing::info!("Signup also failed: {}", e),
     }
 
-    // Both failed — retry session (signup may have succeeded but returned 409 without cookie)
+    // Both failed — retry signin (signup may have succeeded but returned 409 without cookie)
     let token3 = build_auth_token(&keypair)?;
-    match try_auth_request(&client, &session_url, &token3).await {
+    match try_auth_request(&client, &signin_url, &token3).await {
         Ok(cookie) => Ok(format!("{}={}", pubkey, cookie)),
         Err(e) => Err(format!("Auth failed after signup attempt: {}", e)),
     }
