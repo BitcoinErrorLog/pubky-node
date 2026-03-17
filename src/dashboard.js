@@ -496,9 +496,26 @@
         var data = await fetchStatus();
         update(data);
         // Also update homeserver status for dashboard overview card
-        if (typeof loadHsStatus === 'function') {
-            try { loadHsStatus(); } catch(e) {}
-        }
+        try {
+            var hsRes = await authFetch('/api/homeserver/status');
+            var hsData = await hsRes.json();
+            var dashHs = document.getElementById('dash-hs-status');
+            if (dashHs) {
+                if (hsData.state === 'running') {
+                    dashHs.textContent = '● Online';
+                    dashHs.style.color = 'var(--green)';
+                } else if (hsData.state === 'starting') {
+                    dashHs.textContent = '◐ Starting…';
+                    dashHs.style.color = 'var(--yellow, #eab308)';
+                } else if (hsData.state === 'error') {
+                    dashHs.textContent = '● Error';
+                    dashHs.style.color = 'var(--red)';
+                } else {
+                    dashHs.textContent = '○ Stopped';
+                    dashHs.style.color = 'var(--text-muted)';
+                }
+            }
+        } catch(e) {}
         // Keep vault state fresh — but only every 30s (vault changes slowly)
         var now = Date.now();
         if (now - _lastVaultPoll > 30000) {
